@@ -1,0 +1,204 @@
+// Sprachen: Deutsch und Englisch. Texte per t('bereich.schluessel', { platzhalter }).
+import { parseKey } from './util.js';
+
+const de = {
+  'nav.today': 'Heute', 'nav.food': 'Ernährung', 'nav.training': 'Training', 'nav.progress': 'Fortschritt', 'nav.body': 'Körper',
+  'common.today': 'Heute', 'common.undo': 'Rückgängig', 'common.close': 'Schliessen', 'common.back': 'Zurück', 'common.save': 'Speichern',
+  'common.delete': 'Löschen', 'common.remove': 'Entfernen', 'common.done': 'Fertig', 'common.date': 'Datum',
+  'common.prevDay': 'Vorheriger Tag', 'common.nextDay': 'Nächster Tag', 'common.prev': 'Zurück', 'common.next': 'Weiter',
+
+  'n.kcal': 'Kalorien', 'n.p': 'Protein', 'n.c': 'Kohlenhydrate', 'n.f': 'Fett', 'n.fiber': 'Ballaststoffe', 'n.sugar': 'Zucker', 'n.salt': 'Salz',
+  'n.pShort': 'P', 'n.cShort': 'K', 'n.fShort': 'F',
+  'meal.breakfast': 'Frühstück', 'meal.lunch': 'Mittagessen', 'meal.dinner': 'Abendessen', 'meal.snacks': 'Snacks',
+  'm.chest': 'Brust', 'm.back': 'Rücken', 'm.shoulders': 'Schultern', 'm.triceps': 'Trizeps', 'm.biceps': 'Bizeps', 'm.forearms': 'Unterarme', 'm.legs': 'Beine', 'm.core': 'Core',
+  'src.own': 'Eigenes', 'src.blv': 'Grundnahrungsmittel', 'src.blvBrand': 'Schweizer Produkt', 'src.off': 'Markenprodukt',
+  'common.ok': 'OK',
+  'food.inDatabase': 'Grundnahrungsmittel & Eigenes', 'food.noLocal': 'Keine Treffer in der Schweizer Nährwertdatenbank.',
+  'food.onlineTitle': 'Markenprodukte (Open Food Facts)', 'food.searchOnline': '«{q}» online suchen', 'food.searchOnlineHint': 'Oder Enter drücken. Braucht Internet.',
+  'food.searchingOnline': 'Suche läuft …', 'food.onlineError': 'Keine Internetverbindung.', 'food.onlineRate': 'Die Online-Suche von Open Food Facts antwortet gerade nicht (Server überlastet). In einer Minute nochmals versuchen – oder Barcode scannen, das klappt meist trotzdem.',
+  'food.noOnline': 'Nichts gefunden. Tipp: Barcode scannen oder anders schreiben.', 'food.retry': 'Nochmals versuchen', 'food.portionShort': 'Portion',
+  'food.barcodeOpt': 'Barcode (optional)',
+  'food.credit': 'Daten: Schweizer Nährwertdatenbank (BLV) und Open Food Facts',
+  'scan.title': 'Barcode scannen', 'scan.starting': 'Kamera wird gestartet …', 'scan.loading': 'Scanner wird geladen …', 'scan.hint': 'Barcode in den Rahmen halten',
+  'scan.manualPh': 'Oder Nummer eintippen', 'scan.invalid': 'Das ist keine gültige Barcode-Nummer.', 'scan.noCamera': 'Keine Kamera verfügbar – Nummer unten eintippen.',
+  'scan.denied': 'Kamera-Zugriff wurde nicht erlaubt. Nummer unten eintippen oder Zugriff in den Einstellungen erlauben.', 'scan.libError': 'Scanner konnte nicht geladen werden.',
+  'scan.lookingUp': 'Suche Produkt {code} …', 'scan.notFound': 'Produkt {code} ist noch nicht in Open Food Facts.', 'scan.notFoundHint': 'Lege es einmal selbst an (Werte stehen auf der Verpackung) – beim nächsten Scan wird es sofort gefunden.',
+  'scan.lookupError': 'Keine Verbindung – Produkt konnte nicht gesucht werden.', 'scan.again': 'Nochmals scannen',
+
+  'today.macros': 'Kalorien und Makros', 'today.left': '{unit} übrig', 'today.over': '{unit} zu viel', 'today.ofGoal': 'von {goal}',
+  'today.setGoals': 'Tipp: Unter Körper Grösse, Alter und Gewicht eintragen – dann wird dein Tagesziel berechnet.',
+  'today.running': 'Training läuft', 'today.continue': 'Weiter', 'today.doneToday': 'Heute erledigt', 'today.suggested': 'Heute vorgeschlagen',
+  'today.restHint': 'Ruhetag. Cardio geht trotzdem.', 'today.toTraining': 'Zum Training', 'today.week': 'Diese Woche', 'today.weekLegend': '● Cardio', 'today.meals': 'Mahlzeiten',
+
+  'rhythm.full': 'Volle Woche', 'rhythm.light': 'Locker', 'rhythm.fullSub': '6 Trainings · 1 Pause', 'rhythm.lightSub': '3 Trainings · 1 Pause',
+  'training.rhythm': 'Rhythmus', 'training.flexHint': 'Verpasst? Das Training wartet, die Pause rückt nach.',
+  'training.start': 'Start', 'training.startPlan': '{name} starten', 'training.rest': 'Pause', 'training.restHint': 'Erholung ist Teil vom Plan. Cardio kannst du trotzdem eintragen.',
+  'training.another': 'Anderes Training', 'training.anotherHint': 'Wähle frei – der Rest der Runde rückt nach.', 'training.restToday': 'Heute Pause',
+  'training.trainAnyway': 'Trotzdem trainieren', 'training.backToSuggestion': 'Zurück zum Vorschlag', 'training.yourChoice': 'Deine Wahl',
+  'training.preview': 'Nächste 7 Tage', 'training.done': 'erledigt', 'training.chosen': 'gewählt', 'training.doneRound': 'schon gemacht', 'training.open': 'offen',
+  'training.plans': 'Pläne', 'training.optional': 'optional', 'training.variant': 'Variante', 'training.exCount': '{n} Übungen', 'training.optCount': '{n} optional',
+  'training.history': 'Verlauf', 'training.noHistory': 'Noch keine Trainings. Starte dein erstes oben.', 'training.workout': 'Training', 'training.volume': 'Volumen',
+  'training.deleteWorkout': 'Training löschen', 'training.workoutDeleted': 'Training gelöscht',
+
+  'cardio.week': 'Cardio diese Woche', 'cardio.none': 'Noch kein Cardio diese Woche.', 'cardio.add': 'Cardio eintragen', 'cardio.minutes': 'Minuten', 'cardio.km': 'Distanz in km (optional)',
+  'cardio.after': 'Nach dem Training', 'cardio.own': 'Eigene Einheit', 'cardio.needMinutes': 'Bitte Minuten eintragen.', 'cardio.saved': 'Cardio gespeichert', 'cardio.deleted': 'Cardio gelöscht',
+  'cardio.run': 'Laufen', 'cardio.treadmill': 'Laufband', 'cardio.bike': 'Velo', 'cardio.crosstrainer': 'Crosstrainer', 'cardio.rowing': 'Rudern', 'cardio.stairs': 'Treppe', 'cardio.swim': 'Schwimmen', 'cardio.other': 'Anderes',
+
+  'active.none': 'Kein Training aktiv', 'active.finish': 'Beenden', 'active.note': 'Notiz', 'active.skipped': 'übersprungen', 'active.doIt': 'Doch machen',
+  'active.skip': 'Überspringen', 'active.swap': 'Tauschen gegen {name}', 'active.insteadOf': 'statt {name}', 'active.best': 'Bestwert 1RM ≈ {v} kg', 'active.firstTime': 'Zum ersten Mal – viel Erfolg!',
+  'active.set': 'Satz', 'active.last': 'Zuletzt', 'active.reps': 'Wdh', 'active.check': 'Satz abhaken', 'active.setMenu': 'Satz bearbeiten',
+  'active.addWarmup': 'Aufwärmsatz', 'active.addSet': 'Satz', 'active.makeWarmup': 'Als Aufwärmsatz (W)', 'active.makeWork': 'Als Arbeitssatz',
+  'active.warmupHint': 'Aufwärmsätze (W) zählen nicht für Volumen und Bestwerte.', 'active.removeSet': 'Satz entfernen', 'active.setRemoved': 'Satz entfernt',
+  'active.addCardio': 'Cardio anhängen', 'active.cardioAfter': 'Cardio danach',
+  'active.finishTitle': 'Training beenden?', 'active.finishSummary': '{done} Arbeitssätze abgehakt, {open} offen.', 'active.openNotSaved': 'Nicht abgehakte Sätze werden nicht gespeichert.',
+  'active.save': 'Speichern und beenden', 'active.discard': 'Training verwerfen', 'active.discardConfirm': 'Training wirklich verwerfen? Die Sätze gehen verloren.',
+  'active.saved': 'Training gespeichert 💪', 'active.savedPr': 'Gespeichert – {n} neue Bestwerte! 🏆',
+
+  'food.add': 'Hinzufügen', 'food.addTo': 'Zu {meal} hinzufügen', 'food.nothingYet': 'Noch nichts eingetragen', 'food.eaten': 'Gegessen', 'food.goal': 'Ziel',
+  'food.more': 'Weitere Werte', 'food.max': 'max.', 'food.target': 'Ziel', 'food.amount': 'Menge in Gramm', 'food.deleted': '{name} gelöscht', 'food.added': '{name} hinzugefügt',
+  'food.searchPh': 'Lebensmittel oder Marke suchen', 'food.barcode': 'Barcode', 'food.own': 'Eigenes', 'food.ownTitle': 'Eigenes Lebensmittel', 'food.quick': 'Schnell eintragen (nur Kalorien/Makros)',
+  'food.recent': 'Zuletzt benutzt', 'food.results': 'Ergebnisse', 'food.per100': 'pro 100 g', 'food.noResults': 'Nichts gefunden.', 'food.createOwn': 'Als eigenes Lebensmittel anlegen',
+  'food.noRecent': 'Suche nach einem Lebensmittel oder lege ein eigenes an.', 
+  'food.name': 'Name', 'food.brand': 'Marke (optional)', 'food.valuesPer100': 'Nährwerte pro 100 g (steht auf der Verpackung)', 'food.portion': 'Übliche Portion (g)',
+  'food.needNameKcal': 'Name und Kalorien sind nötig.', 'food.needKcal': 'Bitte Kalorien eintragen.', 'food.quickPh': 'z. B. Restaurant', 'food.quickName': 'Schnelleintrag',
+
+  'progress.me': 'Ich', 'progress.friends': 'Freunde', 'progress.e1rm': 'Geschätztes 1RM', 'progress.exercise': 'Übung', 'progress.chart': 'Verlauf',
+  'progress.e1rmHint': 'Geschätzt aus Gewicht × Wiederholungen (Epley), ohne Aufwärmsätze.', 'progress.needTwo': 'Ab zwei Trainings siehst du hier eine Kurve.',
+  'progress.noData': 'Noch keine Trainings gespeichert.', 'progress.prs': 'Bestwerte', 'progress.setsPerMuscle': 'Sätze pro Muskel', 'progress.last7': 'letzte 7 Tage',
+  'progress.trainings': '{n} Trainings', 'progress.strength': 'Kraft', 'progress.cardio': 'Cardio',
+  'friends.title': 'Freunde & Rangliste', 'friends.soon': 'Kommt, sobald Login und Sync eingerichtet sind: Gruppe mit Einladungscode, Rangliste für Kraft (relativ zum Körpergewicht), Konstanz, Volumen und PRs.',
+
+  'body.weight': 'Gewicht', 'body.addWeight': 'Eintragen', 'body.firstWeight': 'Erstes Gewicht eintragen', 'body.weightPh': 'Gewicht heute in kg',
+  'body.invalidWeight': 'Bitte ein gültiges Gewicht eingeben.', 'body.weightSaved': 'Gewicht gespeichert', 'body.weightDeleted': 'Eintrag gelöscht',
+  'body.measures': 'Körpermasse', 'body.addMeasures': 'Masse eintragen', 'body.noMeasures': 'Noch keine Masse eingetragen.',
+  'body.photos': 'Progress-Fotos', 'body.photosSoon': 'Kommt in einem späteren Schritt (Fotos bleiben privat).',
+  'body.goals': 'Ziel & Tagesbedarf', 'body.sex': 'Geschlecht', 'body.birthYear': 'Geburtsjahr', 'body.height': 'Grösse (cm)', 'body.activity': 'Aktivität',
+  'body.calcInfo': 'Grundumsatz {bmr} kcal · Gesamtbedarf {tdee} kcal', 'body.needData': 'Trage Geschlecht, Geburtsjahr, Grösse und Gewicht ein, dann wird dein Ziel berechnet.',
+  'body.manual': 'Manuell gesetzt', 'body.backToAuto': 'Wieder automatisch', 'body.setManual': 'Ziel selbst festlegen', 'body.manualHint': 'Überschreibt die automatische Berechnung.',
+  'goal.cut': 'Diät', 'goal.maintain': 'Halten', 'goal.bulk': 'Aufbau', 'sex.m': 'Mann', 'sex.f': 'Frau',
+  'act.sedentary': 'Kaum aktiv', 'act.light': 'Leicht aktiv', 'act.moderate': 'Aktiv (3–5× Training)', 'act.high': 'Sehr aktiv (6–7×)', 'act.veryHigh': 'Extrem aktiv',
+  'measure.waist': 'Bauch', 'measure.chest': 'Brust', 'measure.arm': 'Oberarm', 'measure.thigh': 'Oberschenkel', 'measure.hips': 'Hüfte',
+
+  'settings.title': 'Einstellungen', 'settings.lang': 'Sprache', 'settings.energy': 'Energie-Einheit',
+  'settings.sync': 'Konto & Sync', 'settings.syncSoon': 'Kommt im nächsten Schritt. Bis dahin bleiben alle Daten nur in diesem Browser.',
+  'settings.health': 'Apple Health / Health Connect', 'settings.healthSoon': 'Geplant: Daten und Workouts übernehmen, Makros zurückschreiben.',
+  'settings.data': 'Daten', 'settings.dataHint': 'Sicherung als Datei – z. B. bevor du den Browser wechselst.', 'settings.export': 'Exportieren', 'settings.import': 'Importieren',
+  'settings.importDone': 'Daten importiert', 'settings.importFail': 'Datei konnte nicht gelesen werden.', 'settings.reset': 'Alle Daten löschen',
+  'settings.resetConfirm': 'Wirklich alle Daten auf diesem Gerät löschen? Das kann nicht rückgängig gemacht werden.', 'settings.resetDone': 'Alle Daten gelöscht', 'settings.version': 'Version',
+};
+
+const en = {
+  'nav.today': 'Today', 'nav.food': 'Nutrition', 'nav.training': 'Training', 'nav.progress': 'Progress', 'nav.body': 'Body',
+  'common.today': 'Today', 'common.undo': 'Undo', 'common.close': 'Close', 'common.back': 'Back', 'common.save': 'Save',
+  'common.delete': 'Delete', 'common.remove': 'Remove', 'common.done': 'Done', 'common.date': 'Date',
+  'common.prevDay': 'Previous day', 'common.nextDay': 'Next day', 'common.prev': 'Previous', 'common.next': 'Next',
+
+  'n.kcal': 'Calories', 'n.p': 'Protein', 'n.c': 'Carbs', 'n.f': 'Fat', 'n.fiber': 'Fibre', 'n.sugar': 'Sugar', 'n.salt': 'Salt',
+  'n.pShort': 'P', 'n.cShort': 'C', 'n.fShort': 'F',
+  'meal.breakfast': 'Breakfast', 'meal.lunch': 'Lunch', 'meal.dinner': 'Dinner', 'meal.snacks': 'Snacks',
+  'm.chest': 'Chest', 'm.back': 'Back', 'm.shoulders': 'Shoulders', 'm.triceps': 'Triceps', 'm.biceps': 'Biceps', 'm.forearms': 'Forearms', 'm.legs': 'Legs', 'm.core': 'Core',
+  'src.own': 'Custom', 'src.blv': 'Basic food', 'src.blvBrand': 'Swiss product', 'src.off': 'Branded product',
+  'common.ok': 'OK',
+  'food.inDatabase': 'Basic foods & custom', 'food.noLocal': 'No matches in the Swiss food composition database.',
+  'food.onlineTitle': 'Branded products (Open Food Facts)', 'food.searchOnline': 'Search "{q}" online', 'food.searchOnlineHint': 'Or press Enter. Needs internet.',
+  'food.searchingOnline': 'Searching …', 'food.onlineError': 'No internet connection.', 'food.onlineRate': 'The Open Food Facts search is not responding right now (server busy). Try again in a minute – or scan the barcode, which usually still works.',
+  'food.noOnline': 'Nothing found. Tip: scan the barcode or try another spelling.', 'food.retry': 'Try again', 'food.portionShort': 'serving',
+  'food.barcodeOpt': 'Barcode (optional)',
+  'food.credit': 'Data: Swiss Food Composition Database (FSVO) and Open Food Facts',
+  'scan.title': 'Scan barcode', 'scan.starting': 'Starting camera …', 'scan.loading': 'Loading scanner …', 'scan.hint': 'Hold the barcode inside the frame',
+  'scan.manualPh': 'Or type the number', 'scan.invalid': 'That is not a valid barcode number.', 'scan.noCamera': 'No camera available – type the number below.',
+  'scan.denied': 'Camera access was not allowed. Type the number below or allow access in settings.', 'scan.libError': 'Could not load the scanner.',
+  'scan.lookingUp': 'Looking up {code} …', 'scan.notFound': 'Product {code} is not in Open Food Facts yet.', 'scan.notFoundHint': 'Create it once yourself (values are on the package) – next time the scan finds it instantly.',
+  'scan.lookupError': 'No connection – could not look up the product.', 'scan.again': 'Scan again',
+
+  'today.macros': 'Calories and macros', 'today.left': '{unit} left', 'today.over': '{unit} over', 'today.ofGoal': 'of {goal}',
+  'today.setGoals': 'Tip: enter height, age and weight under Body to calculate your daily goal.',
+  'today.running': 'Workout in progress', 'today.continue': 'Continue', 'today.doneToday': 'Done today', 'today.suggested': 'Suggested today',
+  'today.restHint': 'Rest day. Cardio is still fine.', 'today.toTraining': 'Go to training', 'today.week': 'This week', 'today.weekLegend': '● Cardio', 'today.meals': 'Meals',
+
+  'rhythm.full': 'Full week', 'rhythm.light': 'Easy', 'rhythm.fullSub': '6 workouts · 1 rest', 'rhythm.lightSub': '3 workouts · 1 rest',
+  'training.rhythm': 'Rhythm', 'training.flexHint': 'Missed one? It waits, the rest day moves back.',
+  'training.start': 'Start', 'training.startPlan': 'Start {name}', 'training.rest': 'Rest', 'training.restHint': 'Recovery is part of the plan. You can still log cardio.',
+  'training.another': 'Other workout', 'training.anotherHint': 'Pick freely – the rest of the round moves back.', 'training.restToday': 'Rest today',
+  'training.trainAnyway': 'Train anyway', 'training.backToSuggestion': 'Back to suggestion', 'training.yourChoice': 'Your choice',
+  'training.preview': 'Next 7 days', 'training.done': 'done', 'training.chosen': 'chosen', 'training.doneRound': 'already done', 'training.open': 'open',
+  'training.plans': 'Plans', 'training.optional': 'optional', 'training.variant': 'Variant', 'training.exCount': '{n} exercises', 'training.optCount': '{n} optional',
+  'training.history': 'History', 'training.noHistory': 'No workouts yet. Start your first one above.', 'training.workout': 'Workout', 'training.volume': 'volume',
+  'training.deleteWorkout': 'Delete workout', 'training.workoutDeleted': 'Workout deleted',
+
+  'cardio.week': 'Cardio this week', 'cardio.none': 'No cardio this week yet.', 'cardio.add': 'Log cardio', 'cardio.minutes': 'Minutes', 'cardio.km': 'Distance in km (optional)',
+  'cardio.after': 'After workout', 'cardio.own': 'Separate session', 'cardio.needMinutes': 'Please enter minutes.', 'cardio.saved': 'Cardio saved', 'cardio.deleted': 'Cardio deleted',
+  'cardio.run': 'Running', 'cardio.treadmill': 'Treadmill', 'cardio.bike': 'Cycling', 'cardio.crosstrainer': 'Cross trainer', 'cardio.rowing': 'Rowing', 'cardio.stairs': 'Stairs', 'cardio.swim': 'Swimming', 'cardio.other': 'Other',
+
+  'active.none': 'No active workout', 'active.finish': 'Finish', 'active.note': 'Note', 'active.skipped': 'skipped', 'active.doIt': 'Do it',
+  'active.skip': 'Skip', 'active.swap': 'Swap for {name}', 'active.insteadOf': 'instead of {name}', 'active.best': 'Best 1RM ≈ {v} kg', 'active.firstTime': 'First time – good luck!',
+  'active.set': 'Set', 'active.last': 'Last', 'active.reps': 'Reps', 'active.check': 'Complete set', 'active.setMenu': 'Edit set',
+  'active.addWarmup': 'Warm-up set', 'active.addSet': 'Set', 'active.makeWarmup': 'Mark as warm-up (W)', 'active.makeWork': 'Mark as working set',
+  'active.warmupHint': 'Warm-up sets (W) do not count towards volume or PRs.', 'active.removeSet': 'Remove set', 'active.setRemoved': 'Set removed',
+  'active.addCardio': 'Add cardio', 'active.cardioAfter': 'Cardio afterwards',
+  'active.finishTitle': 'Finish workout?', 'active.finishSummary': '{done} working sets completed, {open} open.', 'active.openNotSaved': 'Unchecked sets will not be saved.',
+  'active.save': 'Save and finish', 'active.discard': 'Discard workout', 'active.discardConfirm': 'Really discard this workout? All sets will be lost.',
+  'active.saved': 'Workout saved 💪', 'active.savedPr': 'Saved – {n} new PRs! 🏆',
+
+  'food.add': 'Add', 'food.addTo': 'Add to {meal}', 'food.nothingYet': 'Nothing logged yet', 'food.eaten': 'Eaten', 'food.goal': 'Goal',
+  'food.more': 'More values', 'food.max': 'max.', 'food.target': 'goal', 'food.amount': 'Amount in grams', 'food.deleted': '{name} deleted', 'food.added': '{name} added',
+  'food.searchPh': 'Search food or brand', 'food.barcode': 'Barcode', 'food.own': 'Custom', 'food.ownTitle': 'Custom food', 'food.quick': 'Quick add (calories/macros only)',
+  'food.recent': 'Recently used', 'food.results': 'Results', 'food.per100': 'per 100 g', 'food.noResults': 'Nothing found.', 'food.createOwn': 'Create as custom food',
+  'food.noRecent': 'Search for a food or create your own.', 
+  'food.name': 'Name', 'food.brand': 'Brand (optional)', 'food.valuesPer100': 'Nutrition per 100 g (see the package)', 'food.portion': 'Usual portion (g)',
+  'food.needNameKcal': 'Name and calories are required.', 'food.needKcal': 'Please enter calories.', 'food.quickPh': 'e.g. restaurant', 'food.quickName': 'Quick entry',
+
+  'progress.me': 'Me', 'progress.friends': 'Friends', 'progress.e1rm': 'Estimated 1RM', 'progress.exercise': 'Exercise', 'progress.chart': 'History',
+  'progress.e1rmHint': 'Estimated from weight × reps (Epley), excluding warm-up sets.', 'progress.needTwo': 'After two workouts you will see a curve here.',
+  'progress.noData': 'No workouts saved yet.', 'progress.prs': 'Personal records', 'progress.setsPerMuscle': 'Sets per muscle', 'progress.last7': 'last 7 days',
+  'progress.trainings': '{n} workouts', 'progress.strength': 'Strength', 'progress.cardio': 'Cardio',
+  'friends.title': 'Friends & leaderboard', 'friends.soon': 'Coming once login and sync are set up: group with invite code, leaderboard for strength (relative to body weight), consistency, volume and PRs.',
+
+  'body.weight': 'Weight', 'body.addWeight': 'Log', 'body.firstWeight': 'Log your first weight', 'body.weightPh': "Today's weight in kg",
+  'body.invalidWeight': 'Please enter a valid weight.', 'body.weightSaved': 'Weight saved', 'body.weightDeleted': 'Entry deleted',
+  'body.measures': 'Measurements', 'body.addMeasures': 'Log measurements', 'body.noMeasures': 'No measurements yet.',
+  'body.photos': 'Progress photos', 'body.photosSoon': 'Coming in a later step (photos stay private).',
+  'body.goals': 'Goal & daily needs', 'body.sex': 'Sex', 'body.birthYear': 'Year of birth', 'body.height': 'Height (cm)', 'body.activity': 'Activity',
+  'body.calcInfo': 'BMR {bmr} kcal · Total {tdee} kcal', 'body.needData': 'Enter sex, year of birth, height and weight to calculate your goal.',
+  'body.manual': 'Set manually', 'body.backToAuto': 'Back to automatic', 'body.setManual': 'Set goal manually', 'body.manualHint': 'Overrides the automatic calculation.',
+  'goal.cut': 'Cut', 'goal.maintain': 'Maintain', 'goal.bulk': 'Bulk', 'sex.m': 'Male', 'sex.f': 'Female',
+  'act.sedentary': 'Sedentary', 'act.light': 'Lightly active', 'act.moderate': 'Active (3–5× training)', 'act.high': 'Very active (6–7×)', 'act.veryHigh': 'Extremely active',
+  'measure.waist': 'Waist', 'measure.chest': 'Chest', 'measure.arm': 'Upper arm', 'measure.thigh': 'Thigh', 'measure.hips': 'Hips',
+
+  'settings.title': 'Settings', 'settings.lang': 'Language', 'settings.energy': 'Energy unit',
+  'settings.sync': 'Account & sync', 'settings.syncSoon': 'Coming in the next step. Until then, all data stays in this browser only.',
+  'settings.health': 'Apple Health / Health Connect', 'settings.healthSoon': 'Planned: import data and workouts, write macros back.',
+  'settings.data': 'Data', 'settings.dataHint': 'Backup as a file – e.g. before switching browsers.', 'settings.export': 'Export', 'settings.import': 'Import',
+  'settings.importDone': 'Data imported', 'settings.importFail': 'Could not read the file.', 'settings.reset': 'Delete all data',
+  'settings.resetConfirm': 'Really delete all data on this device? This cannot be undone.', 'settings.resetDone': 'All data deleted', 'settings.version': 'Version',
+};
+
+const DICTS = { de, en };
+let current = 'de';
+
+export function setLang(l) { current = DICTS[l] ? l : 'de'; }
+export function lang() { return current; }
+
+export function t(key, vars) {
+  let s = DICTS[current][key] ?? de[key];
+  if (s == null) { console.warn('Fehlender Text:', key); return key; }
+  if (vars) s = s.replace(/\{(\w+)\}/g, (_, k) => (vars[k] ?? ''));
+  return s;
+}
+
+const locale = () => (current === 'en' ? 'en-GB' : 'de-CH');
+export function weekdayShort(key) {
+  return parseKey(key).toLocaleDateString(locale(), { weekday: 'short' }).replace('.', '');
+}
+export function longDate(key) {
+  return parseKey(key).toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' });
+}
+export function shortDate(key) {
+  return parseKey(key).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' });
+}
+export function monthName(date) {
+  return date.toLocaleDateString(locale(), { month: 'long', year: 'numeric' });
+}
+export function weekdayHeaders() {
+  return Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 1 + i).toLocaleDateString(locale(), { weekday: 'short' }).replace('.', '').slice(0, 2));
+}

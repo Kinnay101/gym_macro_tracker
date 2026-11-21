@@ -1,0 +1,37 @@
+// Service Worker: macht die App offline-fähig.
+// "Netzwerk zuerst": Änderungen kommen sofort an, ohne Internet greift der Zwischenspeicher.
+// Bei Änderungen am App-Code APP_CACHE hochzählen.
+const APP_CACHE = 'gym-v3';
+const SHELL = [
+  './', 'index.html', 'styles.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
+  'js/app.js', 'js/store.js', 'js/i18n.js', 'js/util.js', 'js/ui.js', 'js/plan.js', 'js/nutrition.js', 'js/workout.js',
+  'js/views/today.js', 'js/views/food.js', 'js/views/food-add.js', 'js/views/training.js', 'js/views/active.js',
+  'js/views/progress.js', 'js/views/body.js', 'js/foods.js', 'js/scanner.js', 'data/blv.json',
+  'vendor/zxing/reader/index.js', 'vendor/zxing/share.js', 'vendor/zxing/zxing_reader.wasm',
+];
+
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(APP_CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+});
+
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== APP_CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim()),
+  );
+});
+
+self.addEventListener('fetch', (e) => {
+  const url = new URL(e.request.url);
+  if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  e.respondWith(
+    fetch(e.request, { cache: 'no-cache' })
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(APP_CACHE).then((c) => c.put(e.request, copy));
+        return res;
+      })
+      .catch(() => caches.match(e.request, { ignoreSearch: true })),
+  );
+});

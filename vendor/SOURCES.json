@@ -1,0 +1,26 @@
+[
+ {
+  "file": "vendor/zxing/LICENSE",
+  "bytes": 1068,
+  "sha256": "fb506e4ade12d7a9efa67c9d76a9a28c8e15d347ca49a69e48e29b40b34ad2ab",
+  "source": "npm zxing-wasm@3.1.6 (LICENSE), Paket-sha512 geprüft, veröffentlicht 2026-10-19"
+ },
+ {
+  "file": "vendor/zxing/reader/index.js",
+  "bytes": 41725,
+  "sha256": "368838c01a37be49b8daa833c3d9d253950fd9c29b8c98b9092018c9fd43b03c",
+  "source": "npm zxing-wasm@3.1.6 (dist/es/reader/index.js), Paket-sha512 geprüft, veröffentlicht 2026-10-19"
+ },
+ {
+  "file": "vendor/zxing/share.js",
+  "bytes": 11404,
+  "sha256": "b595f0f4c1060b5e2a45aecf0331e576181dc281b168cb22e98f8db69d16457a",
+  "source": "npm zxing-wasm@3.1.6 (dist/es/share.js), Paket-sha512 geprüft, veröffentlicht 2026-10-19"
+ },
+ {
+  "file": "vendor/zxing/zxing_reader.wasm",
+  "bytes": 946860,
+  "sha256": "5003fb4b88c4fbd1fd518a2fd8c8ad365c519e183a08c03a322dddfea3cea84e",
+  "source": "npm zxing-wasm@3.1.6 (dist/reader/zxing_reader.wasm), Paket-sha512 geprüft, veröffentlicht 2026-10-19"
+ }
+]

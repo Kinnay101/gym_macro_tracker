@@ -1,0 +1,17 @@
+# Alles hier wird NICHT auf GitHub hochgeladen (das Repository wird öffentlich).
+
+# Private Dateien
+PROJEKTSTAND.md
+CLAUDE.md
+.claude/
+
+# Temporäre Testseiten
+_*.html
+
+# Systemdateien
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Python-Zwischendateien
+__pycache__/
