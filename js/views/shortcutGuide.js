@@ -2,7 +2,7 @@
 // Bewusst keine echten Screenshots (die enthielten persönliche Gesundheitswerte, das Repo ist öffentlich).
 import { esc } from '../util.js';
 import { t } from '../i18n.js';
-import { SUPABASE_URL } from '../config.js';
+import { SUPABASE_URL, SUPABASE_KEY } from '../config.js';
 
 // Beschriftungen wie in der Kurzbefehle-App – je nach Sprache des iPhones
 const UI = {
@@ -88,7 +88,7 @@ function datePanel(u, fmt, ends) {
 const resultLine = (s) => `<div class="sc-result">${esc(s)}</div>`;
 
 // ---------- Schritte ----------
-function steps(u) {
+function steps(u, token) {
   const de = t('hs.token') === 'Schlüssel';
   const L = (a, b) => (de ? a : b);
   const dupHint = L('Block darüber kopieren: die Suche und den Repeat je lange drücken → «Duplicate». Dann nur das <b>Markierte</b> ändern.',
@@ -122,33 +122,67 @@ function steps(u) {
         L('Bei «Adjust Date»: «Add» antippen → <b>Subtract</b>, dann <b>1</b> und <b>days</b>.', 'In "Adjust Date": tap "Add" → <b>Subtract</b>, then <b>1</b> and <b>days</b>.'),
         L('Bei «Format Date»: Date Format → <b>Custom</b> → <code>yyyy-MM-dd</code>. Das Ergebnis heisst automatisch «Formatted Date».', 'In "Format Date": Date Format → <b>Custom</b> → <code>yyyy-MM-dd</code>. The result is automatically called "Formatted Date".'),
       ] },
-    { title: L('Senden', 'Send'), body:
-        card(ICON.text, `${u.combine} ${chg(vtok('Data', 'var'))} ${u.with} ${tok(u.newLines)}`)
-        + card(ICON.url, `${u.getContents} ${chg(`<span class="sc-tok" style="white-space:normal;word-break:break-all">${esc(SUPABASE_URL + '/rest/v1/rpc/health_sync')}</span>`)}`,
-          row(`<span class="grow">${u.method}</span>${chg(tok('POST'))}`)
-          + row(`<span class="grow">${u.headers}</span>`)
-          + row(`${chg(`${tok('apikey')} ${tok('sb_publishable_…')}`)}`)
-          + row(`${chg(`${tok('Content-Type')} ${tok('application/json')}`)}`)
-          + row(`<span class="grow">${u.body}</span>${chg(tok('JSON'))}`)
-          + row(chg(`${tok('token')} ${tok(L('dein Schlüssel', 'your key'))}`))
-          + row(chg(`${tok('payload')} ${vtok(u.combined, 'text')}`))
-          + row(chg(`${tok('export_date')} ${vtok(u.formatted, 'date')}`))),
+    { title: L('Senden', 'Send'), body: (() => {
+        const url = SUPABASE_URL + '/rest/v1/rpc/health_sync';
+        const copyBtn = (v) => `<button type="button" class="btn sm" data-act="hs-copy" data-v="${esc(v)}">${L('Kopieren', 'Copy')}</button>`;
+        // Formular wie auf dem iPhone: links Key, rechts Text
+        const kv = (k, v, minus = true) => `<div class="sc-kv">${minus ? '<span class="sc-minus">−</span>' : ''}<span class="sc-k">${k}</span><span class="sc-v">${v}</span></div>`;
+        const addRow = (label) => `<div class="sc-kv sc-add"><span class="sc-plus">+</span><span>${esc(label)}</span></div>`;
+        const form = card(ICON.url, `${u.getContents} <span class="sc-tok" style="white-space:normal;word-break:break-all">${esc(url)}</span>`,
+          row(`<span class="grow">${u.method}</span><span class="sc-link">POST</span>`)
+          + row(`<span class="grow">${u.headers}</span><span>⌄</span>`)
+          + `<div class="sc-kvs">${kv('apikey', esc(SUPABASE_KEY))}${kv('Content-Type', 'application/json')}${addRow('Add new header')}</div>`
+          + row(`<span class="grow">${u.body}</span><span class="sc-link">JSON</span>`)
+          + `<div class="sc-kvs">${kv('token', L('dein Schlüssel', 'your key'))}${kv('payload', vtok(u.combined, 'text'))}${kv('export_date', vtok(u.formatted, 'date'))}${addRow('Add new field')}</div>`);
+        // Was wohin – mit Kopieren-Knöpfen
+        const fill = (n, what, value, extra = '') => `<div class="sc-fill"><span class="sc-num">${n}</span><div class="grow"><div class="small">${what}</div>${value ? `<code class="sc-val">${esc(value)}</code>` : ''}${extra}</div>${value && !extra ? copyBtn(value) : ''}</div>`;
+        const steps8 = [
+          fill('A', L('<b>Combine Text</b>: «Text» antippen → Variable <b>Data</b> (oranges x). Separator: <b>New Lines</b>.', '<b>Combine Text</b>: tap "Text" → variable <b>Data</b> (orange x). Separator: <b>New Lines</b>.')),
+          fill('B', L('<b>Get Contents of URL</b> einfügen, ins URL-Feld diese Adresse einfügen (ganz, ohne Punkte):', 'Add <b>Get Contents of URL</b>, paste this address into the URL field (complete, no dots):'), url),
+          fill('C', L('Auf den Pfeil ⌄ tippen. <b>Method</b> → <b>POST</b>.', 'Tap the arrow ⌄. <b>Method</b> → <b>POST</b>.')),
+          fill('D', L('<b>Headers</b>, erste Zeile: Key <code>apikey</code>, Text:', '<b>Headers</b>, first row: Key <code>apikey</code>, Text:'), SUPABASE_KEY),
+          fill('E', L('<b>Add new header</b>: Key <code>Content-Type</code>, Text:', '<b>Add new header</b>: Key <code>Content-Type</code>, Text:'), 'application/json'),
+          fill('F', L('<b>Request Body</b> → <b>JSON</b>. <b>Add new field</b> → <b>Text</b>: Key <code>token</code>, Text = dein Schlüssel:', '<b>Request Body</b> → <b>JSON</b>. <b>Add new field</b> → <b>Text</b>: Key <code>token</code>, Text = your key:'),
+            token || '', token ? '' : `<div class="tiny" style="color:var(--warn)">${L('Schlüssel nicht mehr sichtbar? Fenster schliessen → «Neuer Schlüssel». Dann steht er hier zum Kopieren.', 'Key no longer visible? Close this window → "New key". Then it appears here to copy.')}</div>`),
+          fill('G', L('<b>Add new field</b> → <b>Text</b>: Key <code>payload</code>, beim Text über der Tastatur die Variable <b>Combined Text</b> antippen.', '<b>Add new field</b> → <b>Text</b>: Key <code>payload</code>, for the text tap the variable <b>Combined Text</b> above the keyboard.')),
+          fill('H', L('<b>Add new field</b> → <b>Text</b>: Key <code>export_date</code>, Text = Variable <b>Formatted Date</b>.', '<b>Add new field</b> → <b>Text</b>: Key <code>export_date</code>, text = variable <b>Formatted Date</b>.')),
+        ].join('');
+        return `${card(ICON.text, `${u.combine} ${vtok('Data', 'var')} ${u.with} ${tok(u.newLines)}`)}${form}<div class="small" style="margin-top:4px"><b>${L('So füllst du es aus', 'How to fill it in')}</b></div>${steps8}`;
+      })(),
       notes: [
-        L('<b>Wozu:</b> Packt alle Zeilen in einen Text und schickt ihn mit deinem Schlüssel an dein Konto. Als Antwort kommen die Kalorien und Makros von gestern zurück.', '<b>Why:</b> packs all lines into one text and sends it with your key to your account. The answer contains yesterday’s calories and macros.'),
-        L('<b>Combine Text</b> einfügen: «Text» antippen → Variable <b>Data</b> (oranges x) wählen. «Separator» bleibt «New Lines».', 'Add <b>Combine Text</b>: tap "Text" → choose the variable <b>Data</b> (orange x). "Separator" stays "New Lines".'),
-        L('<b>Get Contents of URL</b> einfügen, «URL» antippen und die Adresse von oben einfügen. Dann auf den Pfeil/«Show More» tippen.', 'Add <b>Get Contents of URL</b>, tap "URL" and paste the address from above. Then tap the arrow/"Show More".'),
-        L('Method → <b>POST</b>. Bei Headers zweimal «Add new header»: <code>apikey</code> = App-Schlüssel von oben, <code>Content-Type</code> = <code>application/json</code>.', 'Method → <b>POST</b>. Under Headers tap "Add new header" twice: <code>apikey</code> = app key from above, <code>Content-Type</code> = <code>application/json</code>.'),
-        L('Request Body → <b>JSON</b>. Dreimal «Add new field» → <b>Text</b>: <code>token</code> = dein Schlüssel, <code>payload</code> = Variable «Combined Text», <code>export_date</code> = Variable «Formatted Date».', 'Request Body → <b>JSON</b>. Three times "Add new field" → <b>Text</b>: <code>token</code> = your key, <code>payload</code> = variable "Combined Text", <code>export_date</code> = variable "Formatted Date".'),
-        L('Test: Quick Look auf «Contents of URL» umstellen und ▶ – es sollte <code>{"ok":true,"lines":…}</code> erscheinen.', 'Test: switch Quick Look to "Contents of URL" and ▶ – it should show <code>{"ok":true,"lines":…}</code>.'),
+        L('<b>Wozu:</b> Schickt alle Zeilen mit deinem Schlüssel an dein Konto. Als Antwort kommen die Kalorien und Makros von gestern zurück.', '<b>Why:</b> sends all lines with your key to your account. The answer contains yesterday’s calories and macros.'),
+        L('<b>Test:</b> Beim Quick Look «Data» antippen → Clear Variable → <b>Contents of URL</b> wählen, dann ▶. Es sollte <code>{"ok":true,"lines":…}</code> erscheinen.', '<b>Test:</b> in Quick Look tap "Data" → Clear Variable → choose <b>Contents of URL</b>, then ▶. It should show <code>{"ok":true,"lines":…}</code>.'),
       ] },
-    { title: L('Kalorien nach Apple Health', 'Calories to Apple Health'), body:
-        card(ICON.dict, `${u.get} ${tok(u.valueFor)} ${tok('export')} ${u.inW} ${vtok(u.contents, 'url')}`)
-        + card(ICON.ifI, `${u.ifW} ${vtok(u.dict, 'dict')} ${tok(u.hasAny)}`)
-        + indent(card(ICON.dict, `${u.get} ${tok(u.valueFor)} ${tok('kcal')} ${u.inW} ${vtok(u.dict, 'dict')}`)
-          + card(ICON.log, `${u.log} ${tok(u.energy)} ${u.sampleWith} ${vtok(u.dict, 'dict')} ${u.atDate} ${vtok(u.adjusted, 'date')}`)
-          + `<div class="sc-more">+ protein → ${esc(u.protein)} · carbs → ${esc(u.carbs)} · fat → ${esc(u.fat)} · fiber → ${esc(u.fiber)} · sugar → ${esc(u.sugar)}</div>`)
-        + card(ICON.ifI, u.endIf),
-      notes: [L('Für jeden Wert dieselben zwei Aktionen (Wert holen → protokollieren). Die zweite «Get Value» holt aus dem Ergebnis der ersten.', 'Same two actions for each value (get value → log). The inner "Get Value" reads from the result of the first one.')] },
+    { title: L('Kalorien nach Apple Health', 'Calories to Apple Health'), body: (() => {
+        const fill = (n, what) => `<div class="sc-fill"><span class="sc-num">${n}</span><div class="grow small">${what}</div></div>`;
+        const pair = (key, type, unit) => card(ICON.dict, `${u.get} ${tok(u.valueFor)} ${chg(tok(key))} ${u.inW} ${vtok('Export', 'dict')}`)
+          + card(ICON.log, `${u.log} ${chg(tok(type))} ${u.sampleWith} ${vtok(u.dict, 'dict')} ${chg(tok(unit))} ${u.atDate} ${vtok(u.adjusted, 'date')}`);
+        const visual = card(ICON.dict, `${u.get} ${tok(u.valueFor)} ${chg(tok('export'))} ${u.inW} ${vtok(u.contents, 'url')} → <b>Export</b>`)
+          + card(ICON.ifI, `${u.ifW} ${vtok('Export', 'dict')} ${chg(tok(u.hasAny))}`)
+          + indent(pair('kcal', u.energy, 'kcal') + `<div class="sc-more">${L('… und gleich für', '… and the same for')}: protein → ${esc(u.protein)} (g) · carbs → ${esc(u.carbs)} (g) · fat → ${esc(u.fat)} (g) · fiber → ${esc(u.fiber)} (g) · sugar → ${esc(u.sugar)} (g)</div>`)
+          + card(ICON.ifI, `<span class="muted">Otherwise</span>`, '', 'sc-repeat')
+          + card(ICON.ifI, u.endIf, '', 'sc-repeat');
+        const list = [
+          fill('A', L('Suche <b>Get Dictionary Value</b> und einfügen (unter «Get Contents of URL»). Dort steht «Get Value for Key in Contents of URL». <b>Key</b> antippen → <code>export</code> eintippen.',
+            'Search <b>Get Dictionary Value</b> and add it (below "Get Contents of URL"). It reads "Get Value for Key in Contents of URL". Tap <b>Key</b> → type <code>export</code>.')),
+          fill('B', L('Das Ergebnis umbenennen, damit es später eindeutig ist: unter der Aktion auf «Dictionary Value» tippen → <b>Rename</b> → <code>Export</code>. (Falls «Rename» fehlt: einfach weiter, dann heisst es «Dictionary Value».)',
+            'Rename the result so it is clear later: tap "Dictionary Value" below the action → <b>Rename</b> → <code>Export</code>. (If there is no "Rename": just continue, it is then called "Dictionary Value".)')),
+          fill('C', L('Suche <b>If</b> und einfügen. Als Eingabe <b>Export</b> wählen, Bedingung → <b>has any value</b>. «Otherwise» und «End If» kommen automatisch mit.',
+            'Search <b>If</b> and add it. Choose <b>Export</b> as input, condition → <b>has any value</b>. "Otherwise" and "End If" come along automatically.')),
+          fill('D', L('<b>Zwischen «If» und «Otherwise»</b>: noch einmal <b>Get Dictionary Value</b>. Key → <code>kcal</code>, und bei «in» die Variable <b>Export</b> wählen.',
+            '<b>Between "If" and "Otherwise"</b>: another <b>Get Dictionary Value</b>. Key → <code>kcal</code>, and for "in" choose the variable <b>Export</b>.')),
+          fill('E', L('Darunter <b>Log Health Sample</b>: Typ <b>Dietary Energy</b>, Wert = «Dictionary Value» (kommt automatisch), Einheit <b>kcal</b>, Datum → Variable <b>Adjusted Date</b> (aus «Datum von gestern»).',
+            'Below it <b>Log Health Sample</b>: type <b>Dietary Energy</b>, value = "Dictionary Value" (automatic), unit <b>kcal</b>, date → variable <b>Adjusted Date</b> (from "Yesterday’s date").')),
+          fill('F', L('D und E für die anderen Werte wiederholen (beide lange drücken → Duplicate, dann Key und Typ ändern): <code>protein</code> → Protein, <code>carbs</code> → Carbohydrates, <code>fat</code> → Total Fat, <code>fiber</code> → Fiber, <code>sugar</code> → Sugar – jeweils Einheit <b>g</b>.',
+            'Repeat D and E for the other values (long-press both → Duplicate, then change key and type): <code>protein</code> → Protein, <code>carbs</code> → Carbohydrates, <code>fat</code> → Total Fat, <code>fiber</code> → Fiber, <code>sugar</code> → Sugar – unit <b>g</b> each time.')),
+          fill('G', L('Zwischen «Otherwise» und «End If» bleibt alles leer.', 'Leave everything between "Otherwise" and "End If" empty.')),
+        ].join('');
+        return `${visual}<div class="small" style="margin-top:4px"><b>${L('So baust du es', 'How to build it')}</b></div>${list}`;
+      })(),
+      notes: [
+        L('<b>Wozu:</b> Die Antwort vom Senden enthält «export» mit den Summen von gestern. Diese Aktionen tragen sie in Apple Health ein – wie Lifesum. Ist gestern nichts eingetragen, bleibt «export» leer und es passiert nichts.', '<b>Why:</b> the answer from sending contains "export" with yesterday’s totals. These actions log them to Apple Health – like Lifesum. If nothing was logged yesterday, "export" is empty and nothing happens.'),
+        L('<b>Test:</b> Jeder Tag wird nur einmal zurückgegeben. Beim ersten ▶ landen die Werte in Health (Health → Ernährung → Nahrungsenergie, Datum gestern); beim zweiten ▶ kommt nichts mehr – das ist richtig.', '<b>Test:</b> each day is returned only once. The first ▶ puts the values into Health (Health → Nutrition → Dietary Energy, yesterday); a second ▶ returns nothing – that is correct.'),
+      ] },
     { title: L('Jeden Morgen automatisch', 'Every morning automatically'), body:
         `<div class="sc-flow">${L('Automation', 'Automation')} → + → ${L('Tageszeit', 'Time of Day')} <b>07:00</b> → ${L('Täglich', 'Daily')} → <b>${L('Sofort ausführen', 'Run Immediately')}</b> → Gym Sync</div>`,
       notes: [L('Vorher einmal mit ▶ testen und Health-Zugriff erlauben. Quick Look am Schluss löschen.', 'First test once with ▶ and allow Health access. Delete the Quick Look at the end.')] },
@@ -156,10 +190,10 @@ function steps(u) {
 }
 
 /** HTML der Anleitung (Teil des Sheets in healthSetup.js) */
-export function guideHtml() {
+export function guideHtml(token = null) {
   const u = UI[phoneLang];
   const de = t('hs.token') === 'Schlüssel';
-  const list = steps(u);
+  const list = steps(u, token);
   return `<div class="row between"><span class="small muted">${de ? 'Sprache deines iPhones' : 'Your iPhone language'}</span>
       <div class="seg" style="min-width:160px">${[['en', 'English'], ['de', 'Deutsch']].map(([k, l]) => `<button type="button" data-act="sc-lang" data-v="${k}" aria-pressed="${phoneLang === k}">${l}</button>`).join('')}</div></div>
     <div class="tiny muted">${de ? 'Farbig umrandet = das musst du einstellen/ändern. Jeder Schritt lässt sich aufklappen.' : 'Outlined in colour = what you need to set/change. Tap a step to open it.'}</div>

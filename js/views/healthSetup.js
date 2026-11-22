@@ -101,7 +101,7 @@ function guideSheet() {
     ${newToken ? `<div class="small" style="color:var(--warn)">${esc(t('hs.tokenOnce'))}</div>${copyRow(t('hs.token'), newToken, 'hs-token')}` : `<div class="small muted">${esc(t('hs.tokenHidden'))}</div>`}
     ${copyRow(t('hs.url'), url, 'hs-url')}
     ${copyRow(t('hs.apikey'), SUPABASE_KEY, 'hs-key')}
-    ${shortcutGuide.guideHtml()}
+    ${shortcutGuide.guideHtml(newToken)}
     <div class="tiny muted">${esc(t('hs.guideOutro'))}</div>`;
 }
 
