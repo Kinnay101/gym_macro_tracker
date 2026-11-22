@@ -188,9 +188,10 @@ function steps(u, token) {
             fill('A', L('Vorher einmal den Kurzbefehl mit <b>▶</b> laufen lassen und den Health-Zugriff erlauben.', 'First run the shortcut once with <b>▶</b> and allow Health access.')),
             fill('B', L('Im Kurzbefehl oben links <b>←</b> antippen – du bist in der Liste aller Kurzbefehle.', 'In the shortcut tap <b>←</b> top left – you are in the list of all shortcuts.')),
             fill('C', L('Unten den Reiter <b>Automation</b> antippen, dann oben rechts <b>+</b> (oder «New Automation»).', 'Tap the <b>Automation</b> tab at the bottom, then <b>+</b> top right (or "New Automation").')),
-            fill('D', L('<b>Time of Day</b> wählen → Uhrzeit z. B. <b>07:00</b>, <b>Daily</b>.', 'Choose <b>Time of Day</b> → time e.g. <b>07:00</b>, <b>Daily</b>.')),
-            fill('E', L('Unten <b>Run Immediately</b> wählen (sonst fragt das iPhone jeden Morgen).', 'At the bottom choose <b>Run Immediately</b> (otherwise the iPhone asks every morning).')),
-            fill('F', L('<b>Next</b> → <b>Gym Sync</b> antippen → fertig. Quick Look im Kurzbefehl kannst du jetzt löschen.', '<b>Next</b> → tap <b>Gym Sync</b> → done. You can now delete the Quick Look in the shortcut.')),
+            fill('D', L('<b>Time of Day</b> wählen → Uhrzeit z. B. <b>07:00</b>, Repeat <b>Every Day</b>. Der Schalter <b>Automation</b> muss an sein.', 'Choose <b>Time of Day</b> → time e.g. <b>07:00</b>, Repeat <b>Every Day</b>. The <b>Automation</b> switch must be on.')),
+            fill('E', L('Darunter über die Suche <b>Run Shortcut</b> hinzufügen → «Shortcut» antippen → <b>Gym Sync</b> wählen.', 'Below it add <b>Run Shortcut</b> via the search → tap "Shortcut" → choose <b>Gym Sync</b>.')),
+            fill('F', L('Optional oben «New Shortcut» → <b>Rename</b> (z. B. <code>Gym Sync 07:00</code>). Mit <b>←</b> zurück – fertig. Den Quick Look in Gym Sync kannst du jetzt löschen.', 'Optional: top "New Shortcut" → <b>Rename</b> (e.g. <code>Gym Sync 07:00</code>). Go back with <b>←</b> – done. You can now delete the Quick Look in Gym Sync.')),
+            fill('G', L('Ältere iOS-Versionen zeigen stattdessen ein Formular: dort <b>Run Immediately</b> wählen, <b>Next</b> → Gym Sync.', 'Older iOS versions show a form instead: choose <b>Run Immediately</b>, <b>Next</b> → Gym Sync.')),
           ].join('');
       })(),
       notes: [L('Danach läuft alles von selbst: jeden Morgen kommen die Daten in die App, und die Kalorien von gestern landen in Apple Health.', 'After that everything runs by itself: every morning the data arrives in the app and yesterday’s calories land in Apple Health.')] },
