@@ -4,6 +4,7 @@ import { t, shortDate } from '../i18n.js';
 import { calcGoals, goals, currentWeight } from '../nutrition.js';
 import { header, seg, lineChart, energy, sheetHead } from '../ui.js';
 import * as store from '../store.js';
+import * as sync from '../sync.js';
 
 const MEASURES = ['waist', 'chest', 'arm', 'thigh', 'hips'];
 const ACTIVITY = [[1.2, 'act.sedentary'], [1.375, 'act.light'], [1.55, 'act.moderate'], [1.725, 'act.high'], [1.9, 'act.veryHigh']];
@@ -59,7 +60,7 @@ export function render(state) {
       <div class="field">${esc(t('settings.energy'))}${seg('energy', [['kcal', 'kcal'], ['kj', 'kJ']], p.energyUnit)}</div>
     </section>
 
-    <section class="card tight"><h3>${esc(t('settings.sync'))}</h3><div class="small muted">${esc(t('settings.syncSoon'))}</div></section>
+    ${accountCard()}
     <section class="card tight"><h3>${esc(t('settings.health'))}</h3><div class="small muted">${esc(t('settings.healthSoon'))}</div></section>
 
     <section class="card tight">
@@ -69,6 +70,69 @@ export function render(state) {
       <button class="btn danger" data-act="reset">${esc(t('settings.reset'))}</button>
     </section>
     <div class="tiny muted" style="text-align:center">Gym Macro Tracker · ${esc(t('settings.version'))} 0.1</div>`;
+}
+
+// ---------- Konto & Sync ----------
+let authEmail = '';
+let authBusy = false;
+let authMsg = null; // { key, error }
+
+function accountCard() {
+  if (!sync.isConfigured()) {
+    return `<section class="card tight"><h3>${esc(t('settings.sync'))}</h3><div class="small muted">${esc(t('settings.syncSoon'))}</div></section>`;
+  }
+  const st = sync.getStatus();
+  // Erfolgsmeldung vom Anmelden nach dem Abmelden nicht mehr zeigen
+  if (!st.user && authMsg && ['auth.signedIn', 'auth.created'].includes(authMsg.key)) authMsg = null;
+  const msg = authMsg ? `<div class="small" style="color:${authMsg.error ? 'var(--bad)' : 'var(--good)'}">${esc(t(authMsg.key))}</div>` : '';
+  if (!st.user) {
+    return `<section class="card" id="account"><h3>${esc(t('settings.sync'))}</h3>
+      <div class="small muted">${esc(t('auth.intro'))}</div>
+      <label class="field">${esc(t('auth.email'))}<input class="input" id="auth-email" type="email" autocomplete="username" data-in="auth-email" value="${esc(authEmail)}"></label>
+      <label class="field">${esc(t('auth.password'))}<input class="input" id="auth-pw" type="password" autocomplete="current-password"></label>
+      ${msg}
+      <div class="grid2"><button class="btn primary" data-act="auth-signin" ${authBusy ? 'disabled' : ''}>${esc(t('auth.signIn'))}</button>
+        <button class="btn" data-act="auth-signup" ${authBusy ? 'disabled' : ''}>${esc(t('auth.signUp'))}</button></div>
+      <button class="link" data-act="auth-reset" style="align-self:flex-start">${esc(t('auth.forgot'))}</button>
+    </section>`;
+  }
+  const line = {
+    syncing: t('sync.syncing'),
+    idle: st.lastSync ? t('sync.done', { time: new Date(st.lastSync).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }) }) : t('sync.ready'),
+    offline: t('sync.offline'),
+    error: t('sync.error'),
+  }[st.state] || '';
+  return `<section class="card" id="account"><h3>${esc(t('settings.sync'))}</h3>
+    <div class="row between"><div class="grow"><div class="tiny muted">${esc(t('auth.signedInAs'))}</div><div class="ellipsis" style="font-weight:600">${esc(st.user.email || '')}</div></div>
+      ${st.state === 'syncing' ? '<span class="spinner"></span>' : ''}</div>
+    <div class="small ${st.state === 'error' ? '' : 'muted'}" style="${st.state === 'error' ? 'color:var(--bad)' : ''}">${esc(line)}</div>
+    ${msg}
+    <div class="grid2"><button class="btn" data-act="sync-now" ${st.state === 'syncing' ? 'disabled' : ''}>${esc(t('sync.now'))}</button>
+      <button class="btn" data-act="sign-out">${esc(t('auth.signOut'))}</button></div>
+  </section>`;
+}
+
+/** Sheet zum Setzen eines neuen Passworts (nach Klick auf den Link in der E-Mail). */
+export function recoverySheet() {
+  return `${sheetHead(t('auth.newPwTitle'))}
+    <div class="small muted">${esc(t('auth.newPwHint'))}</div>
+    <label class="field">${esc(t('auth.newPw'))}<input class="input" id="new-pw" type="password" autocomplete="new-password" autofocus></label>
+    <div class="small" id="new-pw-err" style="color:var(--bad)"></div>
+    <button class="btn primary block" data-act="auth-newpw">${esc(t('common.save'))}</button>`;
+}
+
+async function authAction(ctx, fn) {
+  const email = document.getElementById('auth-email')?.value.trim() || authEmail;
+  const pw = document.getElementById('auth-pw')?.value || '';
+  authEmail = email;
+  authBusy = true; authMsg = null; ctx.render();
+  try {
+    authMsg = await fn(email, pw);
+  } catch (e) {
+    authMsg = { key: sync.errorKey(e), error: true };
+  }
+  authBusy = false;
+  ctx.render();
 }
 
 function goalBox(label, v) {
@@ -130,11 +194,60 @@ export const actions = {
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   },
+  'auth-signin'(el, ctx) {
+    authAction(ctx, async (email, pw) => {
+      if (!email || !pw) return { key: 'auth.errMissing', error: true };
+      await sync.signIn(email, pw);
+      return { key: 'auth.signedIn' };
+    });
+  },
+  'auth-signup'(el, ctx) {
+    authAction(ctx, async (email, pw) => {
+      if (!email || !pw) return { key: 'auth.errMissing', error: true };
+      if (pw.length < 8) return { key: 'auth.errWeak', error: true };
+      const r = await sync.signUp(email, pw);
+      return { key: r.needsConfirm ? 'auth.checkMail' : 'auth.created' };
+    });
+  },
+  'auth-reset'(el, ctx) {
+    authAction(ctx, async (email) => {
+      if (!email) return { key: 'auth.errEmailFirst', error: true };
+      await sync.resetPassword(email);
+      return { key: 'auth.resetSent' };
+    });
+  },
+  async 'auth-newpw'(el, ctx) {
+    const pw = document.getElementById('new-pw').value;
+    const err = document.getElementById('new-pw-err');
+    if (pw.length < 8) { err.textContent = t('auth.errWeak'); return; }
+    try {
+      await sync.updatePassword(pw);
+      ctx.closeSheet();
+      ctx.toast(t('auth.pwChanged'));
+    } catch (e) {
+      err.textContent = t(sync.errorKey(e));
+    }
+  },
+  'sync-now'(el, ctx) { authMsg = null; sync.syncNow().catch(() => {}); },
+  async 'sign-out'(el, ctx) {
+    if (!confirm(t('auth.signOutConfirm'))) return;
+    try {
+      await sync.signOut();
+      authMsg = null;
+      ctx.toast(t('auth.signedOut'));
+    } catch {
+      if (confirm(t('auth.signOutForce'))) { await sync.signOut({ force: true }); ctx.toast(t('auth.signedOut')); }
+    }
+  },
   reset(el, ctx) {
-    if (!confirm(t('settings.resetConfirm'))) return;
+    if (!confirm(t(sync.getUser() ? 'settings.resetConfirmAccount' : 'settings.resetConfirm'))) return;
     store.resetAll();
     ctx.toast(t('settings.resetDone'));
   },
+};
+
+export const inputs = {
+  'auth-email'(el) { authEmail = el.value; },
 };
 
 export const changes = {

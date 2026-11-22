@@ -1,5 +1,17 @@
 [
  {
+  "file": "vendor/supabase/LICENSE",
+  "bytes": 1065,
+  "sha256": "334dd6820e2eaeab2064e7c59001b810566728a28a41a7c1dbf69bbee17d0936",
+  "source": "npm @supabase/supabase-js@2.119.0 (LICENSE), Paket-sha512 geprüft, veröffentlicht 2026-11-04"
+ },
+ {
+  "file": "vendor/supabase/supabase.js",
+  "bytes": 219856,
+  "sha256": "a867edbcfb029370aeec7223dd6180b560b621fbe3bc64c6584fb0369d1b7bce",
+  "source": "npm @supabase/supabase-js@2.119.0 (dist/umd/supabase.js), Paket-sha512 geprüft, veröffentlicht 2026-11-04"
+ },
+ {
   "file": "vendor/zxing/LICENSE",
   "bytes": 1068,
   "sha256": "fb506e4ade12d7a9efa67c9d76a9a28c8e15d347ca49a69e48e29b40b34ad2ab",

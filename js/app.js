@@ -8,6 +8,7 @@ import * as trainingView from './views/training.js';
 import * as activeView from './views/active.js';
 import * as progressView from './views/progress.js';
 import * as bodyView from './views/body.js';
+import * as sync from './sync.js';
 
 const ROUTES = {
   today: todayView,
@@ -137,10 +138,26 @@ store.onChange(render);
 window.addEventListener('hashchange', route);
 route();
 
+// Konto & Sync: Anzeige im Körper-Tab aktuell halten, nach Passwort-Link neues Passwort abfragen
+let recoveryShown = false;
+sync.onStatus((st) => {
+  if (current.name === 'body') {
+    const el = document.getElementById('account');
+    // Nicht neu zeichnen, während jemand im Login-Formular tippt
+    if (!(el && el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT')) render();
+  }
+  if (st.recovery && !recoveryShown) {
+    recoveryShown = true;
+    go('body');
+    setTimeout(() => openSheet(bodyView.recoverySheet), 50);
+  }
+});
+sync.init();
+
 // Offline-Fähigkeit (nur über http(s), nicht bei file://)
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch((err) => console.warn('Service Worker nicht registriert', err));
 }
 
 // Für Tests in der Konsole
-window.__gmt = { store, go };
+window.__gmt = { store, go, sync };

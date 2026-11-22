@@ -5,6 +5,7 @@ Alles hier stammt aus offiziellen Quellen und wurde mit `tools/fetch_vendor.py` 
 | Ordner | Paket | Lizenz | Zweck |
 |---|---|---|---|
 | `zxing/` | zxing-wasm 3.1.6 (npm) | MIT (zxing-cpp: Apache-2.0) | Barcode-Scanner, falls der Browser keinen eigenen hat (z. B. iPhone) |
+| `supabase/` | @supabase/supabase-js 2.119.0 (npm, UMD) | MIT | Konto und Sync (gleiche Version wie Kleiderschrank) |
 
 Nachprüfen: `python -I tools/fetch_vendor.py verify`
 

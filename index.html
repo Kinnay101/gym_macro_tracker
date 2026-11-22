@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <!-- Sicherheit: Verbindungen nur zur eigenen Adresse und zu Open Food Facts (Produktdaten, nur Suchbegriff/Barcode).
-       'wasm-unsafe-eval' braucht der Barcode-Scanner (vendor/zxing). Später kommt Supabase (Sync) dazu. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https://world.openfoodfacts.org https://ch.openfoodfacts.org; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <!-- Sicherheit: Verbindungen nur zur eigenen Adresse, zum eigenen Supabase-Projekt und zu Open Food Facts (Produktdaten, nur Suchbegriff/Barcode).
+       'wasm-unsafe-eval' braucht der Barcode-Scanner (vendor/zxing). Supabase = Konto und Sync. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https://cqtvhdfquvknxndiwgkp.supabase.co https://world.openfoodfacts.org https://ch.openfoodfacts.org; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'none'">
   <title>Gym Macro Tracker</title>
   <meta name="description" content="Training und Ernährung tracken – für dich und deine Freunde.">
   <meta name="theme-color" content="#0E0F11">

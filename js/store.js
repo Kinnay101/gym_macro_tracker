@@ -53,13 +53,18 @@ function migrate(d) {
   return out;
 }
 
+const saveListeners = new Set();
 function save() {
   try {
     localStorage.setItem(KEY, JSON.stringify(data));
   } catch (e) {
     console.warn('Speichern fehlgeschlagen', e);
   }
+  saveListeners.forEach((l) => l());
 }
+
+/** Wird nach jedem Speichern aufgerufen (auch bei stillen Änderungen) – für den Sync. */
+export function onSave(fn) { saveListeners.add(fn); return () => saveListeners.delete(fn); }
 
 export function get() { return data; }
 
