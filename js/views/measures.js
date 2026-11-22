@@ -11,6 +11,17 @@ let importResult = null;
 
 const sorted = (state) => [...state.measures].sort((a, b) => a.date.localeCompare(b.date));
 const weightOn = (state, date) => state.weights.find((w) => w.date === date)?.kg ?? null;
+const SAME = 0.05; // kg – darunter gilt ein Gewicht als gleich
+/** Nächstes Gewicht innerhalb ±3 Tagen (gleicher Tag zuerst) – du wiegst dich etwa 1× pro Woche */
+function nearbyWeight(state, date) {
+  let best = null;
+  for (const w of state.weights) {
+    const d = Math.abs(daysBetween(w.date, date));
+    if (d <= 3 && (!best || d < best.dist)) best = { ...w, dist: d };
+  }
+  return best;
+}
+let pendingSave = null; // gespeicherte Eingaben, während nach dem Gewicht gefragt wird
 
 /** Karte in der Körper-Ansicht */
 export function card(state) {
@@ -31,8 +42,9 @@ export function card(state) {
   };
   const rows = measureKeys(last).map((k) => `<div class="row between small" style="padding:4px 0;border-top:1px solid var(--line)">
       <span class="muted">${esc(measureLabel(k))}</span><span><b>${num(last[k], 1)} cm</b> ${delta(k)}</span></div>`).join('');
-  const kg = weightOn(state, last.date);
-  const meta = [last.status, kg ? `${num(kg, 1)} kg` : '', last.bf != null ? `${num(last.bf, 1)} % ${t('measure.bfShort')}` : ''].filter(Boolean).join(' · ');
+  const near = nearbyWeight(state, last.date);
+  const kg = near ? `${near.dist ? '≈ ' : ''}${num(near.kg, 1)} kg` : '';
+  const meta = [last.status, kg, last.bf != null ? `${num(last.bf, 1)} % ${t('measure.bfShort')}` : ''].filter(Boolean).join(' · ');
   return `<section class="card tight">${head}
     <div class="row between"><span style="font-weight:600">${esc(shortDate(last.date))}</span><span class="small muted">${esc(meta)}</span></div>
     ${last.bf != null && prevOf('bf') != null ? `<div class="tiny muted">${esc(t('measure.bf'))}: ${num(last.bf, 1)} % (${last.bf - prevOf('bf') > 0 ? '+' : '−'}${num(Math.abs(last.bf - prevOf('bf')), 1)})</div>` : ''}
@@ -93,6 +105,7 @@ function importSheet(state) {
   const preview = r ? (r.entries.length
     ? `<div class="list">${r.entries.map((e) => `<div class="item"><div class="grow"><div style="font-weight:600">${esc(shortDate(e.date))}${state.measures.some((m) => m.date === e.date) ? ` <span class="tag">${esc(t('measure.merge'))}</span>` : ''}</div>
         <div class="meta">${esc([e.status, e.weight ? `${num(e.weight, 1)} kg` : '', e.bf != null ? `${num(e.bf, 1)} %` : '', t('measure.count', { n: measureKeys(e).length })].filter(Boolean).join(' · '))}</div>
+        ${(() => { const w = state.weights.find((x) => x.date === e.date); return e.weight && w && Math.abs(w.kg - e.weight) >= SAME ? `<div class="tiny" style="color:var(--warn)">${esc(t('measure.wImportKeep', { old: num(w.kg, 1), kg: num(e.weight, 1) }))}</div>` : ''; })()}
         <div class="tiny muted">${esc(measureKeys(e).map((k) => `${measureLabel(k)} ${num(e[k], 1)}`).join(' · '))}</div></div></div>`).join('')}</div>
       ${r.unknown.length ? `<div class="small" style="color:var(--warn)">${esc(t('measure.unknown'))}: ${esc(r.unknown.join(' | '))}</div>` : ''}
       <button class="btn primary block" data-act="m-import-save">${esc(t('measure.importSave', { n: r.entries.length }))}</button>`
@@ -102,6 +115,34 @@ function importSheet(state) {
     <textarea class="input" id="m-import-text" style="min-height:180px;padding:10px 12px;font-size:14px" placeholder="06.07.2025&#10;Status: End of Cut&#10;Weight: 64.2kg&#10;Bodyfat: 9.5%&#10;Bizep right 31cm&#10;…">${esc(importText)}</textarea>
     <button class="btn block" data-act="m-import-check">${esc(t('measure.importCheck'))}</button>
     ${preview}`;
+}
+
+// ---------- Gewicht abgleichen ----------
+function weightConflictSheet(state) {
+  const p = pendingSave;
+  if (!p?.conflict) return null;
+  const c = p.conflict;
+  const same = c.date === p.date;
+  const avg = Math.round(((p.kg + c.kg) / 2) * 10) / 10;
+  return `${sheetHead(t('measure.wTitle'))}
+    <div class="small">${esc(t(same ? 'measure.wSameDay' : 'measure.wNearby', { old: num(c.kg, 1), oldDate: shortDate(c.date), kg: num(p.kg, 1), date: shortDate(p.date) }))}</div>
+    <button class="btn primary block" data-act="m-weight-choice" data-v="new">${esc(t(same ? 'measure.wUseNew' : 'measure.wAddNew', { kg: num(p.kg, 1), date: shortDate(p.date) }))}</button>
+    <button class="btn block" data-act="m-weight-choice" data-v="keep">${esc(t('measure.wKeep', { old: num(c.kg, 1), oldDate: shortDate(c.date) }))}</button>
+    ${same ? `<button class="btn block" data-act="m-weight-choice" data-v="avg">${esc(t('measure.wAvg', { avg: num(avg, 1) }))}</button>` : ''}
+    <div class="tiny muted">${esc(t('measure.wHint'))}</div>`;
+}
+
+/** Masse speichern; kg = Gewicht, das für das Datum eingetragen werden soll (null = Gewichtsverlauf nicht ändern) */
+function finishSave(ctx, kg) {
+  const { date, entry, extra, editDate: ed } = pendingSave;
+  pendingSave = null;
+  ctx.closeSheet();
+  ctx.update((s) => {
+    s.measures = s.measures.filter((x) => x.date !== date && x.date !== ed);
+    if (Object.keys(entry).length > 1 || Object.keys(extra).length) s.measures.push({ ...extra, ...entry });
+    if (kg) { s.weights = s.weights.filter((w) => w.date !== date); s.weights.push({ date, kg }); }
+  });
+  ctx.toast(t('measure.saved'));
 }
 
 // ---------- Aktionen ----------
@@ -122,13 +163,24 @@ export const actions = {
     const old = editDate ? ctx.state.measures.find((x) => x.date === editDate) : null;
     // Werte, die das Formular nicht zeigt (z. B. aus Notizen übernommen), beim Bearbeiten behalten
     const extra = old ? Object.fromEntries(measureKeys(old).filter((k) => !FORM_ROWS.some(([, ks]) => ks.includes(k))).map((k) => [k, old[k]])) : {};
-    ctx.closeSheet();
-    ctx.update((s) => {
-      s.measures = s.measures.filter((x) => x.date !== date && x.date !== editDate);
-      if (Object.keys(entry).length > 1 || Object.keys(extra).length) s.measures.push({ ...extra, ...entry });
-      if (kg) { s.weights = s.weights.filter((w) => w.date !== date); s.weights.push({ date, kg }); }
-    });
-    ctx.toast(t('measure.saved'));
+    pendingSave = { date, entry, extra, editDate, kg };
+    // Gewicht mit dem abgleichen, was schon in der App steht
+    const near = kg ? nearbyWeight(ctx.state, date) : null;
+    if (kg && near && Math.abs(near.kg - kg) >= SAME) {
+      pendingSave.conflict = near;
+      ctx.openSheet(weightConflictSheet);
+      return;
+    }
+    // kein Gewicht in der Nähe → eintragen; gleiches Gewicht am selben Tag → nichts tun;
+    // gleiches Gewicht an einem Nachbartag → nicht doppelt eintragen
+    finishSave(ctx, kg && !near ? kg : null);
+  },
+  'm-weight-choice'(el, ctx) {
+    const p = pendingSave;
+    if (!p) return;
+    const v = el.dataset.v;
+    const kg = v === 'new' ? p.kg : v === 'avg' ? Math.round(((p.kg + p.conflict.kg) / 2) * 10) / 10 : null;
+    finishSave(ctx, kg);
   },
   'm-delete'(el, ctx) {
     const removed = ctx.state.measures.find((x) => x.date === editDate);
@@ -150,7 +202,7 @@ export const actions = {
       for (const { weight, ...e } of entries) {
         const i = s.measures.findIndex((x) => x.date === e.date);
         if (i >= 0) s.measures[i] = { ...s.measures[i], ...e }; else s.measures.push(e);
-        if (weight) { s.weights = s.weights.filter((w) => w.date !== e.date); s.weights.push({ date: e.date, kg: weight }); }
+        if (weight && !s.weights.some((w) => w.date === e.date)) s.weights.push({ date: e.date, kg: weight }); // vorhandenes Gewicht nie überschreiben
       }
     });
     ctx.toast(t('measure.imported', { n: entries.length }));

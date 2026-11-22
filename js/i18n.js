@@ -91,6 +91,11 @@ const de = {
   'measure.importCheck': 'Prüfen', 'measure.importSave': '{n} Einträge übernehmen', 'measure.importNone': 'Darin wurden keine Masse erkannt.',
   'measure.unknown': 'Nicht erkannt', 'measure.merge': 'ergänzt bestehenden', 'measure.count': '{n} Masse',
   'measure.deltaHint': 'Veränderung seit {date}', 'measure.saved': 'Masse gespeichert', 'measure.deleted': 'Eintrag gelöscht',
+  'measure.wTitle': 'Welches Gewicht gilt?', 'measure.wSameDay': 'Am {date} ist schon {old} kg eingetragen – du hast {kg} kg eingegeben.',
+  'measure.wNearby': 'In dieser Woche ist schon ein Gewicht eingetragen ({old} kg am {oldDate}). Du hast {kg} kg für den {date} eingegeben.',
+  'measure.wUseNew': '{kg} kg nehmen', 'measure.wAddNew': '{kg} kg zusätzlich für den {date} eintragen', 'measure.wKeep': 'Bisheriges behalten ({old} kg, {oldDate})', 'measure.wAvg': 'Durchschnitt nehmen ({avg} kg)',
+  'measure.wHint': 'Die Masse werden in jedem Fall gespeichert – es geht nur um den Gewichtsverlauf.',
+  'measure.wImportKeep': 'Gewicht {kg} kg wird nicht übernommen – an diesem Tag sind schon {old} kg eingetragen.',
   'measure.empty': 'Bitte mindestens einen Wert eintragen.', 'measure.imported': '{n} Einträge übernommen',
 
   'auth.intro': 'Mit einem Konto sind deine Daten auf allen Geräten gleich (PC, iPhone) und gesichert. Später auch für Freunde und Rangliste.',
@@ -220,6 +225,11 @@ const en = {
   'measure.importCheck': 'Check', 'measure.importSave': 'Import {n} entries', 'measure.importNone': 'No measurements recognised.',
   'measure.unknown': 'Not recognised', 'measure.merge': 'adds to existing', 'measure.count': '{n} measurements',
   'measure.deltaHint': 'Change since {date}', 'measure.saved': 'Measurements saved', 'measure.deleted': 'Entry deleted',
+  'measure.wTitle': 'Which weight counts?', 'measure.wSameDay': '{old} kg is already logged on {date} – you entered {kg} kg.',
+  'measure.wNearby': 'A weight is already logged this week ({old} kg on {oldDate}). You entered {kg} kg for {date}.',
+  'measure.wUseNew': 'Use {kg} kg', 'measure.wAddNew': 'Also log {kg} kg for {date}', 'measure.wKeep': 'Keep existing ({old} kg, {oldDate})', 'measure.wAvg': 'Use the average ({avg} kg)',
+  'measure.wHint': 'The measurements are saved either way – this only affects the weight history.',
+  'measure.wImportKeep': 'Weight {kg} kg is not imported – {old} kg is already logged that day.',
   'measure.empty': 'Please enter at least one value.', 'measure.imported': '{n} entries imported',
 
   'auth.intro': 'With an account your data is the same on all devices (PC, iPhone) and backed up. Later also for friends and leaderboard.',

@@ -187,3 +187,8 @@ h3 { font-size: 15px; font-weight: 700; }
 .credit { font-size: 11px; color: var(--faint); text-align: center; line-height: 1.5; }
 .credit a { color: var(--muted); }
 .tag-icon { width: 11px; height: 11px; vertical-align: -1px; }
+
+/* iPhone: Datumsfeld hat sonst eine feste Mindestbreite, ragt ins Nachbarfeld und ist zentriert */
+.grid2 > *, .grid3 > *, .field { min-width: 0; }
+input.input[type="date"] { -webkit-appearance: none; appearance: none; min-width: 0; width: 100%; display: block; text-align: left; line-height: 44px; }
+input.input[type="date"]::-webkit-date-and-time-value { text-align: left; }
