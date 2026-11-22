@@ -73,8 +73,8 @@ function steps(u) {
   const L = (a, b) => (de ? a : b);
   const dupHint = L('Block darüber kopieren: die Suche und den Repeat je lange drücken → «Duplicate». Dann nur das <b>Markierte</b> ändern.',
     'Copy the block above: long-press the search and the repeat → "Duplicate". Then change only what is <b>highlighted</b>.');
-  const repointHint = L('Im kopierten Repeat das blaue Feld antippen → «Clear Variable» → «Select Variable» → die neue Suche antippen.',
-    'In the copied repeat tap the blue field → "Clear Variable" → "Select Variable" → tap the new search.');
+  const repointHint = L('<b>Wichtig:</b> Die kopierte Wiederholung zeigt noch auf die alte Suche. Darum: im kopierten Repeat auf das blaue «Health Samples» tippen → <b>Clear Variable</b> → aufs leere Feld tippen → <b>Select Variable</b> → die neue Suche direkt darüber antippen. Kontrolle: blaues Feld antippen → «Reveal Action» springt zur neuen Suche.',
+    '<b>Important:</b> the copied repeat still points to the old search. So: in the copied repeat tap the blue "Health Samples" → <b>Clear Variable</b> → tap the empty field → <b>Select Variable</b> → tap the new search right above. Check: tap the blue field → "Reveal Action" jumps to the new search.');
   const dateHint = (fmt) => L(`Im Text «${u.start}» antippen → Date Format: <b>Custom</b> → <code>${fmt}</code>`, `In the text tap "${u.start}" → Date Format: <b>Custom</b> → <code>${fmt}</code>`);
   const valueHint = L(`Zweites «${u.item}» antippen → <b>${u.value}</b>`, `Tap the second "${u.item}" → <b>${u.value}</b>`);
   return [
