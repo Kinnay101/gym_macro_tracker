@@ -18,8 +18,13 @@ const LEVELS = [[1, 1.2, 'sedentary'], [3, 1.375, 'light'], [5.5, 1.55, 'moderat
  * der letzten 4 Wochen. Mit weniger als 2 Wochen Verlauf: Schätzung aus dem Rhythmus (Volle Woche 6, Locker ≈ 5,25).
  */
 export function activityLevel(state, now = today()) {
-  const strengthDays = state.workouts.map((w) => w.date);
-  const all = [...strengthDays, ...state.cardio.map((c) => c.date)].filter((d) => d <= now).sort();
+  // Apple-Watch-Workouts zählen mit: Krafttraining als Trainingstag, alles andere als Cardio-Minuten.
+  // Doppelt erfasst (gleicher Tag schon als Cardio in der App) wird nicht doppelt gezählt.
+  const watch = Object.values(state.healthWorkouts || {});
+  const manualCardioDays = new Set(state.cardio.map((c) => c.date));
+  const strengthDays = [...state.workouts.map((w) => w.date), ...watch.filter((w) => w.kind === 'strength').map((w) => w.date)];
+  const cardioList = [...state.cardio, ...watch.filter((w) => w.kind !== 'strength' && !manualCardioDays.has(w.date))];
+  const all = [...strengthDays, ...cardioList.map((c) => c.date)].filter((d) => d <= now).sort();
   let perWeek;
   let source;
   if (!all.length || daysBetween(all[0], now) < 13) {
@@ -30,7 +35,7 @@ export function activityLevel(state, now = today()) {
     const start = all[0] > from ? all[0] : from;
     const span = daysBetween(start, now) + 1;
     const strength = new Set(strengthDays.filter((d) => d >= start && d <= now)).size;
-    const cardioMin = state.cardio.filter((c) => c.date >= start && c.date <= now).reduce((sum, c) => sum + (c.minutes || 0), 0);
+    const cardioMin = cardioList.filter((c) => c.date >= start && c.date <= now).reduce((sum, c) => sum + (c.minutes || 0), 0);
     perWeek = ((strength + cardioMin / 45) / span) * 7;
     source = 'tracked';
   }

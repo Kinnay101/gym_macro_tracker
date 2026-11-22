@@ -4,6 +4,7 @@ import { t, weekdayShort, longDate } from '../i18n.js';
 import { goals, sumEntries, dayEntries, MEALS, currentWeight } from '../nutrition.js';
 import { schedule, planMuscles } from '../plan.js';
 import { startWorkout } from '../workout.js';
+import { lastNight, healthWorkoutsBetween } from '../health.js';
 import { header, ring, bar, energy, energyUnit } from '../ui.js';
 
 let showEaten = false;
@@ -32,6 +33,7 @@ export function render(state) {
     ${g.isDefault ? `<a class="card tight" href="#/body"><span class="small">${esc(t('today.setGoals'))}</span></a>` : ''}
     ${trainingCard(state, key)}
     ${weekCard(state, key)}
+    ${healthCard(state, key)}
     ${mealsCard(state, key, entries)}
     ${weightCard(state)}
   `;
@@ -76,7 +78,7 @@ function weekCard(state, key) {
   for (let i = 0; i < 7; i++) {
     const d = addDays(start, i);
     const trained = state.workouts.some((w) => w.date === d);
-    const cardio = state.cardio.some((c) => c.date === d);
+    const cardio = state.cardio.some((c) => c.date === d) || healthWorkoutsBetween(state, d, d).some((w) => w.kind !== 'strength');
     let cls = '';
     if (trained) cls = 'done';
     else if (d === key) cls = 'today';
@@ -84,6 +86,24 @@ function weekCard(state, key) {
     days.push(`<div class="d"><span style="${d === key ? 'color:var(--accent)' : ''}">${esc(weekdayShort(d))}</span><span class="c ${cls}">${parseKey(d).getDate()}</span><span class="dot ${cardio ? 'on' : ''}"></span></div>`);
   }
   return `<section class="card"><div class="card-head"><h3>${esc(t('today.week'))}</h3><span class="tiny muted">${esc(t('today.weekLegend'))}</span></div><div class="week">${days.join('')}</div></section>`;
+}
+
+/** Schritte, aktive kcal, Schlaf und Watch-Workouts aus Apple Health (nur wenn Daten da sind). */
+function healthCard(state, key) {
+  const days = state.healthDays || {};
+  const d = days[key]?.steps != null || days[key]?.activeKcal != null ? key : (days[addDays(key, -1)] ? addDays(key, -1) : null);
+  const night = lastNight(state);
+  const ws = healthWorkoutsBetween(state, key, key);
+  if (!d && !night && !ws.length) return '';
+  const h = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')} h`;
+  const tiles = [];
+  if (d && days[d].steps != null) tiles.push([t('health.steps'), num(days[d].steps), d === key ? t('common.today') : t('health.yesterday')]);
+  if (d && days[d].activeKcal != null) tiles.push([t('health.active'), energy(state, days[d].activeKcal), d === key ? t('common.today') : t('health.yesterday')]);
+  if (night) tiles.push([t('health.sleep'), h(night.minutes), night.deep || night.rem ? `${t('health.deep')} ${h(night.deep)} · REM ${h(night.rem)}` : '']);
+  return `<section class="card tight"><div class="card-head"><h3>${esc(t('health.title'))}</h3><span class="tiny muted">Apple Health</span></div>
+    <div class="grid3">${tiles.map(([l, v, sub]) => `<div class="stack" style="gap:2px"><span class="tiny muted">${esc(l)}</span><b>${esc(v)}</b><span class="tiny muted">${esc(sub)}</span></div>`).join('')}</div>
+    ${ws.map((w) => `<div class="small muted">⌚ ${esc(t('cardio.' + w.kind))} · ${num(w.minutes)} min${w.kcal ? ` · ${energy(state, w.kcal)}` : ''}${w.avgHr ? ` · Ø ${w.avgHr} bpm` : ''}</div>`).join('')}
+  </section>`;
 }
 
 function mealsCard(state, key, entries) {

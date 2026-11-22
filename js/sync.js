@@ -29,6 +29,9 @@ export function getUser() { return user; }
 export function getClient() { return user ? client : null; }
 export function getStatus() { return { ...status, user }; }
 export function onStatus(fn) { listeners.add(fn); return () => listeners.delete(fn); }
+const afterPull = new Set();
+/** Wird nach jedem Herunterladen aufgerufen (z. B. Apple-Health-Daten verarbeiten) – vor dem Hochladen. */
+export function onAfterPull(fn) { afterPull.add(fn); }
 function setStatus(patch) { status = { ...status, ...patch }; listeners.forEach((l) => l(getStatus())); }
 
 // ---------- Sync-Gedächtnis dieses Geräts ----------
@@ -111,6 +114,7 @@ export function syncNow() {
       do {
         again = false;
         await pull();
+        for (const fn of afterPull) { try { fn(); } catch (e) { console.warn('Nach dem Herunterladen', e); } }
         await push();
       } while (again);
       setStatus({ state: 'idle', lastSync: new Date().toISOString(), error: null });

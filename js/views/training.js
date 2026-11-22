@@ -4,6 +4,7 @@ import { t, weekdayShort, shortDate } from '../i18n.js';
 import { schedule, roundStatus, planMuscles, RHYTHMS } from '../plan.js';
 import { startWorkout, volume, workingSets } from '../workout.js';
 import { header, seg, sheetHead } from '../ui.js';
+import { healthWorkoutsBetween, watchStatsFor } from '../health.js';
 import { rhythmName } from './today.js';
 
 export const CARDIO_TYPES = ['run', 'treadmill', 'bike', 'crosstrainer', 'rowing', 'stairs', 'swim', 'other'];
@@ -86,9 +87,12 @@ function planCard(p) {
 function cardioCard(state, key) {
   const from = weekStart(key);
   const list = state.cardio.filter((c) => c.date >= from && c.date <= addDays(from, 6)).sort((a, b) => a.date.localeCompare(b.date));
-  const mins = list.reduce((s, c) => s + (c.minutes || 0), 0);
+  const watch = healthWorkoutsBetween(state, from, addDays(from, 6));
+  const mins = list.reduce((s, c) => s + (c.minutes || 0), 0) + watch.reduce((s, w) => s + w.minutes, 0);
+  const watchRows = watch.map((w) => `<div class="item"><span style="width:22px;text-align:center">⌚</span><div class="grow"><div style="font-weight:600">${esc(t('cardio.' + w.kind))}</div>
+      <div class="meta">${esc(weekdayShort(w.date))} · ${num(w.minutes)} min${w.km ? ` · ${num(w.km, 1)} km` : ''}${w.kcal ? ` · ${num(w.kcal)} kcal` : ''}${w.avgHr ? ` · Ø ${w.avgHr} bpm` : ''} · Apple Watch</div></div></div>`).join('');
   return `<section class="card tight"><div class="card-head"><h3>${esc(t('cardio.week'))}</h3><span class="small muted">${list.length ? `${num(mins)} min` : ''}</span></div>
-    ${list.length ? `<div class="list">${list.map((c) => `<div class="item">${icon(I.run)}<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + c.type))}</div>
+    ${list.length || watch.length ? `<div class="list">${watchRows}${list.map((c) => `<div class="item">${icon(I.run)}<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + c.type))}</div>
       <div class="meta">${esc(weekdayShort(c.date))} · ${num(c.minutes)} min${c.km ? ` · ${num(c.km, 1)} km` : ''} · ${esc(c.after ? t('cardio.after') : t('cardio.own'))}</div></div>
       <button class="icon-btn" data-act="del-cardio" data-id="${esc(c.id)}" aria-label="${esc(t('common.delete'))}">${icon(I.trash)}</button></div>`).join('')}</div>` : `<div class="small muted">${esc(t('cardio.none'))}</div>`}
     <button class="btn sm ghost" data-act="add-cardio">${icon(I.plus)} ${esc(t('cardio.add'))}</button></section>`;
@@ -124,8 +128,10 @@ function detailSheet(state) {
   if (!w) return null;
   const plan = state.plans.find((p) => p.id === w.planId);
   const mins = w.startedAt && w.finishedAt ? Math.round((new Date(w.finishedAt) - new Date(w.startedAt)) / 60000) : null;
+  const watch = watchStatsFor(state, w.date);
   return `${sheetHead(plan?.name || t('training.workout'))}
     <div class="small muted">${esc(shortDate(w.date))}${mins ? ` · ${num(mins)} min` : ''} · ${num(volume(w))} kg ${esc(t('training.volume'))}</div>
+    ${watch ? `<div class="small">⌚ Apple Watch: ${num(watch.minutes)} min${watch.kcal ? ` · ${num(watch.kcal)} kcal` : ''}${watch.avgHr ? ` · Ø ${watch.avgHr} bpm` : ''}</div>` : ''}
     <div class="list">${w.exercises.map((ex) => `<div class="item"><div class="grow"><div style="font-weight:600">${esc(ex.name)}</div>
       <div class="meta">${ex.sets.map((s) => `${s.warmup ? 'W ' : ''}${num(s.kg, 2)}×${num(s.reps)}`).join(' · ')}</div></div><span class="tiny muted">${workingSets(ex).length}</span></div>`).join('')}</div>
     ${w.note ? `<div class="small">${esc(w.note)}</div>` : ''}

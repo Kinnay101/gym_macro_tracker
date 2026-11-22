@@ -5,6 +5,7 @@ import { historyFor, bestFor, setsPerMuscle } from '../workout.js';
 import { MUSCLES } from '../plan.js';
 import { header, seg, lineChart } from '../ui.js';
 import * as friendsView from './friends.js';
+import { healthWorkoutsBetween } from '../health.js';
 
 let tab = 'me';
 let exName = null;
@@ -61,7 +62,7 @@ function calendar(state) {
   const daysIn = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
   const lead = (first.getDay() + 6) % 7;
   const strength = new Set(state.workouts.map((w) => w.date));
-  const cardio = new Set(state.cardio.map((c) => c.date));
+  const cardio = new Set([...state.cardio.map((c) => c.date), ...healthWorkoutsBetween(state, '0000', '9999').filter((w) => w.kind !== 'strength').map((w) => w.date)]);
   let count = 0;
   const cells = [];
   for (let i = 0; i < lead; i++) cells.push('<span></span>');

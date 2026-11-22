@@ -35,6 +35,12 @@ function blank() {
     cardio: [], // { id, date, type, minutes, km, after }
     dayChoice: {}, // { 'JJJJ-MM-TT': 'rest' | planId } – manuelle Wahl für einen Tag
     active: null, // laufendes Training
+    // Apple Health (über Kurzbefehl, siehe js/health.js)
+    healthDays: {}, // { 'JJJJ-MM-TT': { steps, activeKcal, bodyFat } }
+    healthWorkouts: {}, // { id: { id, date, start, minutes, name, kind, kcal, km, avgHr } }
+    healthSleep: {}, // { 'JJJJ-MM-TT' (Aufwachtag): { minutes, deep, rem, core, awake, bed, wake } }
+    healthInbox: {}, // noch nicht verarbeitete Daten vom Kurzbefehl
+    healthLastImport: null,
   };
 }
 

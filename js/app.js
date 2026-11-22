@@ -10,6 +10,7 @@ import * as progressView from './views/progress.js';
 import * as bodyView from './views/body.js';
 import * as recipeView from './views/recipe.js';
 import * as sync from './sync.js';
+import './health.js'; // verarbeitet Apple-Health-Daten nach jedem Sync
 
 const ROUTES = {
   today: todayView,

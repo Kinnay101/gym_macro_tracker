@@ -7,9 +7,10 @@ import * as store from '../store.js';
 import * as sync from '../sync.js';
 import * as social from '../social.js';
 import * as measuresView from './measures.js';
+import * as healthSetup from './healthSetup.js';
 
 
-export function render(state) {
+export function render(state, params, ctx) {
   const p = state.profile;
   const weights = [...state.weights].sort((a, b) => a.date.localeCompare(b.date));
   const recent = weights.slice(-30);
@@ -23,7 +24,7 @@ export function render(state) {
       <div class="card-head"><div><div class="tiny muted">${esc(t('body.weight'))}</div><div class="big">${kg ? num(kg, 1) + ' kg' : '–'}</div></div></div>
       <div class="row"><input class="input grow" id="w-in" inputmode="decimal" placeholder="${esc(t('body.weightPh'))}" aria-label="${esc(t('body.weight'))}"><button class="btn primary" data-act="add-weight">${esc(t('common.save'))}</button></div>
       ${weights.length ? lineChart(pts, { unit: '' }) : ''}
-      ${weights.length ? `<div class="list">${weights.slice(-4).reverse().map((w) => `<div class="item"><span class="grow small">${esc(shortDate(w.date))}</span><span style="font-weight:600">${num(w.kg, 1)} kg</span>
+      ${weights.length ? `<div class="list">${weights.slice(-4).reverse().map((w) => `<div class="item"><span class="grow small">${esc(shortDate(w.date))}</span><span style="font-weight:600">${w.source === 'health' ? '<span class="tiny muted" title="Apple Health">⌚</span> ' : ''}${num(w.kg, 1)} kg</span>
         <button class="icon-btn" data-act="del-weight" data-date="${esc(w.date)}" aria-label="${esc(t('common.delete'))}">${icon(I.trash)}</button></div>`).join('')}</div>` : ''}
     </section>
 
@@ -57,7 +58,7 @@ export function render(state) {
 
     ${accountCard()}
     ${shareCard(state)}
-    <section class="card tight"><h3>${esc(t('settings.health'))}</h3><div class="small muted">${esc(t('settings.healthSoon'))}</div></section>
+    ${healthSetup.card(state, ctx)}
 
     <section class="card tight">
       <h3>${esc(t('settings.data'))}</h3>
@@ -167,6 +168,7 @@ function manualSheet(state) {
 
 export const actions = {
   ...measuresView.actions,
+  ...healthSetup.actions,
   'add-weight'(el, ctx) {
     const kg = parseNum(document.getElementById('w-in').value);
     if (!kg || kg < 20 || kg > 400) { ctx.toast(t('body.invalidWeight')); return; }

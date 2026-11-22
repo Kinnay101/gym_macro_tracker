@@ -19,6 +19,11 @@ export function toDocs(state) {
   for (const w of state.workouts || []) m.set(`workout:${w.id}`, w);
   for (const c of state.cardio || []) m.set(`cardio:${c.id}`, c);
   for (const [date, v] of Object.entries(state.dayChoice || {})) m.set(`choice:${date}`, v);
+  for (const [date, v] of Object.entries(state.healthDays || {})) m.set(`hday:${date}`, v);
+  for (const [id, v] of Object.entries(state.healthWorkouts || {})) m.set(`hw:${id}`, v);
+  for (const [date, v] of Object.entries(state.healthSleep || {})) m.set(`sleep:${date}`, v);
+  for (const [id, v] of Object.entries(state.healthInbox || {})) m.set(`hinbox:${id}`, v);
+  if (state.healthLastImport) m.set('hmeta', { lastImport: state.healthLastImport });
   return m;
 }
 
@@ -48,6 +53,11 @@ export function applyDoc(state, key, value) {
     case 'workout': upsertBy(state.workouts, 'id', a); break;
     case 'cardio': upsertBy(state.cardio, 'id', a); break;
     case 'choice': if (del) delete state.dayChoice[a]; else state.dayChoice[a] = value; break;
+    case 'hday': state.healthDays ||= {}; if (del) delete state.healthDays[a]; else state.healthDays[a] = value; break;
+    case 'hw': state.healthWorkouts ||= {}; if (del) delete state.healthWorkouts[a]; else state.healthWorkouts[a] = value; break;
+    case 'sleep': state.healthSleep ||= {}; if (del) delete state.healthSleep[a]; else state.healthSleep[a] = value; break;
+    case 'hinbox': state.healthInbox ||= {}; if (del) delete state.healthInbox[a]; else state.healthInbox[a] = value; break;
+    case 'hmeta': if (!del) state.healthLastImport = value.lastImport; break;
     default: console.warn('Unbekanntes Dokument', key);
   }
 }
