@@ -6,6 +6,7 @@ import { MUSCLES } from '../plan.js';
 import { header, seg, lineChart } from '../ui.js';
 import * as friendsView from './friends.js';
 import { healthWorkoutsBetween } from '../health.js';
+import * as daySheet from './daySheet.js';
 
 let tab = 'me';
 let exName = null;
@@ -70,7 +71,9 @@ function calendar(state) {
     const k = dayKey(new Date(first.getFullYear(), first.getMonth(), d));
     const s = strength.has(k);
     if (s) count++;
-    cells.push(`<span class="c ${s ? 'k' : ''} ${k === today() ? 'today' : ''}">${d}${cardio.has(k) ? '<i class="dot"></i>' : ''}</span>`);
+    const cls = `c ${s ? 'k' : ''} ${k === today() ? 'today' : ''}`;
+    const inner = `${d}${cardio.has(k) ? '<i class="dot"></i>' : ''}`;
+    cells.push(k <= today() ? `<button type="button" class="${cls}" data-act="day-open" data-d="${k}">${inner}</button>` : `<span class="${cls}">${inner}</span>`);
   }
   return `<section class="card tight">
     <div class="card-head"><button class="icon-btn" data-act="month" data-v="-1" aria-label="${esc(t('common.prev'))}">${icon(I.back)}</button>
@@ -83,6 +86,7 @@ function calendar(state) {
 
 export const actions = {
   ...friendsView.actions,
+  ...daySheet.actions,
   tab(el, ctx) {
     tab = el.dataset.v;
     if (tab === 'friends') friendsView.load(ctx, { quiet: true });

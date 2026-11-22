@@ -249,3 +249,8 @@ input.input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 
 .sc-tabs { display: flex; justify-content: space-around; margin-top: 8px; background: #1c1c1e; border-radius: 14px; padding: 8px 4px; font-size: 12px; color: #8e8e93; }
 .sc-tab-on { color: #64a8ff; font-weight: 700; outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; padding: 0 4px; }
+
+/* Tage in Woche und Kalender antippbar → Tagesübersicht */
+.week button.d, .cal button.c { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.week button.d { color: var(--muted); }
+.cal button.c.k { background: var(--accent); }

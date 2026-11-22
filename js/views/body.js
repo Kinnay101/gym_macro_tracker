@@ -18,13 +18,21 @@ export function render(state, params, ctx) {
   const kg = currentWeight(state);
   const calc = calcGoals(state);
   const g = goals(state);
+  // Körperfett: neuester Wert aus Apple Health oder Körpermassen
+  const bfOf = (date) => state.healthDays?.[date]?.bodyFat;
+  const bfList = [
+    ...Object.values(state.healthDays || {}).filter((x) => x.bodyFat != null).map((x) => ({ date: x.date, v: x.bodyFat, health: true })),
+    ...(state.measures || []).filter((x) => x.bf != null).map((x) => ({ date: x.date, v: x.bf })),
+  ].sort((a, b) => a.date.localeCompare(b.date));
+  const bf = bfList[bfList.length - 1];
 
   return `${header(t('nav.body'))}
     <section class="card">
-      <div class="card-head"><div><div class="tiny muted">${esc(t('body.weight'))}</div><div class="big">${kg ? num(kg, 1) + ' kg' : '–'}</div></div></div>
+      <div class="card-head"><div><div class="tiny muted">${esc(t('body.weight'))}</div><div class="big">${kg ? num(kg, 1) + ' kg' : '–'}</div></div>
+        ${bf ? `<div style="text-align:right"><div class="tiny muted">${esc(t('measure.bf'))}</div><div class="big">${num(bf.v, 1)} %</div><div class="tiny muted">${bf.health ? '⌚ ' : ''}${esc(shortDate(bf.date))}</div></div>` : ''}</div>
       <div class="row"><input class="input grow" id="w-in" inputmode="decimal" placeholder="${esc(t('body.weightPh'))}" aria-label="${esc(t('body.weight'))}"><button class="btn primary" data-act="add-weight">${esc(t('common.save'))}</button></div>
       ${weights.length ? lineChart(pts, { unit: '' }) : ''}
-      ${weights.length ? `<div class="list">${weights.slice(-4).reverse().map((w) => `<div class="item"><span class="grow small">${esc(shortDate(w.date))}</span><span style="font-weight:600">${w.source === 'health' ? '<span class="tiny muted" title="Apple Health">⌚</span> ' : ''}${num(w.kg, 1)} kg</span>
+      ${weights.length ? `<div class="list">${weights.slice(-4).reverse().map((w) => `<div class="item"><span class="grow small">${esc(shortDate(w.date))}</span><span style="font-weight:600">${w.source === 'health' ? '<span class="tiny muted" title="Apple Health">⌚</span> ' : ''}${num(w.kg, 1)} kg${bfOf(w.date) != null ? ` <span class="tiny muted">· ${num(bfOf(w.date), 1)} %</span>` : ''}</span>
         <button class="icon-btn" data-act="del-weight" data-date="${esc(w.date)}" aria-label="${esc(t('common.delete'))}">${icon(I.trash)}</button></div>`).join('')}</div>` : ''}
     </section>
 

@@ -53,7 +53,7 @@ function sleepStage(v) {
 }
 
 export function parseHealth(text) {
-  const out = { weights: {}, bodyFat: {}, steps: {}, active: {}, exercise: {}, distance: {}, workouts: {}, sleepSamples: [], unknown: 0 };
+  const out = { weights: {}, bodyFat: {}, steps: {}, active: {}, exercise: {}, distance: {}, workouts: {}, sleepSamples: [], unknown: 0, hasExercise: false, exerciseBad: false };
   for (const raw of String(text || '').split(/\r?\n/)) {
     const parts = raw.split(';').map((x) => x.trim());
     const kind = parts[0]?.toUpperCase();
@@ -68,6 +68,7 @@ export function parseHealth(text) {
     } else if (kind === 'S' || kind === 'A' || kind === 'E' || kind === 'D') {
       const d = parseDate(parts[1]); const v = parseNum(parts[2]);
       if (!d || v == null) { out.unknown++; continue; }
+      if (kind === 'E') out.hasExercise = true;
       const map = { S: out.steps, A: out.active, E: out.exercise, D: out.distance }[kind];
       map[dayKey(d)] = kind === 'D' ? round(v, 2) : Math.round(v);
     } else if (kind === 'T') {
@@ -91,7 +92,11 @@ export function parseHealth(text) {
   // Unmögliche Trainingsminuten verwerfen: mehr als ein Tag, oder gleich wie die Schritte
   // (dann liest der Kurzbefehl im Block «Trainingsminuten» versehentlich die Schritte)
   for (const [d, v] of Object.entries(out.exercise)) {
-    if (v > 1440 || (v > 0 && out.steps[d] === v)) { delete out.exercise[d]; out.unknown++; }
+    if (v > 1440 || (v > 0 && out.steps[d] === v)) { delete out.exercise[d]; out.exerciseBad = true; out.unknown++; }
+  }
+  // Tage mit Schritten, aber ohne E-Zeile: Health hat an dem Tag (noch) keine Trainingsminuten → 0
+  if (out.hasExercise && !out.exerciseBad) {
+    for (const d of Object.keys(out.steps)) if (!(d in out.exercise)) out.exercise[d] = 0;
   }
   return out;
 }

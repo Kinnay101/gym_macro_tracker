@@ -6,6 +6,7 @@ import { schedule, planMuscles } from '../plan.js';
 import { startWorkout } from '../workout.js';
 import { lastNight, healthWorkoutsBetween } from '../health.js';
 import { header, ring, bar, energy, energyUnit } from '../ui.js';
+import * as daySheet from './daySheet.js';
 
 let showEaten = false;
 
@@ -83,7 +84,9 @@ function weekCard(state, key) {
     if (trained) cls = 'done';
     else if (d === key) cls = 'today';
     else if (d < key || byDate[d]?.kind === 'rest') cls = 'rest';
-    days.push(`<div class="d"><span style="${d === key ? 'color:var(--accent)' : ''}">${esc(weekdayShort(d))}</span><span class="c ${cls}">${parseKey(d).getDate()}</span><span class="dot ${cardio ? 'on' : ''}"></span></div>`);
+    const inner = `<span style="${d === key ? 'color:var(--accent)' : ''}">${esc(weekdayShort(d))}</span><span class="c ${cls}">${parseKey(d).getDate()}</span><span class="dot ${cardio ? 'on' : ''}"></span>`;
+    // Vergangene Tage und heute antippbar → Tagesübersicht
+    days.push(d <= key ? `<button type="button" class="d" data-act="day-open" data-d="${esc(d)}" aria-label="${esc(longDate(d))}">${inner}</button>` : `<div class="d">${inner}</div>`);
   }
   return `<section class="card"><div class="card-head"><h3>${esc(t('today.week'))}</h3><span class="tiny muted">${esc(t('today.weekLegend'))}</span></div><div class="week">${days.join('')}</div></section>`;
 }
@@ -127,6 +130,7 @@ function weightCard(state) {
 }
 
 export const actions = {
+  ...daySheet.actions,
   'toggle-ring'(el, ctx) { showEaten = !showEaten; ctx.render(); },
   start(el, ctx) {
     ctx.update((s) => startWorkout(s, el.dataset.plan), { silent: true });
