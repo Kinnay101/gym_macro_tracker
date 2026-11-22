@@ -2,6 +2,7 @@
 // Bewusst keine echten Screenshots (die enthielten persönliche Gesundheitswerte, das Repo ist öffentlich).
 import { esc } from '../util.js';
 import { t } from '../i18n.js';
+import { SUPABASE_URL } from '../config.js';
 
 // Beschriftungen wie in der Kurzbefehle-App – je nach Sprache des iPhones
 const UI = {
@@ -123,7 +124,7 @@ function steps(u) {
       ] },
     { title: L('Senden', 'Send'), body:
         card(ICON.text, `${u.combine} ${chg(vtok('Data', 'var'))} ${u.with} ${tok(u.newLines)}`)
-        + card(ICON.url, `${u.getContents} ${chg(tok('https://…/rest/v1/rpc/health_sync'))}`,
+        + card(ICON.url, `${u.getContents} ${chg(`<span class="sc-tok" style="white-space:normal;word-break:break-all">${esc(SUPABASE_URL + '/rest/v1/rpc/health_sync')}</span>`)}`,
           row(`<span class="grow">${u.method}</span>${chg(tok('POST'))}`)
           + row(`<span class="grow">${u.headers}</span>`)
           + row(`${chg(`${tok('apikey')} ${tok('sb_publishable_…')}`)}`)
