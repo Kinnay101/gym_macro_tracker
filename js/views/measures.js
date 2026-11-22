@@ -64,7 +64,7 @@ function formSheet(state) {
   const input = (k, ph) => `<input class="input num" inputmode="decimal" id="m-${k}" value="${esc(v(k))}" placeholder="${esc(ph)}" aria-label="${esc(measureLabel(k))}">`;
   const rows = FORM_ROWS.map(([name, keys]) => `<div class="row" style="gap:8px">
       <span class="small grow">${esc(t('measure.row.' + name))}</span>
-      ${keys.length === 2 ? `<div style="width:84px">${input(keys[0], t('measure.rShort'))}</div><div style="width:84px">${input(keys[1], t('measure.lShort'))}</div>` : `<div style="width:176px">${input(keys[0], 'cm')}</div>`}
+      ${keys.length === 2 ? `<div style="width:84px">${input(keys[0], t('measure.lShort'))}</div><div style="width:84px">${input(keys[1], t('measure.rShort'))}</div>` : `<div style="width:176px">${input(keys[0], 'cm')}</div>`}
     </div>`).join('');
   return `${sheetHead(editDate ? t('measure.editTitle') : t('body.addMeasures'))}
     <div class="grid2">
@@ -74,7 +74,7 @@ function formSheet(state) {
       <label class="field">${esc(t('measure.status'))}<input class="input" id="m-status" list="m-status-list" value="${esc(e.status || '')}" placeholder="${esc(t('measure.statusPh'))}"></label>
     </div>
     <datalist id="m-status-list">${STATUS_SUGGESTIONS.map((s) => `<option value="${esc(s)}">`).join('')}</datalist>
-    <div class="row tiny muted" style="gap:8px"><span class="grow">${esc(t('measure.inCm'))}</span><span style="width:84px;text-align:center">${esc(t('measure.right'))}</span><span style="width:84px;text-align:center">${esc(t('measure.left'))}</span></div>
+    <div class="row tiny muted" style="gap:8px"><span class="grow">${esc(t('measure.inCm'))}</span><span style="width:84px;text-align:center">${esc(t('measure.left'))}</span><span style="width:84px;text-align:center">${esc(t('measure.right'))}</span></div>
     <div class="stack">${rows}</div>
     ${editDate ? `<div class="tiny muted">${esc(t('measure.otherKeys'))}</div>` : ''}
     <div class="small" id="m-err" style="color:var(--bad)"></div>

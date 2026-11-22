@@ -8,17 +8,17 @@ import { dayKey, parseNum } from './util.js';
 
 export const PARTS = ['shoulders', 'chest', 'waist', 'hips', 'neck', 'biceps', 'forearm', 'thigh', 'calf'];
 
-/** Zeilen im Formular: [Zeilenname, [Schlüssel…]] – Paare = rechts | links */
+/** Zeilen im Formular: [Zeilenname, [Schlüssel…]] – Paare = links | rechts */
 export const FORM_ROWS = [
   ['shoulders', ['shoulders']],
   ['chest', ['chest']],
   ['waist', ['waist']],
   ['hips', ['hips']],
-  ['biceps', ['bicepsR', 'bicepsL']],
-  ['bicepsFlex', ['bicepsRFlex', 'bicepsLFlex']],
-  ['forearmFlex', ['forearmRFlex', 'forearmLFlex']],
-  ['thigh', ['thighR', 'thighL']],
-  ['calf', ['calfR', 'calfL']],
+  ['biceps', ['bicepsL', 'bicepsR']],
+  ['bicepsFlex', ['bicepsLFlex', 'bicepsRFlex']],
+  ['forearmFlex', ['forearmLFlex', 'forearmRFlex']],
+  ['thigh', ['thighL', 'thighR']],
+  ['calf', ['calfL', 'calfR']],
 ];
 
 export const STATUS_SUGGESTIONS = ['Start of Cut', 'End of Cut', 'Start of Bulk', 'End of Bulk', 'Maintain'];
