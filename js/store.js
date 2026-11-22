@@ -29,7 +29,7 @@ function blank() {
     offCache: {}, // benutzte Produkte aus Open Food Facts (für "zuletzt benutzt" und offline)
     diary: {}, // { 'JJJJ-MM-TT': [ { id, meal, foodId, name, grams, n: {…} } ] }
     weights: [], // { date, kg }
-    measures: [], // { date, waist, chest, arm, thigh, hips }
+    measures: [], // { date, status?, bf?, shoulders, chest, waist, hips, bicepsR/L, bicepsR/LFlex, forearmR/LFlex, thighR/L, calfR/L … } in cm, siehe js/measures.js
     workouts: [], // abgeschlossene Trainings
     cardio: [], // { id, date, type, minutes, km, after }
     dayChoice: {}, // { 'JJJJ-MM-TT': 'rest' | planId } – manuelle Wahl für einen Tag
@@ -52,6 +52,12 @@ function migrate(d) {
   const b = blank();
   const out = { ...b, ...d, profile: { ...b.profile, ...(d.profile || {}) } };
   if (!Array.isArray(out.plans) || !out.plans.length) out.plans = b.plans;
+  // Alte Masse (vor 22.11.): 'arm' hiess jetzt 'biceps'
+  out.measures = (out.measures || []).map((m) => {
+    if (m.arm == null) return m;
+    const { arm, ...rest } = m;
+    return { biceps: arm, ...rest };
+  });
   return out;
 }
 

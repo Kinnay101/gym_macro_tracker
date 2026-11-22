@@ -79,7 +79,19 @@ const de = {
   'act.sedentary': 'Kaum aktiv', 'act.light': 'Leicht aktiv', 'act.moderate': 'Aktiv', 'act.high': 'Sehr aktiv', 'act.veryHigh': 'Extrem aktiv',
   'body.actTracked': 'Aus deinen Einträgen der letzten 4 Wochen: {n} Einheiten pro Woche (Krafttrainings + Cardio, 45 min Cardio = 1 Einheit). Passt sich automatisch an.',
   'body.actRhythm': 'Noch weniger als 2 Wochen Trainings eingetragen – geschätzt aus deinem Rhythmus «{rhythm}». Danach rechnet die App mit deinen echten Einträgen.',
-  'measure.waist': 'Bauch', 'measure.chest': 'Brust', 'measure.arm': 'Oberarm', 'measure.thigh': 'Oberschenkel', 'measure.hips': 'Hüfte',
+  'measure.shoulders': 'Schultern', 'measure.chest': 'Brust', 'measure.waist': 'Taille/Bauch', 'measure.hips': 'Hüfte', 'measure.neck': 'Hals',
+  'measure.biceps': 'Bizeps', 'measure.forearm': 'Unterarm', 'measure.thigh': 'Oberschenkel', 'measure.calf': 'Wade',
+  'measure.right': 'rechts', 'measure.left': 'links', 'measure.flexed': 'angespannt', 'measure.rShort': 'R', 'measure.lShort': 'L',
+  'measure.row.shoulders': 'Schultern', 'measure.row.chest': 'Brust', 'measure.row.waist': 'Taille/Bauch', 'measure.row.hips': 'Hüfte',
+  'measure.row.biceps': 'Bizeps entspannt', 'measure.row.bicepsFlex': 'Bizeps angespannt', 'measure.row.forearmFlex': 'Unterarm angespannt',
+  'measure.row.thigh': 'Oberschenkel (stehend)', 'measure.row.calf': 'Wade',
+  'measure.bf': 'Körperfett', 'measure.bfShort': 'KFA', 'measure.status': 'Status', 'measure.statusPh': 'z. B. End of Cut', 'measure.inCm': 'Masse in cm',
+  'measure.otherKeys': 'Weitere übernommene Masse bleiben erhalten.', 'measure.editTitle': 'Masse bearbeiten', 'measure.history': 'Verlauf', 'measure.edit': 'Bearbeiten',
+  'measure.import': 'Aus Notizen übernehmen', 'measure.importHint': 'Füge deine bisherigen Notizen ein – auch mehrere Einträge auf einmal, jeweils mit Datum davor. Deutsch oder Englisch.',
+  'measure.importCheck': 'Prüfen', 'measure.importSave': '{n} Einträge übernehmen', 'measure.importNone': 'Darin wurden keine Masse erkannt.',
+  'measure.unknown': 'Nicht erkannt', 'measure.merge': 'ergänzt bestehenden', 'measure.count': '{n} Masse',
+  'measure.deltaHint': 'Veränderung seit {date}', 'measure.saved': 'Masse gespeichert', 'measure.deleted': 'Eintrag gelöscht',
+  'measure.empty': 'Bitte mindestens einen Wert eintragen.', 'measure.imported': '{n} Einträge übernommen',
 
   'auth.intro': 'Mit einem Konto sind deine Daten auf allen Geräten gleich (PC, iPhone) und gesichert. Später auch für Freunde und Rangliste.',
   'auth.email': 'E-Mail', 'auth.password': 'Passwort (mind. 8 Zeichen)', 'auth.signIn': 'Anmelden', 'auth.signUp': 'Konto erstellen', 'auth.forgot': 'Passwort vergessen?',
@@ -196,7 +208,19 @@ const en = {
   'act.sedentary': 'Sedentary', 'act.light': 'Lightly active', 'act.moderate': 'Active', 'act.high': 'Very active', 'act.veryHigh': 'Extremely active',
   'body.actTracked': 'From your entries of the last 4 weeks: {n} sessions per week (strength + cardio, 45 min cardio = 1 session). Adjusts automatically.',
   'body.actRhythm': 'Less than 2 weeks of workouts logged – estimated from your rhythm "{rhythm}". After that the app uses your real entries.',
-  'measure.waist': 'Waist', 'measure.chest': 'Chest', 'measure.arm': 'Upper arm', 'measure.thigh': 'Thigh', 'measure.hips': 'Hips',
+  'measure.shoulders': 'Shoulders', 'measure.chest': 'Chest', 'measure.waist': 'Waist', 'measure.hips': 'Hips', 'measure.neck': 'Neck',
+  'measure.biceps': 'Biceps', 'measure.forearm': 'Forearm', 'measure.thigh': 'Thigh', 'measure.calf': 'Calf',
+  'measure.right': 'right', 'measure.left': 'left', 'measure.flexed': 'flexed', 'measure.rShort': 'R', 'measure.lShort': 'L',
+  'measure.row.shoulders': 'Shoulders', 'measure.row.chest': 'Chest', 'measure.row.waist': 'Waist', 'measure.row.hips': 'Hips',
+  'measure.row.biceps': 'Biceps relaxed', 'measure.row.bicepsFlex': 'Biceps flexed', 'measure.row.forearmFlex': 'Forearm flexed',
+  'measure.row.thigh': 'Thigh (standing)', 'measure.row.calf': 'Calf',
+  'measure.bf': 'Body fat', 'measure.bfShort': 'BF', 'measure.status': 'Status', 'measure.statusPh': 'e.g. End of Cut', 'measure.inCm': 'Measurements in cm',
+  'measure.otherKeys': 'Other imported measurements are kept.', 'measure.editTitle': 'Edit measurements', 'measure.history': 'History', 'measure.edit': 'Edit',
+  'measure.import': 'Import from notes', 'measure.importHint': 'Paste your previous notes – several entries at once are fine, each with a date first. German or English.',
+  'measure.importCheck': 'Check', 'measure.importSave': 'Import {n} entries', 'measure.importNone': 'No measurements recognised.',
+  'measure.unknown': 'Not recognised', 'measure.merge': 'adds to existing', 'measure.count': '{n} measurements',
+  'measure.deltaHint': 'Change since {date}', 'measure.saved': 'Measurements saved', 'measure.deleted': 'Entry deleted',
+  'measure.empty': 'Please enter at least one value.', 'measure.imported': '{n} entries imported',
 
   'auth.intro': 'With an account your data is the same on all devices (PC, iPhone) and backed up. Later also for friends and leaderboard.',
   'auth.email': 'Email', 'auth.password': 'Password (min. 8 characters)', 'auth.signIn': 'Sign in', 'auth.signUp': 'Create account', 'auth.forgot': 'Forgot password?',
@@ -256,7 +280,10 @@ export function longDate(key) {
   return parseKey(key).toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' });
 }
 export function shortDate(key) {
-  return parseKey(key).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' });
+  const d = parseKey(key);
+  const opts = { weekday: 'short', day: 'numeric', month: 'short' };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric'; // Jahr nur, wenn nicht dieses Jahr
+  return d.toLocaleDateString(locale(), opts);
 }
 export function monthName(date) {
   return date.toLocaleDateString(locale(), { month: 'long', year: 'numeric' });

@@ -6,8 +6,8 @@ import { header, seg, lineChart, energy, sheetHead } from '../ui.js';
 import * as store from '../store.js';
 import * as sync from '../sync.js';
 import * as social from '../social.js';
+import * as measuresView from './measures.js';
 
-const MEASURES = ['waist', 'chest', 'arm', 'thigh', 'hips'];
 
 export function render(state) {
   const p = state.profile;
@@ -17,7 +17,6 @@ export function render(state) {
   const kg = currentWeight(state);
   const calc = calcGoals(state);
   const g = goals(state);
-  const lastM = [...state.measures].sort((a, b) => a.date.localeCompare(b.date)).pop();
 
   return `${header(t('nav.body'))}
     <section class="card">
@@ -28,10 +27,7 @@ export function render(state) {
         <button class="icon-btn" data-act="del-weight" data-date="${esc(w.date)}" aria-label="${esc(t('common.delete'))}">${icon(I.trash)}</button></div>`).join('')}</div>` : ''}
     </section>
 
-    <section class="card tight"><div class="card-head"><h3>${esc(t('body.measures'))}</h3><button class="link" data-act="measures">${esc(t('body.addMeasures'))}</button></div>
-      ${lastM ? `<div class="grid3">${MEASURES.filter((m) => lastM[m]).map((m) => `<div class="stack" style="gap:2px"><span class="tiny muted">${esc(t('measure.' + m))}</span><b>${num(lastM[m], 1)} cm</b></div>`).join('')}</div><div class="tiny muted">${esc(shortDate(lastM.date))}</div>`
-        : `<div class="small muted">${esc(t('body.noMeasures'))}</div>`}
-    </section>
+    ${measuresView.card(state)}
 
     <section class="card tight"><h3>${esc(t('body.photos'))}</h3><div class="small muted">${esc(t('body.photosSoon'))}</div></section>
 
@@ -169,13 +165,9 @@ function manualSheet(state) {
     <button class="btn primary block" data-act="save-goals">${esc(t('common.save'))}</button>`;
 }
 
-function measuresSheet() {
-  return `${sheetHead(t('body.addMeasures'))}
-    <div class="grid2">${MEASURES.map((m) => `<label class="field">${esc(t('measure.' + m))} (cm)<input class="input" inputmode="decimal" id="m-${m}"></label>`).join('')}</div>
-    <button class="btn primary block" data-act="save-measures">${esc(t('common.save'))}</button>`;
-}
 
 export const actions = {
+  ...measuresView.actions,
   'add-weight'(el, ctx) {
     const kg = parseNum(document.getElementById('w-in').value);
     if (!kg || kg < 20 || kg > 400) { ctx.toast(t('body.invalidWeight')); return; }
@@ -187,14 +179,6 @@ export const actions = {
     const removed = ctx.state.weights.find((w) => w.date === el.dataset.date);
     ctx.update((s) => { s.weights = s.weights.filter((w) => w.date !== el.dataset.date); });
     ctx.toast(t('body.weightDeleted'), () => ctx.update((s) => { s.weights.push(removed); }));
-  },
-  measures(el, ctx) { ctx.openSheet(measuresSheet); },
-  'save-measures'(el, ctx) {
-    const entry = { date: today() };
-    for (const m of MEASURES) { const v = parseNum(document.getElementById('m-' + m).value); if (v) entry[m] = v; }
-    if (Object.keys(entry).length < 2) { ctx.closeSheet(); return; }
-    ctx.closeSheet();
-    ctx.update((s) => { s.measures = s.measures.filter((x) => x.date !== entry.date); s.measures.push(entry); });
   },
   goal(el, ctx) { ctx.update((s) => { s.profile.goal = el.dataset.v; }); },
   lang(el, ctx) { ctx.update((s) => { s.profile.lang = el.dataset.v; }); },
@@ -283,6 +267,7 @@ export const inputs = {
 };
 
 export const changes = {
+  ...measuresView.changes,
   sex(el, ctx) { ctx.update((s) => { s.profile.sex = el.value || null; }); },
   birthYear(el, ctx) { const v = parseNum(el.value); ctx.update((s) => { s.profile.birthYear = v && v > 1900 && v < 2030 ? Math.round(v) : null; }); },
   heightCm(el, ctx) { const v = parseNum(el.value); ctx.update((s) => { s.profile.heightCm = v && v > 100 && v < 250 ? v : null; }); },
