@@ -164,8 +164,8 @@ function steps(u, token) {
           + card(ICON.ifI, u.endIf, '', 'sc-repeat');
         const list = [
           fill('A', L('<b>Get Dictionary Value</b> hinzufügen, auf <b>Key</b> tippen → <code>export</code>.', 'Add <b>Get Dictionary Value</b>, tap <b>Key</b> → <code>export</code>.')),
-          fill('B', L('<b>If</b> hinzufügen, Bedingung → <b>has any value</b>.', 'Add <b>If</b>, condition → <b>has any value</b>.')),
-          fill('C', L('Zwischen «If» und «Otherwise»: <b>Get Dictionary Value</b> hinzufügen, Key → <code>kcal</code>. Bei «in» → <b>Select Variable</b> → die erste «Get Dictionary Value» (export) antippen.', 'Between "If" and "Otherwise": add <b>Get Dictionary Value</b>, Key → <code>kcal</code>. For "in" → <b>Select Variable</b> → tap the first "Get Dictionary Value" (export).')),
+          fill('B', L('<b>If</b> hinzufügen. Eingabe antippen → in der Liste <b>Dictionary Value</b> wählen. «has any value» steht meist schon drin.', 'Add <b>If</b>. Tap the input → choose <b>Dictionary Value</b> in the list. "has any value" is usually already set.')),
+          fill('C', L('Zwischen «If» und «Otherwise»: <b>Get Dictionary Value</b> hinzufügen, Key → <code>kcal</code>. Bei «in» antippen → in der Liste <b>Dictionary Value</b> wählen.', 'Between "If" and "Otherwise": add <b>Get Dictionary Value</b>, Key → <code>kcal</code>. For "in" tap → choose <b>Dictionary Value</b> in the list.')),
           fill('D', L('Darunter <b>Log Health Sample</b>: <b>Dietary Energy</b>, Einheit <b>kcal</b>, Datum → <b>Adjusted Date</b>.', 'Below it <b>Log Health Sample</b>: <b>Dietary Energy</b>, unit <b>kcal</b>, date → <b>Adjusted Date</b>.')),
           fill('E', L('C und D duplizieren für <code>protein</code>, <code>carbs</code>, <code>fat</code>, <code>fiber</code>, <code>sugar</code> (Einheit <b>g</b>).', 'Duplicate C and D for <code>protein</code>, <code>carbs</code>, <code>fat</code>, <code>fiber</code>, <code>sugar</code> (unit <b>g</b>).')),
         ].join('');
