@@ -29,7 +29,6 @@ export function render(state) {
 
     ${measuresView.card(state)}
 
-    <section class="card tight"><h3>${esc(t('body.photos'))}</h3><div class="small muted">${esc(t('body.photosSoon'))}</div></section>
 
     <section class="card">
       <h3>${esc(t('body.goals'))}</h3>
