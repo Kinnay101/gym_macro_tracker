@@ -155,27 +155,19 @@ function steps(u, token) {
       ] },
     { title: L('Kalorien nach Apple Health', 'Calories to Apple Health'), body: (() => {
         const fill = (n, what) => `<div class="sc-fill"><span class="sc-num">${n}</span><div class="grow small">${what}</div></div>`;
-        const pair = (key, type, unit) => card(ICON.dict, `${u.get} ${tok(u.valueFor)} ${chg(tok(key))} ${u.inW} ${vtok('Export', 'dict')}`)
+        const pair = (key, type, unit) => card(ICON.dict, `${u.get} ${tok(u.valueFor)} ${chg(tok(key))} ${u.inW} ${vtok(u.dict, 'dict')}`)
           + card(ICON.log, `${u.log} ${chg(tok(type))} ${u.sampleWith} ${vtok(u.dict, 'dict')} ${chg(tok(unit))} ${u.atDate} ${vtok(u.adjusted, 'date')}`);
-        const visual = card(ICON.dict, `${u.get} ${tok(u.valueFor)} ${chg(tok('export'))} ${u.inW} ${vtok(u.contents, 'url')} → <b>Export</b>`)
-          + card(ICON.ifI, `${u.ifW} ${vtok('Export', 'dict')} ${chg(tok(u.hasAny))}`)
+        const visual = card(ICON.dict, `${u.get} ${tok(u.valueFor)} ${chg(tok('export'))} ${u.inW} ${vtok(u.contents, 'url')}`)
+          + card(ICON.ifI, `${u.ifW} ${vtok(u.dict, 'dict')} ${chg(tok(u.hasAny))}`)
           + indent(pair('kcal', u.energy, 'kcal') + `<div class="sc-more">${L('… und gleich für', '… and the same for')}: protein → ${esc(u.protein)} (g) · carbs → ${esc(u.carbs)} (g) · fat → ${esc(u.fat)} (g) · fiber → ${esc(u.fiber)} (g) · sugar → ${esc(u.sugar)} (g)</div>`)
           + card(ICON.ifI, `<span class="muted">Otherwise</span>`, '', 'sc-repeat')
           + card(ICON.ifI, u.endIf, '', 'sc-repeat');
         const list = [
-          fill('A', L('Suche <b>Get Dictionary Value</b> und einfügen (unter «Get Contents of URL»). Dort steht «Get Value for Key in Contents of URL». <b>Key</b> antippen → <code>export</code> eintippen.',
-            'Search <b>Get Dictionary Value</b> and add it (below "Get Contents of URL"). It reads "Get Value for Key in Contents of URL". Tap <b>Key</b> → type <code>export</code>.')),
-          fill('B', L('Das Ergebnis umbenennen, damit es später eindeutig ist: unter der Aktion auf «Dictionary Value» tippen → <b>Rename</b> → <code>Export</code>. (Falls «Rename» fehlt: einfach weiter, dann heisst es «Dictionary Value».)',
-            'Rename the result so it is clear later: tap "Dictionary Value" below the action → <b>Rename</b> → <code>Export</code>. (If there is no "Rename": just continue, it is then called "Dictionary Value".)')),
-          fill('C', L('Suche <b>If</b> und einfügen. Als Eingabe <b>Export</b> wählen, Bedingung → <b>has any value</b>. «Otherwise» und «End If» kommen automatisch mit.',
-            'Search <b>If</b> and add it. Choose <b>Export</b> as input, condition → <b>has any value</b>. "Otherwise" and "End If" come along automatically.')),
-          fill('D', L('<b>Zwischen «If» und «Otherwise»</b>: noch einmal <b>Get Dictionary Value</b>. Key → <code>kcal</code>, und bei «in» die Variable <b>Export</b> wählen.',
-            '<b>Between "If" and "Otherwise"</b>: another <b>Get Dictionary Value</b>. Key → <code>kcal</code>, and for "in" choose the variable <b>Export</b>.')),
-          fill('E', L('Darunter <b>Log Health Sample</b>: Typ <b>Dietary Energy</b>, Wert = «Dictionary Value» (kommt automatisch), Einheit <b>kcal</b>, Datum → Variable <b>Adjusted Date</b> (aus «Datum von gestern»).',
-            'Below it <b>Log Health Sample</b>: type <b>Dietary Energy</b>, value = "Dictionary Value" (automatic), unit <b>kcal</b>, date → variable <b>Adjusted Date</b> (from "Yesterday’s date").')),
-          fill('F', L('D und E für die anderen Werte wiederholen (beide lange drücken → Duplicate, dann Key und Typ ändern): <code>protein</code> → Protein, <code>carbs</code> → Carbohydrates, <code>fat</code> → Total Fat, <code>fiber</code> → Fiber, <code>sugar</code> → Sugar – jeweils Einheit <b>g</b>.',
-            'Repeat D and E for the other values (long-press both → Duplicate, then change key and type): <code>protein</code> → Protein, <code>carbs</code> → Carbohydrates, <code>fat</code> → Total Fat, <code>fiber</code> → Fiber, <code>sugar</code> → Sugar – unit <b>g</b> each time.')),
-          fill('G', L('Zwischen «Otherwise» und «End If» bleibt alles leer.', 'Leave everything between "Otherwise" and "End If" empty.')),
+          fill('A', L('<b>Get Dictionary Value</b> hinzufügen, auf <b>Key</b> tippen → <code>export</code>.', 'Add <b>Get Dictionary Value</b>, tap <b>Key</b> → <code>export</code>.')),
+          fill('B', L('<b>If</b> hinzufügen, Bedingung → <b>has any value</b>.', 'Add <b>If</b>, condition → <b>has any value</b>.')),
+          fill('C', L('Zwischen «If» und «Otherwise»: <b>Get Dictionary Value</b> hinzufügen, Key → <code>kcal</code>. Bei «in» → <b>Select Variable</b> → die erste «Get Dictionary Value» (export) antippen.', 'Between "If" and "Otherwise": add <b>Get Dictionary Value</b>, Key → <code>kcal</code>. For "in" → <b>Select Variable</b> → tap the first "Get Dictionary Value" (export).')),
+          fill('D', L('Darunter <b>Log Health Sample</b>: <b>Dietary Energy</b>, Einheit <b>kcal</b>, Datum → <b>Adjusted Date</b>.', 'Below it <b>Log Health Sample</b>: <b>Dietary Energy</b>, unit <b>kcal</b>, date → <b>Adjusted Date</b>.')),
+          fill('E', L('C und D duplizieren für <code>protein</code>, <code>carbs</code>, <code>fat</code>, <code>fiber</code>, <code>sugar</code> (Einheit <b>g</b>).', 'Duplicate C and D for <code>protein</code>, <code>carbs</code>, <code>fat</code>, <code>fiber</code>, <code>sugar</code> (unit <b>g</b>).')),
         ].join('');
         return `${visual}<div class="small" style="margin-top:4px"><b>${L('So baust du es', 'How to build it')}</b></div>${list}`;
       })(),
