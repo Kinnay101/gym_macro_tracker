@@ -57,7 +57,7 @@ function render() {
   const state = store.get();
   setLang(state.profile.lang);
   document.documentElement.lang = state.profile.lang;
-  $nav.querySelectorAll('[data-t]').forEach((el) => { el.textContent = t(el.dataset.t); });
+  document.querySelectorAll('#nav [data-t], #rotate [data-t]').forEach((el) => { el.textContent = t(el.dataset.t); });
   const tab = TAB_OF[current.name] || current.name;
   $nav.querySelectorAll('a').forEach((a) => {
     if (a.dataset.tab === tab) a.setAttribute('aria-current', 'page');

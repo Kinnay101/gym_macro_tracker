@@ -3,6 +3,7 @@ import { parseKey } from './util.js';
 
 const de = {
   'nav.today': 'Heute', 'nav.food': 'Ernährung', 'nav.training': 'Training', 'nav.progress': 'Fortschritt', 'nav.body': 'Körper',
+  'app.rotate': 'Bitte Handy aufrecht halten',
   'common.today': 'Heute', 'common.undo': 'Rückgängig', 'common.close': 'Schliessen', 'common.back': 'Zurück', 'common.save': 'Speichern',
   'common.delete': 'Löschen', 'common.remove': 'Entfernen', 'common.done': 'Fertig', 'common.date': 'Datum',
   'common.prevDay': 'Vorheriger Tag', 'common.nextDay': 'Nächster Tag', 'common.prev': 'Zurück', 'common.next': 'Weiter',
@@ -179,6 +180,7 @@ const de = {
 
 const en = {
   'nav.today': 'Today', 'nav.food': 'Nutrition', 'nav.training': 'Training', 'nav.progress': 'Progress', 'nav.body': 'Body',
+  'app.rotate': 'Please hold your phone upright',
   'common.today': 'Today', 'common.undo': 'Undo', 'common.close': 'Close', 'common.back': 'Back', 'common.save': 'Save',
   'common.delete': 'Delete', 'common.remove': 'Remove', 'common.done': 'Done', 'common.date': 'Date',
   'common.prevDay': 'Previous day', 'common.nextDay': 'Next day', 'common.prev': 'Previous', 'common.next': 'Next',

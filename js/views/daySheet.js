@@ -66,7 +66,7 @@ function sheet(state) {
   if (h.activeKcal != null) tiles.push(tile(t('health.active'), energy(state, h.activeKcal)));
   if (h.exerciseMin != null) tiles.push(tile(t('health.exercise'), `${num(h.exerciseMin)} min`));
   if (night) tiles.push(tile(t('health.sleep'), hm(night.minutes), night.deep || night.rem ? `${t('health.deep')} ${hm(night.deep)} · REM ${hm(night.rem)}` : ''));
-  if (weight) tiles.push(tile(t('body.weight'), `${num(weight.kg, 1)} kg`, weight.source === 'health' ? '⌚' : ''));
+  if (weight) tiles.push(tile(t('body.weight'), `${num(weight.kg, 1)} kg`, weight.source === 'health' ? 'Apple Health' : ''));
   if (bf != null) tiles.push(tile(t('measure.bf'), `${num(bf, 1)} %`));
   if (tiles.length) parts.push(`<section class="card tight"><h3>${esc(t('day.body'))}</h3><div class="grid3">${tiles.join('')}</div></section>`);
 

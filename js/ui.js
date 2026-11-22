@@ -9,6 +9,8 @@ export function energy(state, kcal, withUnit = true) {
   const v = num(Math.round(kj ? kcalToKj(kcal) : kcal));
   return withUnit ? `${v} ${kj ? 'kJ' : 'kcal'}` : v;
 }
+/** Kleines Herz: Wert stammt aus Apple Health (nicht unbedingt von der Watch) */
+export function healthMark() { return '<span class="hk" title="Apple Health" aria-label="Apple Health">♥︎</span>'; }
 export function energyUnit(state) { return state.profile.energyUnit === 'kj' ? 'kJ' : 'kcal'; }
 
 export function header(title, sub = '', right = '') {
