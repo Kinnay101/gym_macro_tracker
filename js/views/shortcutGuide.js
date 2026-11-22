@@ -13,7 +13,7 @@ const UI = {
     combine: 'Combine', with: 'with', newLines: 'New Lines', combined: 'Combined Text', getContents: 'Get contents of', method: 'Method', headers: 'Headers', body: 'Request Body',
     get: 'Get', valueFor: 'Value for', inW: 'in', contents: 'Contents of URL', dict: 'Dictionary Value', ifW: 'If', hasAny: 'has any value', endIf: 'End If',
     log: 'Log', sampleWith: 'sample with', atDate: 'at', show: 'Show', quickLook: 'in Quick Look', formatted: 'Formatted Date', adjusted: 'Adjusted Date', yesterday: 'Yesterday',
-    weight: 'Weight', bf: 'Body Fat Percentage', steps: 'Steps', active: 'Active Energy', sleep: 'Sleep', workouts: 'Workouts', energy: 'Dietary Energy',
+    weight: 'Weight', bf: 'Body Fat Percentage', steps: 'Steps', active: 'Active Energy', sleep: 'Sleep', exercise: 'Exercise Minutes', distance: 'Walking + Running Distance', energy: 'Dietary Energy',
     protein: 'Protein', carbs: 'Carbohydrates', fat: 'Total Fat', fiber: 'Fiber', sugar: 'Sugar',
   },
   de: {
@@ -24,7 +24,7 @@ const UI = {
     combine: 'Kombiniere', with: 'mit', newLines: 'Neue Zeilen', combined: 'Kombinierter Text', getContents: 'Inhalte abrufen von', method: 'Methode', headers: 'Header', body: 'Anfragetext',
     get: 'Hole', valueFor: 'Wert für', inW: 'in', contents: 'Inhalte der URL', dict: 'Wörterbuchwert', ifW: 'Wenn', hasAny: 'einen Wert hat', endIf: 'Ende Wenn',
     log: 'Protokolliere', sampleWith: 'Probe mit', atDate: 'am', show: 'Zeige', quickLook: 'in Übersicht', formatted: 'Formatiertes Datum', adjusted: 'Angepasstes Datum', yesterday: 'Yesterday',
-    weight: 'Gewicht', bf: 'Körperfettanteil', steps: 'Schritte', active: 'Aktivitätsenergie', sleep: 'Schlaf', workouts: 'Workouts', energy: 'Nahrungsenergie',
+    weight: 'Gewicht', bf: 'Körperfettanteil', steps: 'Schritte', active: 'Aktivitätsenergie', sleep: 'Schlaf', exercise: 'Trainingsminuten', distance: 'Gehen- und Laufdistanz', energy: 'Nahrungsenergie',
     protein: 'Protein', carbs: 'Kohlenhydrate', fat: 'Fett gesamt', fiber: 'Ballaststoffe', sugar: 'Zucker',
   },
 };
@@ -109,22 +109,37 @@ function steps(u) {
       notes: [L('Den Schritte-Block kopieren.', 'Copy the steps block.'), repointHint], result: 'A;2026-11-16;612' },
     { title: L('Schlaf', 'Sleep'), body: findCard(u, { type: u.sleep, days: 3, noUnit: true, changed: ['type', 'days'] }) + loopBlock(u, { prefix: 'P;', fields: ['start', 'end', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd HH:mm', true),
       notes: [L('Den Gewicht-Block kopieren (mit Uhrzeit).', 'Copy the weight block (with time).'), repointHint, L(`Im Text nach «${u.start}» ein «;» und ein weiteres «${u.item}» → «${u.end}» einfügen. Schlaf hat keine «Unit» und kein «Group by» – das ist richtig.`, `In the text, after "${u.start}" add ";" and another "${u.item}" → "${u.end}". Sleep has no "Unit" and no "Group by" – that is correct.`)], result: 'P;2026-11-21 23:10;2026-11-22 01:30;Core' },
-    { title: 'Workouts', body: findCard(u, { type: u.workouts, noUnit: true, changed: ['type'] }) + loopBlock(u, { prefix: 'T;', fields: ['start', 'end', 'item'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd HH:mm', true),
-      notes: [L('Den Schlaf-Block kopieren.', 'Copy the sleep block.'), repointHint, L(`Das letzte Feld ist das ganze «${u.item}» (der Name, z. B. Running) – nichts auswählen.`, `The last field is the whole "${u.item}" (the name, e.g. Running) – select nothing.`)], result: 'T;2026-11-21 18:02;2026-11-21 18:47;Running' },
+    { title: L('Trainingsminuten', 'Exercise minutes'), body: findCard(u, { type: u.exercise, unit: 'min', group: true, changed: ['type', 'unit'] }) + loopBlock(u, { prefix: 'E;', fields: ['start', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd'),
+      notes: [L('Den Schritte-Block kopieren.', 'Copy the steps block.'), repointHint, L('Statt einzelner Workouts (die kann Kurzbefehle nicht lesen): die Minuten des grünen Rings pro Tag.', 'Instead of single workouts (Shortcuts cannot read them): the minutes of the green ring per day.')], result: 'E;2026-11-16;52' },
+    { title: L('Distanz (Gehen + Laufen)', 'Distance (walking + running)'), body: findCard(u, { type: u.distance, unit: 'km', group: true, changed: ['type', 'unit'] }) + loopBlock(u, { prefix: 'D;', fields: ['start', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd'),
+      notes: [L('Den Trainingsminuten-Block kopieren.', 'Copy the exercise minutes block.'), repointHint], result: 'D;2026-11-16;6.8' },
     { title: L('Datum von gestern', "Yesterday's date"), body:
         card(ICON.date, `${u.date} ${tok(u.current)}`)
-        + card(ICON.date, `${u.adjust}: ${tok(u.subtract)} ${tok(u.oneDay)} ${u.from} ${vtok(u.date, 'date')}`)
-        + card(ICON.date, `${u.format} ${vtok(u.adjusted, 'date')}`, row(`<span class="grow">Date Format</span><span class="sc-link">${u.custom}</span>`) + row(`<span class="sc-lit">yyyy-MM-dd</span>`)),
-      notes: [L('Unter «Format Date»: Ergebnis antippen → <b>Rename</b> → <code>Yesterday</code>.', 'Below "Format Date": tap the result → <b>Rename</b> → <code>Yesterday</code>.')] },
+        + card(ICON.date, `${u.adjust}: ${chg(tok(u.subtract))} ${chg(tok(u.oneDay))} ${u.from} ${vtok(u.date, 'date')}`)
+        + card(ICON.date, `${u.format} ${vtok(u.adjusted, 'date')}`, row(`<span class="grow">Date Format</span>${chg(`<span class="sc-link">${u.custom}</span>`)}`) + row(chg('<span class="sc-fmt" style="outline:0">yyyy-MM-dd</span>'))),
+      notes: [
+        L('Unter dem letzten Block (über dem Quick Look) nacheinander einfügen: <b>Date</b>, <b>Adjust Date</b>, <b>Format Date</b>.', 'Below the last block (above Quick Look) add one after another: <b>Date</b>, <b>Adjust Date</b>, <b>Format Date</b>.'),
+        L('Bei «Adjust Date»: «Add» antippen → <b>Subtract</b>, dann <b>1</b> und <b>days</b>.', 'In "Adjust Date": tap "Add" → <b>Subtract</b>, then <b>1</b> and <b>days</b>.'),
+        L('Bei «Format Date»: Date Format → <b>Custom</b> → <code>yyyy-MM-dd</code>. Das Ergebnis heisst automatisch «Formatted Date».', 'In "Format Date": Date Format → <b>Custom</b> → <code>yyyy-MM-dd</code>. The result is automatically called "Formatted Date".'),
+      ] },
     { title: L('Senden', 'Send'), body:
-        card(ICON.text, `${u.combine} ${vtok('Data', 'var')} ${u.with} ${tok(u.newLines)}`)
-        + card(ICON.url, `${u.getContents} ${tok('…/rest/v1/rpc/health_sync')}`,
-          row(`<span class="grow">${u.method}</span>${tok('POST')}`)
-          + row(`<span class="grow">${u.headers}</span>${tok('apikey')} ${tok('Content-Type')}`)
-          + row(`<span class="grow">${u.body}</span>${tok('JSON')}`)
-          + row(`${tok('token')} ${tok('payload')} ${tok('export_date')}`)),
-      notes: [L('URL, apikey und token oben kopieren. Content-Type = <code>application/json</code>.', 'Copy URL, apikey and token from above. Content-Type = <code>application/json</code>.'),
-        L(`JSON-Felder sind «Text»: token = Schlüssel, payload = ${u.combined}, export_date = Yesterday.`, `JSON fields are "Text": token = key, payload = ${u.combined}, export_date = Yesterday.`)] },
+        card(ICON.text, `${u.combine} ${chg(vtok('Data', 'var'))} ${u.with} ${tok(u.newLines)}`)
+        + card(ICON.url, `${u.getContents} ${chg(tok('https://…/rest/v1/rpc/health_sync'))}`,
+          row(`<span class="grow">${u.method}</span>${chg(tok('POST'))}`)
+          + row(`<span class="grow">${u.headers}</span>`)
+          + row(`${chg(`${tok('apikey')} ${tok('sb_publishable_…')}`)}`)
+          + row(`${chg(`${tok('Content-Type')} ${tok('application/json')}`)}`)
+          + row(`<span class="grow">${u.body}</span>${chg(tok('JSON'))}`)
+          + row(chg(`${tok('token')} ${tok(L('dein Schlüssel', 'your key'))}`))
+          + row(chg(`${tok('payload')} ${vtok(u.combined, 'text')}`))
+          + row(chg(`${tok('export_date')} ${vtok(u.formatted, 'date')}`))),
+      notes: [
+        L('<b>Combine Text</b> einfügen: «Text» antippen → Variable <b>Data</b> (oranges x) wählen. «Separator» bleibt «New Lines».', 'Add <b>Combine Text</b>: tap "Text" → choose the variable <b>Data</b> (orange x). "Separator" stays "New Lines".'),
+        L('<b>Get Contents of URL</b> einfügen, «URL» antippen und die Adresse von oben einfügen. Dann auf den Pfeil/«Show More» tippen.', 'Add <b>Get Contents of URL</b>, tap "URL" and paste the address from above. Then tap the arrow/"Show More".'),
+        L('Method → <b>POST</b>. Bei Headers zweimal «Add new header»: <code>apikey</code> = App-Schlüssel von oben, <code>Content-Type</code> = <code>application/json</code>.', 'Method → <b>POST</b>. Under Headers tap "Add new header" twice: <code>apikey</code> = app key from above, <code>Content-Type</code> = <code>application/json</code>.'),
+        L('Request Body → <b>JSON</b>. Dreimal «Add new field» → <b>Text</b>: <code>token</code> = dein Schlüssel, <code>payload</code> = Variable «Combined Text», <code>export_date</code> = Variable «Formatted Date».', 'Request Body → <b>JSON</b>. Three times "Add new field" → <b>Text</b>: <code>token</code> = your key, <code>payload</code> = variable "Combined Text", <code>export_date</code> = variable "Formatted Date".'),
+        L('Test: Quick Look auf «Contents of URL» umstellen und ▶ – es sollte <code>{"ok":true,"lines":…}</code> erscheinen.', 'Test: switch Quick Look to "Contents of URL" and ▶ – it should show <code>{"ok":true,"lines":…}</code>.'),
+      ] },
     { title: L('Kalorien nach Apple Health', 'Calories to Apple Health'), body:
         card(ICON.dict, `${u.get} ${tok(u.valueFor)} ${tok('export')} ${u.inW} ${vtok(u.contents, 'url')}`)
         + card(ICON.ifI, `${u.ifW} ${vtok(u.dict, 'dict')} ${tok(u.hasAny)}`)

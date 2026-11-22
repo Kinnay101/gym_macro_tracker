@@ -8,7 +8,9 @@
 //   F;Datum;Körperfett         Körperfett (% oder Anteil 0–1)
 //   S;Tag;Schritte             Schritte pro Tag
 //   A;Tag;kcal                 aktive Energie pro Tag
-//   T;Start;Ende;Name[;kcal[;km[;Puls]]]   Workout
+//   E;Tag;Minuten              Trainingsminuten pro Tag (grüner Ring)
+//   D;Tag;km                   Distanz Gehen + Laufen pro Tag
+//   T;Start;Ende;Name[;kcal[;km[;Puls]]]   Workout (Kurzbefehle kann Workouts derzeit nicht lesen – für später)
 //   P;Start;Ende;Phase         Schlaf (Kern/Tief/REM/Wach/Im Bett/Schlafend)
 import { dayKey, parseNum, round, addDays, today } from './util.js';
 import * as sync from './sync.js';
@@ -49,7 +51,7 @@ function sleepStage(v) {
 }
 
 export function parseHealth(text) {
-  const out = { weights: {}, bodyFat: {}, steps: {}, active: {}, workouts: {}, sleepSamples: [], unknown: 0 };
+  const out = { weights: {}, bodyFat: {}, steps: {}, active: {}, exercise: {}, distance: {}, workouts: {}, sleepSamples: [], unknown: 0 };
   for (const raw of String(text || '').split(/\r?\n/)) {
     const parts = raw.split(';').map((x) => x.trim());
     const kind = parts[0]?.toUpperCase();
@@ -61,10 +63,11 @@ export function parseHealth(text) {
       const map = kind === 'W' ? out.weights : out.bodyFat;
       const k = dayKey(d);
       if (!map[k] || d >= map[k].at) map[k] = { at: d, v: round(v, 1) };
-    } else if (kind === 'S' || kind === 'A') {
+    } else if (kind === 'S' || kind === 'A' || kind === 'E' || kind === 'D') {
       const d = parseDate(parts[1]); const v = parseNum(parts[2]);
       if (!d || v == null) { out.unknown++; continue; }
-      (kind === 'S' ? out.steps : out.active)[dayKey(d)] = Math.round(v);
+      const map = { S: out.steps, A: out.active, E: out.exercise, D: out.distance }[kind];
+      map[dayKey(d)] = kind === 'D' ? round(v, 2) : Math.round(v);
     } else if (kind === 'T') {
       const s = parseDate(parts[1]); const e = parseDate(parts[2]);
       if (!s || !e || e <= s) { out.unknown++; continue; }
@@ -124,6 +127,8 @@ export function applyHealth(state, p) {
   for (const [d, v] of Object.entries(p.bodyFat)) day(d).bodyFat = v.v;
   for (const [d, v] of Object.entries(p.steps)) day(d).steps = v;
   for (const [d, v] of Object.entries(p.active)) day(d).activeKcal = v;
+  for (const [d, v] of Object.entries(p.exercise)) day(d).exerciseMin = v;
+  for (const [d, v] of Object.entries(p.distance)) day(d).distanceKm = v;
   for (const w of Object.values(p.workouts)) state.healthWorkouts[w.id] = w;
   Object.assign(state.healthSleep, sleepNights(p.sleepSamples));
   state.healthLastImport = new Date().toISOString();

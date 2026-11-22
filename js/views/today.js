@@ -91,7 +91,8 @@ function weekCard(state, key) {
 /** Schritte, aktive kcal, Schlaf und Watch-Workouts aus Apple Health (nur wenn Daten da sind). */
 function healthCard(state, key) {
   const days = state.healthDays || {};
-  const d = days[key]?.steps != null || days[key]?.activeKcal != null ? key : (days[addDays(key, -1)] ? addDays(key, -1) : null);
+  const has = (x) => x && (x.steps != null || x.activeKcal != null || x.exerciseMin != null);
+  const d = has(days[key]) ? key : (has(days[addDays(key, -1)]) ? addDays(key, -1) : null);
   const night = lastNight(state);
   const ws = healthWorkoutsBetween(state, key, key);
   if (!d && !night && !ws.length) return '';
@@ -99,6 +100,7 @@ function healthCard(state, key) {
   const tiles = [];
   if (d && days[d].steps != null) tiles.push([t('health.steps'), num(days[d].steps), d === key ? t('common.today') : t('health.yesterday')]);
   if (d && days[d].activeKcal != null) tiles.push([t('health.active'), energy(state, days[d].activeKcal), d === key ? t('common.today') : t('health.yesterday')]);
+  if (d && days[d].exerciseMin != null) tiles.push([t('health.exercise'), `${num(days[d].exerciseMin)} min`, days[d].distanceKm ? `${num(days[d].distanceKm, 1)} km` : '']);
   if (night) tiles.push([t('health.sleep'), h(night.minutes), night.deep || night.rem ? `${t('health.deep')} ${h(night.deep)} · REM ${h(night.rem)}` : '']);
   return `<section class="card tight"><div class="card-head"><h3>${esc(t('health.title'))}</h3><span class="tiny muted">Apple Health</span></div>
     <div class="grid3">${tiles.map(([l, v, sub]) => `<div class="stack" style="gap:2px"><span class="tiny muted">${esc(l)}</span><b>${esc(v)}</b><span class="tiny muted">${esc(sub)}</span></div>`).join('')}</div>
