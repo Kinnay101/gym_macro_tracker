@@ -93,8 +93,8 @@ function steps(u, token) {
   const L = (a, b) => (de ? a : b);
   const dupHint = L('Block darüber kopieren: die Suche und den Repeat je lange drücken → «Duplicate». Dann nur das <b>Markierte</b> ändern.',
     'Copy the block above: long-press the search and the repeat → "Duplicate". Then change only what is <b>highlighted</b>.');
-  const repointHint = L('Die kopierte Wiederholung verbindet sich normalerweise selbst mit der neuen Suche darüber. Kontrolle: blaues «Health Samples» antippen → «Reveal Action» muss zur neuen Suche springen. Falls nicht: «Clear Variable» → «Select Variable» → neue Suche antippen.',
-    'The copied repeat normally connects itself to the new search above. Check: tap the blue "Health Samples" → "Reveal Action" must jump to the new search. If not: "Clear Variable" → "Select Variable" → tap the new search.');
+  const repointHint = L('<b>Immer kontrollieren:</b> Die kopierte Wiederholung hängt oft noch an der <b>alten</b> Suche. Blaues «Health Samples» im Repeat antippen → «Reveal Action» muss zur Suche <b>direkt darüber</b> springen. Falls nicht: «Clear Variable» → «Select Variable» → die Suche direkt darüber antippen.',
+    '<b>Always check:</b> the copied repeat often still points to the <b>old</b> search. Tap the blue "Health Samples" in the repeat → "Reveal Action" must jump to the search <b>directly above</b>. If not: "Clear Variable" → "Select Variable" → tap the search directly above.');
   const dateHint = (fmt, both) => L(`Im Text «${u.start}»${both ? ` und «${u.end}»` : ''} antippen und so einstellen (Format genau so eintippen, mit Bindestrichen${fmt.includes('HH') ? ', Leerzeichen und Doppelpunkt' : ''}):`,
     `In the text tap "${u.start}"${both ? ` and "${u.end}"` : ''} and set it like this (type the format exactly, with dashes${fmt.includes('HH') ? ', space and colon' : ''}):`);
   const withDate = (fmt, both) => `<div class="small">${dateHint(fmt, both)}</div>${datePanel(u, fmt, both ? L('genauso', 'same') : '')}`;
@@ -109,9 +109,13 @@ function steps(u, token) {
     { title: L('Aktive Energie', 'Active energy'), body: findCard(u, { type: u.active, unit: 'kcal', group: true, changed: ['type', 'unit'] }) + loopBlock(u, { prefix: 'A;', fields: ['start', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd'),
       notes: [L('Den Schritte-Block kopieren.', 'Copy the steps block.'), repointHint], result: 'A;2026-11-16;612' },
     { title: L('Schlaf', 'Sleep'), body: findCard(u, { type: u.sleep, days: 3, noUnit: true, changed: ['type', 'days'] }) + loopBlock(u, { prefix: 'P;', fields: ['start', 'end', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd HH:mm', true),
-      notes: [L('Den Gewicht-Block kopieren (mit Uhrzeit).', 'Copy the weight block (with time).'), repointHint, L(`Im Text nach «${u.start}» ein «;» und ein weiteres «${u.item}» → «${u.end}» einfügen. Schlaf hat keine «Unit» und kein «Group by» – das ist richtig.`, `In the text, after "${u.start}" add ";" and another "${u.item}" → "${u.end}". Sleep has no "Unit" and no "Group by" – that is correct.`)], result: 'P;2026-11-21 23:10;2026-11-22 01:30;Core' },
+      notes: [L('Den Gewicht-Block kopieren (mit Uhrzeit).', 'Copy the weight block (with time).'), repointHint, L(`Im Text nach «${u.start}» ein «;» und ein weiteres «${u.item}» → «${u.end}» einfügen. Schlaf hat keine «Unit» und kein «Group by» – das ist richtig.`, `In the text, after "${u.start}" add ";" and another "${u.item}" → "${u.end}". Sleep has no "Unit" and no "Group by" – that is correct.`),
+        L('<b>Kontrolle:</b> Im Quick Look steht hinten bei «P;» ein Wort wie «Core», «Deep», «REM» oder «Awake» – keine Kommazahl. Steht dort dieselbe Zahl wie bei «A;», liest der Repeat noch die aktive Energie.',
+          '<b>Check:</b> in Quick Look each "P;" line ends with a word like "Core", "Deep", "REM" or "Awake" – not a decimal number. If it shows the same number as "A;", the repeat still reads active energy.')], result: 'P;2026-11-21 23:10;2026-11-22 01:30;Core' },
     { title: L('Trainingsminuten', 'Exercise minutes'), body: findCard(u, { type: u.exercise, unit: 'min', group: true, changed: ['type', 'unit'] }) + loopBlock(u, { prefix: 'E;', fields: ['start', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd'),
-      notes: [L('Den Schritte-Block kopieren.', 'Copy the steps block.'), repointHint, L('Statt einzelner Workouts (die kann Kurzbefehle nicht lesen): die Minuten des grünen Rings pro Tag – zählt auch Gym-Training.', 'Instead of single workouts (Shortcuts cannot read them): the minutes of the green ring per day – gym training counts too.')], result: 'E;2026-11-16;52' },
+      notes: [L('Den Schritte-Block kopieren.', 'Copy the steps block.'), repointHint, L('Statt einzelner Workouts (die kann Kurzbefehle nicht lesen): die Minuten des grünen Rings pro Tag – zählt auch Gym-Training.', 'Instead of single workouts (Shortcuts cannot read them): the minutes of the green ring per day – gym training counts too.'),
+        L('<b>Kontrolle:</b> Im Quick Look darf die Zahl bei «E;» nicht gleich sein wie bei «S;» am selben Tag. Sonst liest der Repeat noch die Schritte → blaues «Health Samples» antippen → Reveal Action muss zur Suche «Exercise Minutes» springen.',
+          '<b>Check:</b> in Quick Look the number after "E;" must not equal the one after "S;" for the same day. Otherwise the repeat still reads the steps → tap the blue "Health Samples" → Reveal Action must jump to the "Exercise Minutes" search.')], result: 'E;2026-11-16;52' },
     { title: L('Datum von gestern', "Yesterday's date"), body:
         card(ICON.date, `${u.date} ${tok(u.current)}`)
         + card(ICON.date, `${u.adjust}: ${chg(tok(u.subtract))} ${chg(tok(u.oneDay))} ${u.from} ${vtok(u.date, 'date')}`)
@@ -151,6 +155,7 @@ function steps(u, token) {
       })(),
       notes: [
         L('<b>Wozu:</b> Schickt alle Zeilen mit deinem Schlüssel an dein Konto. Als Antwort kommen die Kalorien und Makros von gestern zurück.', '<b>Why:</b> sends all lines with your key to your account. The answer contains yesterday’s calories and macros.'),
+        L('<b>Meldung «trying to share … Health items, which is not allowed»?</b> iPhone-Einstellungen → Apps → Shortcuts → Advanced → <b>Allow Sharing Large Amounts of Data</b> einschalten.', '<b>Message "trying to share … Health items, which is not allowed"?</b> iPhone Settings → Apps → Shortcuts → Advanced → turn on <b>Allow Sharing Large Amounts of Data</b>.'),
         L('<b>Test:</b> Beim Quick Look «Data» antippen → Clear Variable → <b>Contents of URL</b> wählen, dann ▶. Es sollte <code>{"ok":true,"lines":…}</code> erscheinen.', '<b>Test:</b> in Quick Look tap "Data" → Clear Variable → choose <b>Contents of URL</b>, then ▶. It should show <code>{"ok":true,"lines":…}</code>.'),
       ] },
     { title: L('Kalorien nach Apple Health', 'Calories to Apple Health'), body: (() => {

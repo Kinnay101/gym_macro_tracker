@@ -41,7 +41,9 @@ export function workoutKind(name) {
 }
 
 function sleepStage(v) {
-  const s = String(v || '').toLowerCase();
+  const s = String(v || '').trim().toLowerCase();
+  // Als Zahl (HealthKit): 0 Im Bett, 1 Schlafend, 2 Wach, 3 Kern, 4 Tief, 5 REM
+  if (/^\d$/.test(s)) return ['inBed', 'asleep', 'awake', 'core', 'deep', 'rem'][Number(s)] || 'asleep';
   if (/tief|deep/.test(s)) return 'deep';
   if (/rem/.test(s)) return 'rem';
   if (/kern|core|leicht|light/.test(s)) return 'core';
@@ -79,36 +81,54 @@ export function parseHealth(text) {
       };
     } else if (kind === 'P') {
       const s = parseDate(parts[1]); const e = parseDate(parts[2]);
-      if (!s || !e || e <= s) { out.unknown++; continue; }
+      // Ein Schlaf-Eintrag über 13 h ist unmöglich (dann liest der Repeat z. B. die Tageswerte der aktiven Energie)
+      if (!s || !e || e <= s || e - s > 13 * 3600000) { out.unknown++; continue; }
       out.sleepSamples.push({ s, e, stage: sleepStage(parts[3]) });
     } else {
       out.unknown++;
     }
   }
+  // Unmögliche Trainingsminuten verwerfen: mehr als ein Tag, oder gleich wie die Schritte
+  // (dann liest der Kurzbefehl im Block «Trainingsminuten» versehentlich die Schritte)
+  for (const [d, v] of Object.entries(out.exercise)) {
+    if (v > 1440 || (v > 0 && out.steps[d] === v)) { delete out.exercise[d]; out.unknown++; }
+  }
   return out;
 }
 
-/** Schlaf-Proben zu Nächten zusammenfassen (Nacht = Tag des Aufwachens). */
+/** Zeitspannen zusammenführen (Überlappungen nur einmal zählen) → Minuten und frühester/spätester Zeitpunkt */
+function union(list) {
+  const xs = list.slice().sort((a, b) => a.s - b.s);
+  let min = 0; let cur = null; let first = null; let last = null;
+  for (const x of xs) {
+    if (!first) first = x.s;
+    if (!last || x.e > last) last = x.e;
+    if (cur && x.s <= cur.e) { if (x.e > cur.e) cur.e = x.e; continue; }
+    if (cur) min += (cur.e - cur.s) / 60000;
+    cur = { s: x.s, e: x.e };
+  }
+  if (cur) min += (cur.e - cur.s) / 60000;
+  return { min, first, last };
+}
+
+/** Schlaf-Proben zu Nächten zusammenfassen (Nacht = Tag des Aufwachens).
+ *  iPhone, Watch und andere Apps liefern oft dieselbe Nacht mehrfach → Zeitspannen zusammenführen statt addieren. */
 export function sleepNights(samples) {
   const nights = {};
   for (const x of samples) {
     const date = dayKey(new Date(x.e.getTime() + 8 * 3600000)); // endet vor 16 Uhr → gleicher Tag, später → nächster
-    const n = (nights[date] ||= { date, deep: 0, rem: 0, core: 0, asleep: 0, awake: 0, inBed: 0, bed: null, wake: null });
-    const min = (x.e - x.s) / 60000;
-    n[x.stage] += min;
-    if (x.stage !== 'awake') {
-      if (!n.bed || x.s < n.bed) n.bed = x.s;
-      if (!n.wake || x.e > n.wake) n.wake = x.e;
-    }
+    (nights[date] ||= []).push(x);
   }
   const out = {};
-  for (const n of Object.values(nights)) {
-    const staged = n.deep + n.rem + n.core + n.asleep;
-    const total = staged || n.inBed; // ältere Geräte kennen nur "Im Bett"
-    if (total < 30) continue;
-    out[n.date] = {
-      date: n.date, minutes: Math.round(total), deep: Math.round(n.deep), rem: Math.round(n.rem), core: Math.round(n.core),
-      awake: Math.round(n.awake), bed: n.bed ? minuteKey(n.bed) : null, wake: n.wake ? minuteKey(n.wake) : null,
+  for (const [date, xs] of Object.entries(nights)) {
+    const of = (...st) => xs.filter((x) => st.includes(x.stage));
+    let main = union(of('deep', 'rem', 'core', 'asleep'));
+    if (main.min < 30) main = union(of('inBed')); // ältere Geräte kennen nur "Im Bett"
+    if (main.min < 30) continue;
+    const m = (st) => Math.round(union(of(st)).min);
+    out[date] = {
+      date, minutes: Math.round(main.min), deep: m('deep'), rem: m('rem'), core: m('core'), awake: m('awake'),
+      bed: main.first ? minuteKey(main.first) : null, wake: main.last ? minuteKey(main.last) : null,
     };
   }
   return out;
@@ -131,6 +151,11 @@ export function applyHealth(state, p) {
   for (const [d, v] of Object.entries(p.distance)) day(d).distanceKm = v;
   for (const w of Object.values(p.workouts)) state.healthWorkouts[w.id] = w;
   Object.assign(state.healthSleep, sleepNights(p.sleepSamples));
+  // Früher übernommene unmögliche Werte aufräumen (falsch verbundener Repeat im Kurzbefehl)
+  for (const x of Object.values(state.healthDays)) {
+    if (x.exerciseMin != null && (x.exerciseMin > 1440 || (x.exerciseMin > 0 && x.exerciseMin === x.steps))) delete x.exerciseMin;
+  }
+  for (const [d, n] of Object.entries(state.healthSleep)) if (n.minutes > 16 * 60) delete state.healthSleep[d];
   state.healthLastImport = new Date().toISOString();
 }
 
