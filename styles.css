@@ -246,3 +246,6 @@ input.input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 .sc-fill { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line); }
 .sc-fill .sc-num { margin-top: 1px; }
 .sc-val { display: block; margin-top: 4px; font-size: 12px; background: var(--card-2); border-radius: 6px; padding: 4px 6px; word-break: break-all; }
+
+.sc-tabs { display: flex; justify-content: space-around; margin-top: 8px; background: #1c1c1e; border-radius: 14px; padding: 8px 4px; font-size: 12px; color: #8e8e93; }
+.sc-tab-on { color: #64a8ff; font-weight: 700; outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; padding: 0 4px; }

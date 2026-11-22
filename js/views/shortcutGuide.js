@@ -180,9 +180,20 @@ function steps(u, token) {
         L('<b>Wozu:</b> Die Antwort vom Senden enthält «export» mit den Summen von gestern. Diese Aktionen tragen sie in Apple Health ein – wie Lifesum. Ist gestern nichts eingetragen, bleibt «export» leer und es passiert nichts.', '<b>Why:</b> the answer from sending contains "export" with yesterday’s totals. These actions log them to Apple Health – like Lifesum. If nothing was logged yesterday, "export" is empty and nothing happens.'),
         L('<b>Test:</b> Jeder Tag wird nur einmal zurückgegeben. Beim ersten ▶ landen die Werte in Health (Health → Ernährung → Nahrungsenergie, Datum gestern); beim zweiten ▶ kommt nichts mehr – das ist richtig.', '<b>Test:</b> each day is returned only once. The first ▶ puts the values into Health (Health → Nutrition → Dietary Energy, yesterday); a second ▶ returns nothing – that is correct.'),
       ] },
-    { title: L('Jeden Morgen automatisch', 'Every morning automatically'), body:
-        `<div class="sc-flow">${L('Automation', 'Automation')} → + → ${L('Tageszeit', 'Time of Day')} <b>07:00</b> → ${L('Täglich', 'Daily')} → <b>${L('Sofort ausführen', 'Run Immediately')}</b> → Gym Sync</div>`,
-      notes: [L('Vorher einmal mit ▶ testen und Health-Zugriff erlauben. Quick Look am Schluss löschen.', 'First test once with ▶ and allow Health access. Delete the Quick Look at the end.')] },
+    { title: L('Jeden Morgen automatisch', 'Every morning automatically'), body: (() => {
+        const fill = (n, what) => `<div class="sc-fill"><span class="sc-num">${n}</span><div class="grow small">${what}</div></div>`;
+        const tabs = `<div class="sc-tabs"><span>Shortcuts</span><span class="sc-tab-on">Automation</span><span>Gallery</span></div>`;
+        return `<div class="sc-flow">${L('Ganz unten in der Kurzbefehle-App:', 'At the very bottom of the Shortcuts app:')}${tabs}</div>`
+          + [
+            fill('A', L('Vorher einmal den Kurzbefehl mit <b>▶</b> laufen lassen und den Health-Zugriff erlauben.', 'First run the shortcut once with <b>▶</b> and allow Health access.')),
+            fill('B', L('Im Kurzbefehl oben links <b>←</b> antippen – du bist in der Liste aller Kurzbefehle.', 'In the shortcut tap <b>←</b> top left – you are in the list of all shortcuts.')),
+            fill('C', L('Unten den Reiter <b>Automation</b> antippen, dann oben rechts <b>+</b> (oder «New Automation»).', 'Tap the <b>Automation</b> tab at the bottom, then <b>+</b> top right (or "New Automation").')),
+            fill('D', L('<b>Time of Day</b> wählen → Uhrzeit z. B. <b>07:00</b>, <b>Daily</b>.', 'Choose <b>Time of Day</b> → time e.g. <b>07:00</b>, <b>Daily</b>.')),
+            fill('E', L('Unten <b>Run Immediately</b> wählen (sonst fragt das iPhone jeden Morgen).', 'At the bottom choose <b>Run Immediately</b> (otherwise the iPhone asks every morning).')),
+            fill('F', L('<b>Next</b> → <b>Gym Sync</b> antippen → fertig. Quick Look im Kurzbefehl kannst du jetzt löschen.', '<b>Next</b> → tap <b>Gym Sync</b> → done. You can now delete the Quick Look in the shortcut.')),
+          ].join('');
+      })(),
+      notes: [L('Danach läuft alles von selbst: jeden Morgen kommen die Daten in die App, und die Kalorien von gestern landen in Apple Health.', 'After that everything runs by itself: every morning the data arrives in the app and yesterday’s calories land in Apple Health.')] },
   ];
 }
 
