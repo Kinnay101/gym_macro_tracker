@@ -13,12 +13,18 @@ function backParams(params) {
   const p = new URLSearchParams();
   if (params.meal) p.set('meal', params.meal);
   if (params.date) p.set('date', params.date);
+  if (params.from) p.set('from', params.from);
   return p;
+}
+
+/** Wohin "Zurück" führt: Rezepte-Tab (Ernährung) oder "Hinzufügen". */
+function backPath(params) {
+  return params.from === 'recipes' ? 'food?tab=recipes' : `food/add?${backParams(params)}`;
 }
 
 export function render(state, params) {
   const r = recipeOf(state, params);
-  const back = `#/food/add?${backParams(params)}`;
+  const back = '#/' + backPath(params);
   if (!r) {
     return `<header class="head"><div class="row"><a class="icon-btn" href="${back}">${icon(I.back)}</a><h1>${esc(t('recipe.title'))}</h1></div></header>
       <div class="empty">${esc(t('recipe.notFound'))}</div>`;
@@ -82,7 +88,7 @@ function leave(ctx) {
   // Leeres, unbenanntes Rezept nicht aufheben
   const r = recipeOf(ctx.state, ctx.params);
   if (r && !r.name?.trim() && !r.items?.length) ctx.update((s) => { s.recipes = s.recipes.filter((x) => x.id !== r.id); });
-  ctx.go(`food/add?${backParams(ctx.params)}`);
+  ctx.go(backPath(ctx.params));
 }
 
 export const actions = {
@@ -101,7 +107,7 @@ export const actions = {
     const r = recipeOf(ctx.state, ctx.params);
     if (!r || !confirm(t('recipe.deleteConfirm', { name: r.name || t('recipe.title') }))) return;
     ctx.update((s) => { s.recipes = s.recipes.filter((x) => x.id !== r.id); });
-    ctx.go(`food/add?${backParams(ctx.params)}`);
+    ctx.go(backPath(ctx.params));
     ctx.toast(t('recipe.deleted'), () => ctx.update((s) => { s.recipes.push(r); }));
   },
 };

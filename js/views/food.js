@@ -1,15 +1,23 @@
-// Ernährung: Tagebuch eines Tages, nach Mahlzeiten, mit Bearbeiten/Löschen
-import { esc, num, today, addDays, icon, I, parseNum } from '../util.js';
+// Ernährung: Tab "Tagebuch" (ein Tag, nach Mahlzeiten, mit Bearbeiten/Löschen) und Tab "Rezepte" (eigene + Entdecken)
+import { esc, num, today, addDays, icon, I, parseNum, uid } from '../util.js';
 import { t, longDate } from '../i18n.js';
 import { goals, sumEntries, dayEntries, MEALS, forGrams } from '../nutrition.js';
-import { header, bar, energy, sheetHead } from '../ui.js';
-import { portionsLabel } from '../recipes.js';
+import { header, bar, energy, sheetHead, seg } from '../ui.js';
+import { portionsLabel, recipeFood } from '../recipes.js';
+import * as browser from './recipeBrowser.js';
 
 let editId = null;
 
 const dateOf = (params) => params.date || today();
 
-export function render(state, params) {
+const tabOf = (params) => (params.tab === 'recipes' ? 'recipes' : 'diary');
+
+function tabs(params) {
+  return seg('food-tab', [['diary', t('food.tabDiary')], ['recipes', t('food.tabRecipes')]], tabOf(params));
+}
+
+export function render(state, params, ctx) {
+  if (tabOf(params) === 'recipes') return renderRecipes(state, ctx);
   const key = dateOf(params);
   const g = goals(state);
   const entries = dayEntries(state, key);
@@ -35,6 +43,7 @@ export function render(state, params) {
 
   return `
     ${header(t('nav.food'), isToday ? longDate(key) + ' · ' + t('common.today') : longDate(key), nav)}
+    ${tabs(params)}
     <section class="card">
       <div class="row between"><div><div class="tiny muted">${esc(t('food.eaten'))}</div><div class="big">${energy(state, tot.kcal)}</div></div>
       <div style="text-align:right"><div class="tiny muted">${esc(t('food.goal'))}</div><div class="small">${energy(state, g.kcal)}</div></div></div>
@@ -51,6 +60,45 @@ export function render(state, params) {
         ${mini(t('n.salt'), tot.salt, g.salt, 'g', true)}
       </div>
     </section>`;
+}
+
+// ---------- Tab Rezepte ----------
+let rbTab = 'mine'; // 'mine' | 'discover'
+let rbQuery = '';
+
+function renderRecipes(state, ctx) {
+  if (rbTab === 'discover' && browser.discover.status === 'idle') setTimeout(() => browser.load(() => refreshRecipeList(ctx)), 0);
+  return `
+    ${header(t('nav.food'))}
+    ${tabs({ tab: 'recipes' })}
+    <button class="btn primary block" data-act="rb-new">${icon(I.plus)} ${esc(t('recipe.create'))}</button>
+    ${seg('rb-tab', [['mine', t('recipe.mine')], ['discover', t('recipe.discover')]], rbTab)}
+    <div class="search">${icon(I.search)}<input class="input" id="rb-q" type="search" data-in="rb-q" value="${esc(rbQuery)}" placeholder="${esc(t('recipe.searchPh'))}" autocomplete="off"></div>
+    <section class="card tight" id="rb-list">${recipeListHtml(state)}</section>`;
+}
+
+function recipeListHtml(state) {
+  if (rbTab === 'discover') return browser.listHtml(state, rbQuery);
+  const needle = rbQuery.trim().toLowerCase();
+  const all = (state.recipes || []).filter((r) => r.name?.trim() || r.items?.length);
+  const list = all.filter((r) => !needle || (r.name || '').toLowerCase().includes(needle))
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
+  if (!all.length) return `<div class="small muted">${esc(t('recipe.none'))}</div>`;
+  if (!list.length) return `<div class="small muted">${esc(t('recipe.noMatch'))}</div>`;
+  return `<div class="list">${list.map((r) => {
+    const f = recipeFood(r);
+    const n = r.items?.length || 0;
+    return `<div class="item"><button class="item-btn grow" data-act="rb-edit" data-id="${esc(r.id)}">
+        <div class="ellipsis" style="font-weight:600">${esc(r.name || t('recipe.title'))}</div>
+        <div class="meta ellipsis">${n ? `${energy(state, f.perPortion.kcal)} ${esc(t('recipe.perPortionShort'))} · ${esc(t('n.pShort'))} ${num(f.perPortion.p)} g · ` : ''}${esc(t('recipe.itemsCount', { n }))}${r.public ? ` · <span class="tag accent">${esc(t('recipe.public'))}</span>` : ''}</div></button>
+      ${n ? `<button class="icon-btn" data-act="rb-log" data-id="${esc(r.id)}" aria-label="${esc(t('recipe.log'))}">${icon(I.plus)}</button>` : ''}</div>`;
+  }).join('')}</div>`;
+}
+
+/** Nur die Liste neu zeichnen (Suchfeld behält Fokus). */
+function refreshRecipeList(ctx) {
+  const el = document.getElementById('rb-list');
+  if (el && location.hash.startsWith('#/food') && !location.hash.startsWith('#/food/add')) el.innerHTML = recipeListHtml(ctx.state);
 }
 
 function mini(label, v, goal, unit, isMax = false) {
@@ -80,6 +128,37 @@ function patchEntry(ctx, fn) {
 }
 
 export const actions = {
+  'food-tab'(el, ctx) {
+    const p = new URLSearchParams();
+    if (ctx.params.date) p.set('date', ctx.params.date);
+    if (el.dataset.v === 'recipes') p.set('tab', 'recipes');
+    ctx.go('food' + (p.toString() ? '?' + p : ''));
+  },
+  'rb-tab'(el, ctx) {
+    rbTab = el.dataset.v;
+    ctx.render();
+    if (rbTab === 'discover') browser.load(() => refreshRecipeList(ctx));
+  },
+  'rb-new'(el, ctx) {
+    const r = { id: uid(), name: '', servings: 1, cookedWeight: null, items: [], updatedAt: new Date().toISOString() };
+    ctx.update((s) => { (s.recipes ||= []).push(r); }, { silent: true });
+    ctx.go(`recipe?id=${encodeURIComponent(r.id)}&from=recipes`);
+  },
+  'rb-edit'(el, ctx) { ctx.go(`recipe?id=${encodeURIComponent(el.dataset.id)}&from=recipes`); },
+  'rb-log'(el, ctx) { ctx.go(`food/add?pick=${encodeURIComponent('recipe-' + el.dataset.id)}`); },
+  'discover-reload'(el, ctx) { browser.load(() => refreshRecipeList(ctx)); refreshRecipeList(ctx); },
+  'pub-open'(el, ctx) { browser.open(el.dataset.id, ctx); },
+  'pub-log'(el, ctx) {
+    const p = browser.current();
+    if (!p) return;
+    ctx.closeSheet();
+    ctx.go(`food/add?pick=${encodeURIComponent('pub-' + p.id)}`);
+  },
+  'pub-copy'(el, ctx) {
+    if (!browser.copyCurrent(ctx)) return;
+    rbTab = 'mine';
+    ctx.render();
+  },
   edit(el, ctx) { editId = el.dataset.id; ctx.openSheet(editSheet); },
   'edit-meal'(el, ctx) { patchEntry(ctx, (e) => { e.meal = el.dataset.v; }); },
   delete(el, ctx) {
@@ -95,6 +174,7 @@ export const actions = {
 };
 
 export const inputs = {
+  'rb-q'(el, ctx) { rbQuery = el.value; refreshRecipeList(ctx); },
   'edit-grams'(el, ctx) {
     const g = parseNum(el.value);
     const key = dateOf(ctx.params);

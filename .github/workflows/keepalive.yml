@@ -1,0 +1,26 @@
+# Lebenszeichen für Supabase: verhindert, dass das Gratis-Projekt nach ~1 Woche ohne Nutzung pausiert.
+# Ruft zweimal pro Woche die Funktion public.ping() auf (siehe supabase/keepalive.sql). Liest/schreibt keine Daten.
+# URL und publishable key sind dieselben wie in js/config.js (öffentlich, für Browser gedacht).
+name: Supabase Lebenszeichen
+
+on:
+  schedule:
+    - cron: '17 6 * * 1,4'   # Montag und Donnerstag, 06:17 UTC
+  workflow_dispatch: {}      # zum Testen: Actions → "Supabase Lebenszeichen" → Run workflow
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      SUPABASE_URL: https://cqtvhdfquvknxndiwgkp.supabase.co
+      SUPABASE_KEY: sb_publishable_2uFJmCvIsXDtnJ4_sXmt-Q_i2WKEbcL
+    steps:
+      - name: Ping
+        run: |
+          code=$(curl -s -o out.txt -w '%{http_code}' --max-time 30 -X POST "$SUPABASE_URL/rest/v1/rpc/ping" \
+            -H "apikey: $SUPABASE_KEY" -H "Content-Type: application/json" -d '{}')
+          echo "HTTP $code: $(cat out.txt)"
+          test "$code" = "200"
