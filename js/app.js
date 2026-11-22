@@ -130,23 +130,6 @@ function handle(kind, e) {
 document.addEventListener('click', (e) => handle('click', e));
 document.addEventListener('input', (e) => handle('input', e));
 document.addEventListener('change', (e) => handle('change', e));
-// Höhe der App: Als Home-Bildschirm-App immer den ganzen Bildschirm füllen.
-// iOS meldet dort (mit Inhalt unter der Statusleiste) eine Höhe, die um die Statusleiste zu klein ist –
-// dann entsteht unter der unteren Leiste ein schwarzer Streifen.
-function setAppHeight() {
-  const standalone = navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
-  let h = window.innerHeight;
-  if (standalone && screen.width && screen.height) {
-    const portrait = window.innerHeight >= window.innerWidth;
-    const screenH = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
-    h = Math.max(h, screenH);
-  }
-  document.documentElement.style.setProperty('--app-h', h + 'px');
-}
-setAppHeight();
-window.addEventListener('resize', setAppHeight);
-window.addEventListener('orientationchange', () => setTimeout(setAppHeight, 300));
-
 // iPhone: Nach dem Schliessen der Tastatur bleibt die Seite manchmal verschoben → zurücksetzen
 document.addEventListener('focusout', () => {
   setTimeout(() => {

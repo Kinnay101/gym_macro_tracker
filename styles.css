@@ -32,8 +32,7 @@
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; -webkit-text-size-adjust: 100%; }
 /* Die Seite selbst bewegt sich nie (iPhone verschiebt sie sonst nach Tastatur/Überwischen) – nur .main scrollt */
 html, body { overflow: hidden; overscroll-behavior: none; }
-/* --app-h setzt js/app.js: im Home-Bildschirm-Modus die echte Bildschirmhöhe (iOS meldet dort eine um die Statusleiste zu kleine Höhe) */
-body { position: fixed; top: 0; left: 0; right: 0; height: var(--app-h, 100%); }
+body { position: fixed; inset: 0; }
 button, input, select, textarea { font: inherit; color: inherit; }
 a { color: var(--accent); text-decoration: none; }
 h1, h2, h3 { font-family: var(--font-display); margin: 0; }

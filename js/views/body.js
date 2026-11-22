@@ -1,14 +1,13 @@
 // Körper & Profil: Gewicht, Maße, Ziele, Einstellungen, Daten-Export
 import { esc, num, today, daysBetween, icon, I, parseNum } from '../util.js';
 import { t, shortDate } from '../i18n.js';
-import { calcGoals, goals, currentWeight } from '../nutrition.js';
+import { calcGoals, goals, currentWeight, activityLevel } from '../nutrition.js';
 import { header, seg, lineChart, energy, sheetHead } from '../ui.js';
 import * as store from '../store.js';
 import * as sync from '../sync.js';
 import * as social from '../social.js';
 
 const MEASURES = ['waist', 'chest', 'arm', 'thigh', 'hips'];
-const ACTIVITY = [[1.2, 'act.sedentary'], [1.375, 'act.light'], [1.55, 'act.moderate'], [1.725, 'act.high'], [1.9, 'act.veryHigh']];
 
 export function render(state) {
   const p = state.profile;
@@ -43,8 +42,8 @@ export function render(state) {
         <label class="field">${esc(t('body.sex'))}<select class="input" data-in="sex"><option value="">–</option><option value="m" ${p.sex === 'm' ? 'selected' : ''}>${esc(t('sex.m'))}</option><option value="f" ${p.sex === 'f' ? 'selected' : ''}>${esc(t('sex.f'))}</option></select></label>
         <label class="field">${esc(t('body.birthYear'))}<input class="input" inputmode="numeric" data-in="birthYear" value="${p.birthYear ?? ''}" placeholder="2004"></label>
         <label class="field">${esc(t('body.height'))}<input class="input" inputmode="numeric" data-in="heightCm" value="${p.heightCm ?? ''}" placeholder="180"></label>
-        <label class="field">${esc(t('body.activity'))}<select class="input" data-in="activity">${ACTIVITY.map(([v, l]) => `<option value="${v}" ${p.activity === v ? 'selected' : ''}>${esc(t(l))}</option>`).join('')}</select></label>
       </div>
+      ${activityBox(state)}
       ${calc ? `<div class="small muted">${esc(t('body.calcInfo', { bmr: num(calc.bmr), tdee: num(calc.tdee) }))}</div>` : `<div class="small muted">${esc(t('body.needData'))}</div>`}
       <div class="grid2">
         ${goalBox(t('n.kcal'), energy(state, g.kcal))}${goalBox(t('n.p'), num(g.p) + ' g')}${goalBox(t('n.c'), num(g.c) + ' g')}${goalBox(t('n.f'), num(g.f) + ' g')}
@@ -146,6 +145,16 @@ async function authAction(ctx, fn) {
   }
   authBusy = false;
   ctx.render();
+}
+
+function activityBox(state) {
+  const a = activityLevel(state);
+  const how = a.source === 'tracked'
+    ? t('body.actTracked', { n: num(a.perWeek, 1) })
+    : t('body.actRhythm', { rhythm: state.profile.rhythmNames?.[state.profile.rhythm] || t('rhythm.' + state.profile.rhythm) });
+  return `<div class="stack" style="gap:2px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px">
+    <div class="row between"><span class="tiny muted">${esc(t('body.activity'))}</span><b>${esc(t('act.' + a.key))} · ×${num(a.factor, 3)}</b></div>
+    <div class="tiny muted">${esc(how)}</div></div>`;
 }
 
 function goalBox(label, v) {
@@ -277,7 +286,6 @@ export const changes = {
   sex(el, ctx) { ctx.update((s) => { s.profile.sex = el.value || null; }); },
   birthYear(el, ctx) { const v = parseNum(el.value); ctx.update((s) => { s.profile.birthYear = v && v > 1900 && v < 2030 ? Math.round(v) : null; }); },
   heightCm(el, ctx) { const v = parseNum(el.value); ctx.update((s) => { s.profile.heightCm = v && v > 100 && v < 250 ? v : null; }); },
-  activity(el, ctx) { ctx.update((s) => { s.profile.activity = Number(el.value); }); },
   async import(el, ctx) {
     const file = el.files?.[0];
     if (!file) return;

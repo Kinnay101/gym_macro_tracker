@@ -76,7 +76,9 @@ const de = {
   'body.calcInfo': 'Grundumsatz {bmr} kcal · Gesamtbedarf {tdee} kcal', 'body.needData': 'Trage Geschlecht, Geburtsjahr, Grösse und Gewicht ein, dann wird dein Ziel berechnet.',
   'body.manual': 'Manuell gesetzt', 'body.backToAuto': 'Wieder automatisch', 'body.setManual': 'Ziel selbst festlegen', 'body.manualHint': 'Überschreibt die automatische Berechnung.',
   'goal.cut': 'Diät', 'goal.maintain': 'Halten', 'goal.bulk': 'Aufbau', 'sex.m': 'Mann', 'sex.f': 'Frau',
-  'act.sedentary': 'Kaum aktiv', 'act.light': 'Leicht aktiv', 'act.moderate': 'Aktiv (3–5× Training)', 'act.high': 'Sehr aktiv (6–7×)', 'act.veryHigh': 'Extrem aktiv',
+  'act.sedentary': 'Kaum aktiv', 'act.light': 'Leicht aktiv', 'act.moderate': 'Aktiv', 'act.high': 'Sehr aktiv', 'act.veryHigh': 'Extrem aktiv',
+  'body.actTracked': 'Aus deinen Einträgen der letzten 4 Wochen: {n} Einheiten pro Woche (Krafttrainings + Cardio, 45 min Cardio = 1 Einheit). Passt sich automatisch an.',
+  'body.actRhythm': 'Noch weniger als 2 Wochen Trainings eingetragen – geschätzt aus deinem Rhythmus «{rhythm}». Danach rechnet die App mit deinen echten Einträgen.',
   'measure.waist': 'Bauch', 'measure.chest': 'Brust', 'measure.arm': 'Oberarm', 'measure.thigh': 'Oberschenkel', 'measure.hips': 'Hüfte',
 
   'auth.intro': 'Mit einem Konto sind deine Daten auf allen Geräten gleich (PC, iPhone) und gesichert. Später auch für Freunde und Rangliste.',
@@ -191,7 +193,9 @@ const en = {
   'body.calcInfo': 'BMR {bmr} kcal · Total {tdee} kcal', 'body.needData': 'Enter sex, year of birth, height and weight to calculate your goal.',
   'body.manual': 'Set manually', 'body.backToAuto': 'Back to automatic', 'body.setManual': 'Set goal manually', 'body.manualHint': 'Overrides the automatic calculation.',
   'goal.cut': 'Cut', 'goal.maintain': 'Maintain', 'goal.bulk': 'Bulk', 'sex.m': 'Male', 'sex.f': 'Female',
-  'act.sedentary': 'Sedentary', 'act.light': 'Lightly active', 'act.moderate': 'Active (3–5× training)', 'act.high': 'Very active (6–7×)', 'act.veryHigh': 'Extremely active',
+  'act.sedentary': 'Sedentary', 'act.light': 'Lightly active', 'act.moderate': 'Active', 'act.high': 'Very active', 'act.veryHigh': 'Extremely active',
+  'body.actTracked': 'From your entries of the last 4 weeks: {n} sessions per week (strength + cardio, 45 min cardio = 1 session). Adjusts automatically.',
+  'body.actRhythm': 'Less than 2 weeks of workouts logged – estimated from your rhythm "{rhythm}". After that the app uses your real entries.',
   'measure.waist': 'Waist', 'measure.chest': 'Chest', 'measure.arm': 'Upper arm', 'measure.thigh': 'Thigh', 'measure.hips': 'Hips',
 
   'auth.intro': 'With an account your data is the same on all devices (PC, iPhone) and backed up. Later also for friends and leaderboard.',
