@@ -81,8 +81,11 @@ function route() {
 }
 
 // ---- Bottom-Sheet ----
+let sheetHtml = null;
 function openSheet(renderFn) {
   sheetRender = renderFn;
+  sheetHtml = null;
+  $sheetRoot.innerHTML = '';
   refreshSheet();
   const first = $sheetRoot.querySelector('[autofocus]');
   if (first) setTimeout(() => first.focus(), 30);
@@ -91,10 +94,18 @@ function refreshSheet() {
   if (!sheetRender) return;
   const html = sheetRender(store.get(), ctx);
   if (html == null) return closeSheet();
+  // Unverändert → nicht neu zeichnen (sonst springt das Fenster z. B. bei jedem Sync nach oben)
+  if (html === sheetHtml) return;
+  const old = $sheetRoot.querySelector('.sheet');
+  const scroll = old ? old.scrollTop : 0;
+  sheetHtml = html;
   $sheetRoot.innerHTML = `<div class="sheet-bg" data-act="sheet-bg"><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div></div>`;
+  // Gleiches Fenster neu gezeichnet → Scrollposition behalten
+  if (old) $sheetRoot.querySelector('.sheet').scrollTop = scroll;
 }
 function closeSheet() {
   sheetRender = null;
+  sheetHtml = null;
   $sheetRoot.innerHTML = '';
 }
 

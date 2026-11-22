@@ -110,14 +110,13 @@ function steps(u) {
     { title: L('Schlaf', 'Sleep'), body: findCard(u, { type: u.sleep, days: 3, noUnit: true, changed: ['type', 'days'] }) + loopBlock(u, { prefix: 'P;', fields: ['start', 'end', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd HH:mm', true),
       notes: [L('Den Gewicht-Block kopieren (mit Uhrzeit).', 'Copy the weight block (with time).'), repointHint, L(`Im Text nach «${u.start}» ein «;» und ein weiteres «${u.item}» → «${u.end}» einfügen. Schlaf hat keine «Unit» und kein «Group by» – das ist richtig.`, `In the text, after "${u.start}" add ";" and another "${u.item}" → "${u.end}". Sleep has no "Unit" and no "Group by" – that is correct.`)], result: 'P;2026-11-21 23:10;2026-11-22 01:30;Core' },
     { title: L('Trainingsminuten', 'Exercise minutes'), body: findCard(u, { type: u.exercise, unit: 'min', group: true, changed: ['type', 'unit'] }) + loopBlock(u, { prefix: 'E;', fields: ['start', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd'),
-      notes: [L('Den Schritte-Block kopieren.', 'Copy the steps block.'), repointHint, L('Statt einzelner Workouts (die kann Kurzbefehle nicht lesen): die Minuten des grünen Rings pro Tag.', 'Instead of single workouts (Shortcuts cannot read them): the minutes of the green ring per day.')], result: 'E;2026-11-16;52' },
-    { title: L('Distanz (Gehen + Laufen)', 'Distance (walking + running)'), body: findCard(u, { type: u.distance, unit: 'km', group: true, changed: ['type', 'unit'] }) + loopBlock(u, { prefix: 'D;', fields: ['start', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd'),
-      notes: [L('Den Trainingsminuten-Block kopieren.', 'Copy the exercise minutes block.'), repointHint], result: 'D;2026-11-16;6.8' },
+      notes: [L('Den Schritte-Block kopieren.', 'Copy the steps block.'), repointHint, L('Statt einzelner Workouts (die kann Kurzbefehle nicht lesen): die Minuten des grünen Rings pro Tag – zählt auch Gym-Training.', 'Instead of single workouts (Shortcuts cannot read them): the minutes of the green ring per day – gym training counts too.')], result: 'E;2026-11-16;52' },
     { title: L('Datum von gestern', "Yesterday's date"), body:
         card(ICON.date, `${u.date} ${tok(u.current)}`)
         + card(ICON.date, `${u.adjust}: ${chg(tok(u.subtract))} ${chg(tok(u.oneDay))} ${u.from} ${vtok(u.date, 'date')}`)
         + card(ICON.date, `${u.format} ${vtok(u.adjusted, 'date')}`, row(`<span class="grow">Date Format</span>${chg(`<span class="sc-link">${u.custom}</span>`)}`) + row(chg('<span class="sc-fmt" style="outline:0">yyyy-MM-dd</span>'))),
       notes: [
+        L('<b>Wozu:</b> Ergibt das Datum von gestern als Text (z. B. 2026-11-21). Damit weiss die App, von welchem Tag sie die Kalorien zurückgeben soll.', '<b>Why:</b> produces yesterday’s date as text (e.g. 2026-11-21) so the app knows which day’s calories to send back.'),
         L('Unter dem letzten Block (über dem Quick Look) nacheinander einfügen: <b>Date</b>, <b>Adjust Date</b>, <b>Format Date</b>.', 'Below the last block (above Quick Look) add one after another: <b>Date</b>, <b>Adjust Date</b>, <b>Format Date</b>.'),
         L('Bei «Adjust Date»: «Add» antippen → <b>Subtract</b>, dann <b>1</b> und <b>days</b>.', 'In "Adjust Date": tap "Add" → <b>Subtract</b>, then <b>1</b> and <b>days</b>.'),
         L('Bei «Format Date»: Date Format → <b>Custom</b> → <code>yyyy-MM-dd</code>. Das Ergebnis heisst automatisch «Formatted Date».', 'In "Format Date": Date Format → <b>Custom</b> → <code>yyyy-MM-dd</code>. The result is automatically called "Formatted Date".'),
@@ -134,6 +133,7 @@ function steps(u) {
           + row(chg(`${tok('payload')} ${vtok(u.combined, 'text')}`))
           + row(chg(`${tok('export_date')} ${vtok(u.formatted, 'date')}`))),
       notes: [
+        L('<b>Wozu:</b> Packt alle Zeilen in einen Text und schickt ihn mit deinem Schlüssel an dein Konto. Als Antwort kommen die Kalorien und Makros von gestern zurück.', '<b>Why:</b> packs all lines into one text and sends it with your key to your account. The answer contains yesterday’s calories and macros.'),
         L('<b>Combine Text</b> einfügen: «Text» antippen → Variable <b>Data</b> (oranges x) wählen. «Separator» bleibt «New Lines».', 'Add <b>Combine Text</b>: tap "Text" → choose the variable <b>Data</b> (orange x). "Separator" stays "New Lines".'),
         L('<b>Get Contents of URL</b> einfügen, «URL» antippen und die Adresse von oben einfügen. Dann auf den Pfeil/«Show More» tippen.', 'Add <b>Get Contents of URL</b>, tap "URL" and paste the address from above. Then tap the arrow/"Show More".'),
         L('Method → <b>POST</b>. Bei Headers zweimal «Add new header»: <code>apikey</code> = App-Schlüssel von oben, <code>Content-Type</code> = <code>application/json</code>.', 'Method → <b>POST</b>. Under Headers tap "Add new header" twice: <code>apikey</code> = app key from above, <code>Content-Type</code> = <code>application/json</code>.'),
