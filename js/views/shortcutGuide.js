@@ -48,8 +48,8 @@ function findCard(u, o) {
   return card(ICON.health, `${u.find} ${tok(u.samples)} ${u.where} ${tok(u.all)} ${u.allTrue}`,
     row(`${u.typeIs} ${c('type', tok(o.type))}`)
     + row(`${u.startDate} ${tok(u.inLast)} ${c('days', tok(String(o.days || 7)))} ${tok(u.days)}`)
-    + row(`<span class="grow">${u.unit}</span>${c('unit', `<span class="sc-link">${esc(o.unit || u.none)}</span>`)}`)
-    + row(`<span class="grow">${u.groupBy}</span>${c('group', `<span class="sc-link">${esc(o.group ? u.day : u.none)}</span>`)}`)
+    + (o.noUnit ? '' : row(`<span class="grow">${u.unit}</span>${c('unit', `<span class="sc-link">${esc(o.unit || u.none)}</span>`)}`)
+    + row(`<span class="grow">${u.groupBy}</span>${c('group', `<span class="sc-link">${esc(o.group ? u.day : u.none)}</span>`)}`))
     + (o.group ? row(`<span class="grow">${u.fill}</span>${c('group', '<span class="sc-switch"></span>')}`) : ''));
 }
 
@@ -65,6 +65,25 @@ function loopBlock(u, o) {
     + card(ICON.repeat, u.endRepeat, '', 'sc-repeat');
 }
 
+/** Das Fenster, das beim Antippen von «Start Date» im Text erscheint */
+function datePanel(u, fmt, ends) {
+  const example = fmt.includes('HH') ? '2026-09-15 09:41' : '2026-09-15';
+  const check = '<span style="color:#64a8ff">✓</span>';
+  return `<div class="sc-panel">
+    <div class="sc-panel-title">⟳ ${esc(u.item)}</div>
+    <div class="sc-card" style="padding:0 12px">
+      ${row(`<span class="grow">${esc(u.value)}</span>`).replace('sc-row', 'sc-row sc-row-first')}
+      ${row(`<span class="grow">${esc(u.start)}</span>${check}`)}
+      ${ends ? row(`<span class="grow">${esc(u.end)}</span><span class="tiny" style="color:#8e8e93">${ends}</span>`) : ''}
+    </div>
+    <div class="sc-card" style="padding:0 12px">
+      ${row(`<span class="grow">Date Format</span><span class="sc-pill">${esc(u.custom)} ⌃</span>`).replace('sc-row', 'sc-row sc-row-first')}
+      ${row(`<span class="sc-fmt">${esc(fmt)}</span>`)}
+    </div>
+    <div class="sc-example">Example: ${esc(example)}</div>
+  </div>`;
+}
+
 const resultLine = (s) => `<div class="sc-result">${esc(s)}</div>`;
 
 // ---------- Schritte ----------
@@ -75,20 +94,22 @@ function steps(u) {
     'Copy the block above: long-press the search and the repeat → "Duplicate". Then change only what is <b>highlighted</b>.');
   const repointHint = L('Die kopierte Wiederholung verbindet sich normalerweise selbst mit der neuen Suche darüber. Kontrolle: blaues «Health Samples» antippen → «Reveal Action» muss zur neuen Suche springen. Falls nicht: «Clear Variable» → «Select Variable» → neue Suche antippen.',
     'The copied repeat normally connects itself to the new search above. Check: tap the blue "Health Samples" → "Reveal Action" must jump to the new search. If not: "Clear Variable" → "Select Variable" → tap the new search.');
-  const dateHint = (fmt) => L(`Im Text «${u.start}» antippen → Date Format: <b>Custom</b> → <code>${fmt}</code>`, `In the text tap "${u.start}" → Date Format: <b>Custom</b> → <code>${fmt}</code>`);
+  const dateHint = (fmt, both) => L(`Im Text «${u.start}»${both ? ` und «${u.end}»` : ''} antippen und so einstellen (Format genau so eintippen, mit Bindestrichen${fmt.includes('HH') ? ', Leerzeichen und Doppelpunkt' : ''}):`,
+    `In the text tap "${u.start}"${both ? ` and "${u.end}"` : ''} and set it like this (type the format exactly, with dashes${fmt.includes('HH') ? ', space and colon' : ''}):`);
+  const withDate = (fmt, both) => `<div class="small">${dateHint(fmt, both)}</div>${datePanel(u, fmt, both ? L('genauso', 'same') : '')}`;
   const valueHint = L(`Zweites «${u.item}» antippen → <b>${u.value}</b>`, `Tap the second "${u.item}" → <b>${u.value}</b>`);
   return [
-    { title: L('Gewicht', 'Weight'), body: findCard(u, { type: u.weight, unit: 'kg' }) + loopBlock(u, { prefix: 'W;', fields: ['start', 'value'] }),
-      notes: [L('Aktionen über die Suche unten einfügen und in diese Reihenfolge ziehen.', 'Add actions via the search at the bottom and drag them into this order.'), dateHint('yyyy-MM-dd HH:mm'), valueHint], result: 'W;2026-11-17 23:26;72' },
-    { title: L('Körperfett', 'Body fat'), body: findCard(u, { type: u.bf, changed: ['type', 'unit'] }) + loopBlock(u, { prefix: 'F;', fields: ['start', 'value'], changed: ['text', 'repeat'] }),
+    { title: L('Gewicht', 'Weight'), body: findCard(u, { type: u.weight, unit: 'kg' }) + loopBlock(u, { prefix: 'W;', fields: ['start', 'value'] }) + withDate('yyyy-MM-dd HH:mm'),
+      notes: [L('Aktionen über die Suche unten einfügen und in diese Reihenfolge ziehen.', 'Add actions via the search at the bottom and drag them into this order.'), valueHint], result: 'W;2026-11-17 23:26;72' },
+    { title: L('Körperfett', 'Body fat'), body: findCard(u, { type: u.bf, changed: ['type', 'unit'] }) + loopBlock(u, { prefix: 'F;', fields: ['start', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd HH:mm'),
       notes: [dupHint, repointHint], result: 'F;2026-11-17 23:26;12.2' },
-    { title: L('Schritte', 'Steps'), body: findCard(u, { type: u.steps, group: true, changed: ['type', 'group'] }) + loopBlock(u, { prefix: 'S;', fields: ['start', 'value'], changed: ['text', 'repeat'] }),
-      notes: [dupHint, repointHint, dateHint('yyyy-MM-dd'), L('«Fill Missing» aus lassen.', 'Leave "Fill Missing" off.')], result: 'S;2026-11-16;15129' },
-    { title: L('Aktive Energie', 'Active energy'), body: findCard(u, { type: u.active, unit: 'kcal', group: true, changed: ['type', 'unit'] }) + loopBlock(u, { prefix: 'A;', fields: ['start', 'value'], changed: ['text', 'repeat'] }),
+    { title: L('Schritte', 'Steps'), body: findCard(u, { type: u.steps, group: true, changed: ['type', 'group'] }) + loopBlock(u, { prefix: 'S;', fields: ['start', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd'),
+      notes: [dupHint, repointHint, L('Hier ohne Uhrzeit. «Fill Missing» aus lassen.', 'Here without time. Leave "Fill Missing" off.')], result: 'S;2026-11-16;15129' },
+    { title: L('Aktive Energie', 'Active energy'), body: findCard(u, { type: u.active, unit: 'kcal', group: true, changed: ['type', 'unit'] }) + loopBlock(u, { prefix: 'A;', fields: ['start', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd'),
       notes: [L('Den Schritte-Block kopieren.', 'Copy the steps block.'), repointHint], result: 'A;2026-11-16;612' },
-    { title: L('Schlaf', 'Sleep'), body: findCard(u, { type: u.sleep, days: 3, changed: ['type', 'days'] }) + loopBlock(u, { prefix: 'P;', fields: ['start', 'end', 'value'], changed: ['text', 'repeat'] }),
-      notes: [L('Den Gewicht-Block kopieren (mit Uhrzeit).', 'Copy the weight block (with time).'), repointHint, L(`Im Text zusätzlich «${u.end}» einfügen, gleiches Datumsformat.`, `Also insert "${u.end}" in the text, same date format.`)], result: 'P;2026-11-21 23:10;2026-11-22 01:30;Core' },
-    { title: 'Workouts', body: findCard(u, { type: u.workouts, changed: ['type'] }) + loopBlock(u, { prefix: 'T;', fields: ['start', 'end', 'item'], changed: ['text', 'repeat'] }),
+    { title: L('Schlaf', 'Sleep'), body: findCard(u, { type: u.sleep, days: 3, noUnit: true, changed: ['type', 'days'] }) + loopBlock(u, { prefix: 'P;', fields: ['start', 'end', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd HH:mm', true),
+      notes: [L('Den Gewicht-Block kopieren (mit Uhrzeit).', 'Copy the weight block (with time).'), repointHint, L(`Im Text nach «${u.start}» ein «;» und ein weiteres «${u.item}» → «${u.end}» einfügen. Schlaf hat keine «Unit» und kein «Group by» – das ist richtig.`, `In the text, after "${u.start}" add ";" and another "${u.item}" → "${u.end}". Sleep has no "Unit" and no "Group by" – that is correct.`)], result: 'P;2026-11-21 23:10;2026-11-22 01:30;Core' },
+    { title: 'Workouts', body: findCard(u, { type: u.workouts, noUnit: true, changed: ['type'] }) + loopBlock(u, { prefix: 'T;', fields: ['start', 'end', 'item'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd HH:mm', true),
       notes: [L('Den Schlaf-Block kopieren.', 'Copy the sleep block.'), repointHint, L(`Das letzte Feld ist das ganze «${u.item}» (der Name, z. B. Running) – nichts auswählen.`, `The last field is the whole "${u.item}" (the name, e.g. Running) – select nothing.`)], result: 'T;2026-11-21 18:02;2026-11-21 18:47;Running' },
     { title: L('Datum von gestern', "Yesterday's date"), body:
         card(ICON.date, `${u.date} ${tok(u.current)}`)
