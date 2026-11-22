@@ -27,6 +27,7 @@ function blank() {
     plans: defaultPlans(),
     foods: [], // eigene Lebensmittel: { id, name, brand, barcode, per100: { kcal, p, c, f, fiber, sugar, salt }, portion }
     offCache: {}, // benutzte Produkte aus Open Food Facts (für "zuletzt benutzt" und offline)
+    recipes: [], // { id, name, servings, cookedWeight?, items: [{ id, foodId, name, grams, per100 }], updatedAt } – siehe js/recipes.js
     diary: {}, // { 'JJJJ-MM-TT': [ { id, meal, foodId, name, grams, n: {…} } ] }
     weights: [], // { date, kg }
     measures: [], // { date, status?, bf?, shoulders, chest, waist, hips, bicepsR/L, bicepsR/LFlex, forearmR/LFlex, thighR/L, calfR/L … } in cm, siehe js/measures.js

@@ -1,6 +1,7 @@
 // Lebensmittel-Quellen: eigene, Schweizer Nährwertdatenbank (BLV, lokal) und Open Food Facts (online).
 import { round } from './util.js';
 import { lang } from './i18n.js';
+import { recipeFood } from './recipes.js';
 
 // ---------- Suche: Text vereinheitlichen ("Müesli" = "muesli" = "Muesli") ----------
 export function norm(s) {
@@ -52,6 +53,7 @@ export function searchLocal(state, query, limit = 40) {
   if (!q.length) return [];
   const compactQ = norm(query).replace(/[^a-z0-9]/g, '');
   const pool = [
+    ...(state.recipes || []).map(recipeFood),
     ...state.foods.map((f) => ({ ...f, source: 'own' })),
     ...Object.values(state.offCache || {}),
     ...(blv || []),
@@ -68,7 +70,7 @@ export function searchLocal(state, query, limit = 40) {
     } else if (compactQ.length >= 4 && h.compact.includes(compactQ)) {
       score = 5; // z. B. "pouletbrust" findet "Poulet, Brust, …"
     } else continue;
-    if (f.source === 'own') score += 8;
+    if (f.source === 'own' || f.source === 'recipe') score += 8;
     if (f.source === 'off') score += 3; // schon einmal benutzt
     if (/\broh\b|\braw\b/.test(norm(foodName(f)))) score += 1;
     score -= foodName(f).length / 40; // kurze, allgemeine Namen zuerst

@@ -12,6 +12,7 @@ export function toDocs(state) {
     for (const e of list) m.set(`entry:${date}:${e.id}`, e);
   }
   for (const f of state.foods || []) m.set(`food:${f.id}`, f);
+  for (const r of state.recipes || []) m.set(`recipe:${r.id}`, r);
   for (const [id, f] of Object.entries(state.offCache || {})) m.set(`off:${id}`, f);
   for (const w of state.weights || []) m.set(`weight:${w.date}`, w);
   for (const x of state.measures || []) m.set(`measure:${x.date}`, x);
@@ -40,6 +41,7 @@ export function applyDoc(state, key, value) {
       break;
     }
     case 'food': upsertBy(state.foods, 'id', a); break;
+    case 'recipe': upsertBy((state.recipes ||= []), 'id', a); break;
     case 'off': if (del) delete state.offCache[a]; else state.offCache[a] = value; break;
     case 'weight': upsertBy(state.weights, 'date', a); break;
     case 'measure': upsertBy(state.measures, 'date', a); break;

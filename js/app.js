@@ -8,6 +8,7 @@ import * as trainingView from './views/training.js';
 import * as activeView from './views/active.js';
 import * as progressView from './views/progress.js';
 import * as bodyView from './views/body.js';
+import * as recipeView from './views/recipe.js';
 import * as sync from './sync.js';
 
 const ROUTES = {
@@ -18,8 +19,9 @@ const ROUTES = {
   active: activeView,
   progress: progressView,
   body: bodyView,
+  recipe: recipeView,
 };
-const TAB_OF = { 'food/add': 'food', active: 'training' };
+const TAB_OF = { 'food/add': 'food', active: 'training', recipe: 'food' };
 
 const $view = document.getElementById('view');
 const $nav = document.getElementById('nav');

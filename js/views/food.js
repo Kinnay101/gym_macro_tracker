@@ -3,6 +3,7 @@ import { esc, num, today, addDays, icon, I, parseNum } from '../util.js';
 import { t, longDate } from '../i18n.js';
 import { goals, sumEntries, dayEntries, MEALS, forGrams } from '../nutrition.js';
 import { header, bar, energy, sheetHead } from '../ui.js';
+import { portionsLabel } from '../recipes.js';
 
 let editId = null;
 
@@ -23,7 +24,7 @@ export function render(state, params) {
     const kcal = list.reduce((s, e) => s + e.n.kcal, 0);
     const rows = list.map((e) => `<div class="item"><button class="item-btn grow" data-act="edit" data-id="${esc(e.id)}">
         <div class="ellipsis" style="font-weight:600">${esc(e.name)}</div>
-        <div class="meta">${num(e.grams)} g · ${t('n.pShort')} ${num(e.n.p)} · ${t('n.cShort')} ${num(e.n.c)} · ${t('n.fShort')} ${num(e.n.f)}</div></button>
+        <div class="meta">${e.portions ? esc(portionsLabel(e.portions)) + ' · ' : ''}${num(e.grams)} g · ${t('n.pShort')} ${num(e.n.p)} · ${t('n.cShort')} ${num(e.n.c)} · ${t('n.fShort')} ${num(e.n.f)}</div></button>
         <span class="small muted">${energy(state, e.n.kcal)}</span></div>`).join('');
     return `<section class="card tight">
       <div class="card-head"><h3>${esc(t('meal.' + m))}</h3><span class="small muted">${list.length ? energy(state, kcal) : ''}</span></div>
@@ -100,7 +101,7 @@ export const inputs = {
     const e = (ctx.state.diary[key] || []).find((x) => x.id === editId);
     if (!e || g == null) return;
     // Ohne Neuzeichnen speichern, damit das Eingabefeld den Fokus behält
-    ctx.update((s) => { const x = s.diary[key].find((y) => y.id === editId); x.grams = g; x.n = forGrams(x.per100, g); }, { silent: true });
+    ctx.update((s) => { const x = s.diary[key].find((y) => y.id === editId); if (x.portions) x.portions = Math.round((x.portions * g / x.grams) * 100) / 100; x.grams = g; x.n = forGrams(x.per100, g); }, { silent: true });
     document.getElementById('edit-preview').innerHTML = preview(ctx.state, e, g);
   },
 };

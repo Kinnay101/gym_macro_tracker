@@ -1,9 +1,11 @@
-// Lebensmittel hinzufügen: Suche (eigene, Schweizer Nährwertdatenbank, Open Food Facts), Barcode, eigenes anlegen, Portion
+// Lebensmittel hinzufügen: Suche (eigene, Rezepte, Schweizer Nährwertdatenbank, Open Food Facts), Barcode, eigenes anlegen, Portion.
+// Mit ?recipe=<id> fügt die Seite Zutaten zu einem Rezept hinzu statt ins Tagebuch.
 import { esc, num, today, uid, icon, I, parseNum, addDays } from '../util.js';
 import { t } from '../i18n.js';
 import { MEALS, forGrams, NUTRIENTS } from '../nutrition.js';
 import { foodName, loadBlv, blvLoaded, searchLocal, searchOff, lookupBarcode, validBarcode } from '../foods.js';
 import { openScanner } from '../scanner.js';
+import { recipeFood, portionsLabel } from '../recipes.js';
 import { energy, sheetHead } from '../ui.js';
 
 let query = '';
@@ -15,6 +17,8 @@ let scan = null; // { status: 'loading' | 'notfound' | 'error', code, name }
 let newFoodPrefill = {};
 
 const dateOf = (p) => p.date || today();
+const recipeMode = (p) => !!p.recipe; // Zutaten für ein Rezept auswählen
+function backParams(p) { const q = new URLSearchParams(); if (p.meal) q.set('meal', p.meal); if (p.date) q.set('date', p.date); return q; }
 const mealOf = (p) => (MEALS.includes(p.meal) ? p.meal : defaultMeal());
 
 function defaultMeal() {
@@ -24,6 +28,7 @@ function defaultMeal() {
 
 function findFood(state, id) {
   if (shown.has(id)) return shown.get(id);
+  if (id.startsWith('recipe-')) { const r = (state.recipes || []).find((x) => 'recipe-' + x.id === id); return r ? recipeFood(r) : null; }
   const own = state.foods.find((f) => f.id === id);
   if (own) return { ...own, source: 'own' };
   return state.offCache?.[id] || (blvLoaded() || []).find((f) => f.id === id) || null;
@@ -43,18 +48,37 @@ function row(state, f) {
   const tag = f.source === 'off' ? `${icon(I.barcode, 'icon tag-icon')} ${esc(t('src.off'))}` : esc(t('src.' + f.source));
   return `<div class="item"><button class="item-btn grow" data-act="pick" data-id="${esc(f.id)}">
       <div class="ellipsis" style="font-weight:600">${esc(foodName(f))}</div>
-      <div class="meta ellipsis">${f.brand ? `${esc(f.brand)} · ` : ''}${energy(state, f.per100.kcal)} ${esc(t('food.per100'))} · <span class="tag">${tag}</span></div></button>
+      <div class="meta ellipsis">${f.source === 'recipe'
+        ? `${energy(state, f.perPortion.kcal)} ${esc(t('recipe.perPortionShort'))}`
+        : `${f.brand ? `${esc(f.brand)} · ` : ''}${energy(state, f.per100.kcal)} ${esc(t('food.per100'))}`} · <span class="tag">${tag}</span></div></button>
       <button class="icon-btn" data-act="pick" data-id="${esc(f.id)}" aria-label="${esc(t('food.add'))}">${icon(I.plus)}</button></div>`;
+}
+
+let mode = {}; // aktuelle Parameter (für Ergebnisse, die ohne ctx neu gezeichnet werden)
+
+function recipesCard(state) {
+  const list = (state.recipes || []).filter((r) => r.items?.length).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  const rows = list.map((r) => {
+    const f = recipeFood(r);
+    shown.set(f.id, f);
+    return `<div class="item"><button class="item-btn grow" data-act="pick" data-id="${esc(f.id)}">
+        <div class="ellipsis" style="font-weight:600">${esc(r.name || t('recipe.title'))}</div>
+        <div class="meta">${energy(state, f.perPortion.kcal)} ${esc(t('recipe.perPortionShort'))} · ${esc(t('recipe.itemsCount', { n: r.items.length }))}</div></button>
+      <button class="icon-btn" data-act="edit-recipe" data-id="${esc(r.id)}" aria-label="${esc(t('recipe.edit'))}">${icon('<path d="M4 20h4L19 9l-4-4L4 16v4z"/>')}</button>
+      <button class="icon-btn" data-act="pick" data-id="${esc(f.id)}" aria-label="${esc(t('food.add'))}">${icon(I.plus)}</button></div>`;
+  }).join('');
+  return `<section class="card tight"><div class="card-head"><h3>${esc(t('recipe.list'))}</h3><button class="link" data-act="new-recipe">${esc(t('recipe.create'))}</button></div>
+    ${rows ? `<div class="list">${rows}</div>` : `<div class="small muted">${esc(t('recipe.none'))}</div>`}</section>`;
 }
 
 function resultsHtml(state) {
   shown = new Map();
   const q = query.trim();
   if (!q) {
-    const list = recent(state);
-    return `<section class="card tight"><h3>${esc(t('food.recent'))}</h3>${list.length ? `<div class="list">${list.map((f) => row(state, f)).join('')}</div>` : `<div class="empty">${esc(t('food.noRecent'))}</div>`}</section>`;
+    const list = recent(state).filter((f) => !(recipeMode(mode) && f.source === 'recipe'));
+    return `${recipeMode(mode) ? '' : recipesCard(state)}<section class="card tight"><h3>${esc(t('food.recent'))}</h3>${list.length ? `<div class="list">${list.map((f) => row(state, f)).join('')}</div>` : `<div class="empty">${esc(t('food.noRecent'))}</div>`}</section>`;
   }
-  const local = searchLocal(state, q, 25);
+  const local = searchLocal(state, q, 25).filter((f) => !(recipeMode(mode) && f.source === 'recipe'));
   const loading = !blvLoaded();
   // Ohne Treffer in der lokalen Datenbank nur einen kurzen Hinweis zeigen
   const localHtml = local.length || loading
@@ -77,16 +101,21 @@ function resultsHtml(state) {
 }
 
 export function render(state, params) {
+  mode = params;
   const meal = mealOf(params);
+  const inRecipe = recipeMode(params);
+  const recipe = inRecipe ? (state.recipes || []).find((r) => r.id === params.recipe) : null;
+  const back = inRecipe ? `#/recipe?${new URLSearchParams({ ...Object.fromEntries(backParams(params)), id: params.recipe })}` : `#/food?date=${dateOf(params)}`;
   return `
-    <header class="head"><div class="row"><a class="icon-btn" href="#/food?date=${dateOf(params)}" aria-label="${esc(t('common.back'))}">${icon(I.back)}</a><h1>${esc(t('food.add'))}</h1></div></header>
-    <div class="chips">${MEALS.map((m) => `<button class="chip" data-act="meal" data-v="${m}" aria-pressed="${m === meal}">${esc(t('meal.' + m))}</button>`).join('')}</div>
+    <header class="head"><div class="row"><a class="icon-btn" href="${back}" aria-label="${esc(t('common.back'))}">${icon(I.back)}</a>
+      <div><h1>${esc(inRecipe ? t('recipe.addItem') : t('food.add'))}</h1>${inRecipe ? `<div class="sub">${esc(recipe?.name || t('recipe.title'))}</div>` : ''}</div></div></header>
+    ${inRecipe ? '' : `<div class="chips">${MEALS.map((m) => `<button class="chip" data-act="meal" data-v="${m}" aria-pressed="${m === meal}">${esc(t('meal.' + m))}</button>`).join('')}</div>`}
     <div class="search">${icon(I.search)}<input class="input" id="food-q" type="search" enterkeyhint="search" data-in="q" value="${esc(query)}" placeholder="${esc(t('food.searchPh'))}" autocomplete="off"></div>
     <div class="grid2">
       <button class="btn" data-act="barcode">${icon(I.barcode)} ${esc(t('food.barcode'))}</button>
       <button class="btn" data-act="new-food">${icon(I.plus)} ${esc(t('food.own'))}</button>
     </div>
-    <button class="btn ghost" data-act="quick">${esc(t('food.quick'))}</button>
+    ${inRecipe ? '' : `<button class="btn ghost" data-act="quick">${esc(t('food.quick'))}</button>`}
     <div class="stack" id="results" style="gap:16px">${resultsHtml(state)}</div>
     <div class="credit">${esc(t('food.credit'))}<br><a href="https://naehrwertdaten.ch" target="_blank" rel="noopener">naehrwertdaten.ch</a> · <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">openfoodfacts.org</a> (ODbL)</div>
   `;
@@ -100,6 +129,13 @@ export function mounted(root, ctx) {
   if (!blvLoaded()) {
     loadBlv().then(() => refreshResults(ctx)).catch(() => {});
   }
+  if (ctx.params.pick) {
+    const id = ctx.params.pick;
+    delete ctx.params.pick;
+    history.replaceState(null, '', '#/food/add?' + new URLSearchParams(ctx.params));
+    const f = findFood(ctx.state, id);
+    if (f) setTimeout(() => openPortion(ctx, f), 0);
+  }
 }
 
 function refreshResults(ctx) {
@@ -112,13 +148,16 @@ function portionSheet(state, ctx) {
   if (!picked) return null;
   const n = forGrams(picked.per100, pickedGrams || 0);
   const portion = picked.portion || 100;
-  const chips = [...new Set([portion, 50, 100, 150, 200])].sort((a, b) => a - b);
+  const inRecipe = recipeMode(ctx.params);
+  const chips = picked.source === 'recipe'
+    ? [0.5, 1, 1.5, 2].map((k) => `<button class="chip" data-act="grams" data-v="${Math.round(k * portion)}" aria-pressed="${Math.round(k * portion) === pickedGrams}">${esc(portionsLabel(k))}</button>`).join('')
+    : [...new Set([portion, 50, 100, 150, 200])].sort((a, b) => a - b).map((g) => `<button class="chip" data-act="grams" data-v="${g}" aria-pressed="${g === pickedGrams}">${num(g)} g${g === portion && portion !== 100 ? ' · ' + esc(t('food.portionShort')) : ''}</button>`).join('');
   return `${sheetHead(foodName(picked))}
-    <div class="small muted">${picked.brand ? esc(picked.brand) + ' · ' : ''}${esc(t('meal.' + mealOf(ctx.params)))} · ${esc(t('src.' + picked.source))}</div>
-    <div class="chips">${chips.map((g) => `<button class="chip" data-act="grams" data-v="${g}" aria-pressed="${g === pickedGrams}">${num(g)} g${g === portion && portion !== 100 ? ' · ' + esc(t('food.portionShort')) : ''}</button>`).join('')}</div>
+    <div class="small muted">${picked.brand ? esc(picked.brand) + ' · ' : ''}${inRecipe ? '' : esc(t('meal.' + mealOf(ctx.params))) + ' · '}${esc(t('src.' + picked.source))}${picked.source === 'recipe' ? ' · ' + esc(t('recipe.portionIs', { g: num(portion) })) : ''}</div>
+    <div class="chips">${chips}</div>
     <label class="field">${esc(t('food.amount'))}<input class="input" inputmode="decimal" data-in="grams" value="${esc(pickedGrams)}" autofocus></label>
     <div class="grid2" id="portion-n">${portionNutrients(state, n)}</div>
-    <button class="btn primary block" data-act="add">${esc(t('food.addTo', { meal: t('meal.' + mealOf(ctx.params)) }))}</button>`;
+    <button class="btn primary block" data-act="add">${esc(inRecipe ? t('recipe.addToRecipe') : t('food.addTo', { meal: t('meal.' + mealOf(ctx.params)) }))}</button>`;
 }
 function portionNutrients(state, n) {
   return `<div class="stack" style="gap:2px"><span class="tiny muted">${esc(t('n.kcal'))}</span><span class="big">${energy(state, n.kcal)}</span></div>
@@ -197,6 +236,27 @@ export const actions = {
   grams(el, ctx) { pickedGrams = Number(el.dataset.v); ctx.refreshSheet(); },
   add(el, ctx) {
     if (!picked || !pickedGrams) return;
+    if (recipeMode(ctx.params)) {
+      const rid = ctx.params.recipe;
+      const food = picked;
+      ctx.update((s) => {
+        const r = (s.recipes || []).find((x) => x.id === rid);
+        if (!r) return;
+        (r.items ||= []).push({ id: uid(), foodId: food.id, name: foodName(food), grams: pickedGrams, per100: food.per100 });
+        r.updatedAt = new Date().toISOString();
+        if (food.source === 'off') { const { _hay, ...clean } = food; (s.offCache ||= {})[food.id] = clean; }
+      });
+      ctx.closeSheet();
+      query = ''; online = { q: '', status: 'idle', list: [] };
+      ctx.go(`recipe?${new URLSearchParams({ ...Object.fromEntries(backParams(ctx.params)), id: rid })}`);
+      ctx.toast(t('recipe.itemAdded', { name: foodName(food) }));
+      return;
+    }
+    if (picked.source === 'recipe') {
+      const portions = Math.round((pickedGrams / (picked.portion || 1)) * 100) / 100;
+      addEntry(ctx, { foodId: picked.id, name: picked.name, grams: pickedGrams, portions, per100: picked.per100, n: forGrams(picked.per100, pickedGrams) }, picked);
+      return;
+    }
     addEntry(ctx, { foodId: picked.id, name: foodName(picked), grams: pickedGrams, per100: picked.per100, n: forGrams(picked.per100, pickedGrams) }, picked);
   },
   async 'search-online'(el, ctx) {
@@ -248,6 +308,14 @@ export const actions = {
     openPortion(ctx, { ...food, source: 'own' });
   },
   quick(el, ctx) { ctx.openSheet(quickSheet); },
+  'new-recipe'(el, ctx) {
+    const r = { id: uid(), name: '', servings: 1, cookedWeight: null, items: [], updatedAt: new Date().toISOString() };
+    ctx.update((s) => { (s.recipes ||= []).push(r); }, { silent: true });
+    ctx.go(`recipe?${new URLSearchParams({ ...Object.fromEntries(backParams(ctx.params)), id: r.id })}`);
+  },
+  'edit-recipe'(el, ctx) {
+    ctx.go(`recipe?${new URLSearchParams({ ...Object.fromEntries(backParams(ctx.params)), id: el.dataset.id })}`);
+  },
   'save-quick'(el, ctx) {
     const kcal = val('q-kcal');
     if (!kcal) { document.getElementById('q-err').textContent = t('food.needKcal'); return; }
