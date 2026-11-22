@@ -5,6 +5,7 @@ import { SUPABASE_URL, SUPABASE_KEY } from '../config.js';
 import * as sync from '../sync.js';
 import * as health from '../health.js';
 import { sheetHead } from '../ui.js';
+import * as shortcutGuide from './shortcutGuide.js';
 
 let status = { loaded: false, row: null, error: null };
 let newToken = null; // nur direkt nach dem Erstellen sichtbar
@@ -100,28 +101,12 @@ function guideSheet() {
     ${newToken ? `<div class="small" style="color:var(--warn)">${esc(t('hs.tokenOnce'))}</div>${copyRow(t('hs.token'), newToken, 'hs-token')}` : `<div class="small muted">${esc(t('hs.tokenHidden'))}</div>`}
     ${copyRow(t('hs.url'), url, 'hs-url')}
     ${copyRow(t('hs.apikey'), SUPABASE_KEY, 'hs-key')}
-    <div>
-      ${step(1, t('hs.s1'), L('Kurzbefehle → + → Name «Gym Sync». Die Schritte 2–6 sind gleich aufgebaut: Proben suchen → für jede eine Textzeile bauen → an die Variable «Data» anhängen. Jede Datenart ist ein eigener Block; die Blöcke stehen untereinander, nicht ineinander. Zum Testen ganz unten', 'Shortcuts → + → name "Gym Sync". Steps 2–6 work the same way: find samples → build a text line for each → add it to the variable "Data". Each data type is its own block; the blocks go one below the other, not inside each other. For testing, at the very bottom') + ` ${A('Übersicht', 'Quick Look')} ${L('mit', 'with')} ${code('Data')} ${L('einfügen (am Schluss wieder löschen).', '(delete it at the end).')}`)}
-      ${step(2, t('hs.s2'), block(TYPE.weight, 'W;', { unit: 'kg', fields: ['start', 'value'], example: '2026-11-17 23:26;72' }))}
-      ${step(3, t('hs.s3'), block(TYPE.bf, 'F;', { fields: ['start', 'value'], example: '2026-11-17 23:26;12.2', note: L('lange Kommazahlen sind ok', 'long decimals are fine') }) + dupTip)}
-      ${step(4, t('hs.s4a'), block(TYPE.steps, 'S;', { group: true, dateOnly: true, fields: ['start', 'value'], example: '2026-11-21;8412' }) + dupTip)}
-      ${step(5, t('hs.s4b'), block(TYPE.active, 'A;', { group: true, dateOnly: true, unit: 'kcal', fields: ['start', 'value'], example: '2026-11-21;612' }) + dupTip)}
-      ${step(6, t('hs.s5'), block(TYPE.sleep, 'P;', { days: 3, fields: ['start', 'end', 'value'], example: '2026-11-21 23:10;2026-11-22 01:30;Core', note: L('eine Zeile pro Schlafphase', 'one line per sleep stage') }) + dupTip)}
-      ${step(7, t('hs.s6'), block(TYPE.workouts, 'T;', { fields: ['start', 'end', 'item'], example: '2026-11-21 18:02;2026-11-21 18:47;Running' }) + dupTip + `<div class="tiny muted" style="margin-top:6px">${L('Optional für kcal, km und Puls: in derselben Wiederholung je ', 'Optional for kcal, km and heart rate: inside the same repeat, one ')}${N.find} (${TYPE.active}, ${A('Distanz (Gehen + Laufen)', 'Walking + Running Distance')}, ${A('Herzfrequenz', 'Heart Rate')}) ${L('mit Startdatum nach Workout-Start und vor Workout-Ende, dann', 'with start date after workout start and before workout end, then')} ${N.stats} ${L('(Summe bzw. Durchschnitt) und hinten an den Text', '(sum or average) and append to the text')} ${code(';kcal;km;Puls')}</div>`)}
-      ${step(8, t('hs.s7'), li([`${N.date} (${L('aktuelles Datum', 'current date')})`, `${N.adjust}: ${L('1 Tag abziehen', 'subtract 1 day')}`, `${N.format}: ${L('Eigenes', 'Custom')} ${code('yyyy-MM-dd')} → ${L('Ergebnis umbenennen in', 'rename the result to')} ${code('Yesterday')}`]))}
-      ${step(9, t('hs.s8'), li([`${N.combine}: ${code('Data')} ${L('mit', 'with')} ${N.newLines}`,
-        `${N.url}: URL ${code(url)}`,
-        `${L('Methode', 'Method')} ${code('POST')}, Headers: ${code('apikey')} = ${esc(t('hs.apikey'))}, ${code('Content-Type')} = ${code('application/json')}`,
-        `${L('Anfragetext', 'Request Body')} ${code('JSON')}: ${code('token')} (Text) = ${esc(t('hs.token'))}, ${code('payload')} (Text) = ${L('kombinierter Text', 'Combined Text')}, ${code('export_date')} (Text) = ${code('Yesterday')}`]))}
-      ${step(10, t('hs.s9'), li([`${N.dict}: ${code('export')} ${L('aus den URL-Inhalten', 'from the URL contents')}`,
-        `${N.ifA} ${L('Wörterbuchwert', 'Dictionary Value')} ${N.hasValue}:`,
-        `${L('je Wert', 'for each value')} ${N.dict} (${code('kcal')}, ${code('protein')}, ${code('carbs')}, ${code('fat')}, ${code('fiber')}, ${code('sugar')}) → ${N.log}: ${A('Nahrungsenergie', 'Dietary Energy')}, ${A('Protein', 'Protein')}, ${A('Kohlenhydrate', 'Carbohydrates')}, ${A('Fett gesamt', 'Total Fat')}, ${A('Ballaststoffe', 'Fiber')}, ${A('Zucker', 'Sugar')} – ${L('Datum: gestern', 'date: yesterday')}`]))}
-      ${step(11, t('hs.s10'), esc(t('hs.s10b')))}
-    </div>
+    ${shortcutGuide.guideHtml()}
     <div class="tiny muted">${esc(t('hs.guideOutro'))}</div>`;
 }
 
 export const actions = {
+  ...shortcutGuide.actions,
   async 'hs-connect'(el, ctx) {
     if (status.row && !confirm(t('hs.newKeyConfirm'))) return;
     try {
