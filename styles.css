@@ -258,10 +258,10 @@ input.input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 /* Herz = Wert aus Apple Health */
 .hk { color: #ff375f; font-size: 0.85em; }
 
-/* Handy quer: App ausblenden, Hinweis zeigen (iPhone ignoriert die Ausrichtung im Manifest) */
+/* Handy quer: Hinweis deckt die App zu (iPhone ignoriert die Ausrichtung im Manifest).
+   App bewusst NICHT ausblenden – sonst stimmen am iPhone nach dem Zurückdrehen die Tipp-Positionen nicht mehr */
 .rotate { display: none; }
 @media (orientation: landscape) and (max-height: 500px) and (min-aspect-ratio: 3/2) { /* 3/2: offene Android-Tastatur löst nicht aus */
   .rotate { display: flex; position: fixed; inset: 0; z-index: 1000; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: var(--bg, #0E0F11); color: var(--muted); font-size: 15px; text-align: center; padding: 24px; }
   .rotate svg { width: 40px; height: 40px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
-  .app, #sheet-root, #toast { visibility: hidden; }
 }

@@ -155,6 +155,29 @@ window.visualViewport?.addEventListener('resize', () => {
   if (window.visualViewport.height >= window.innerHeight - 1) window.scrollTo(0, 0);
 });
 
+// iPhone: Nach dem Drehen bleibt die Seite manchmal verschoben/vergrössert → Tipper landen neben den Knöpfen.
+// Darum nach jeder Drehung Scroll-Position und Zoom zurücksetzen.
+const viewportMeta = document.querySelector('meta[name="viewport"]');
+const baseViewport = viewportMeta?.content || '';
+function resetAfterRotate() {
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  if (viewportMeta) {
+    viewportMeta.content = baseViewport + ', maximum-scale=1';
+    setTimeout(() => { viewportMeta.content = baseViewport; }, 400);
+  }
+}
+let lastPortrait = matchMedia('(orientation: portrait)').matches;
+function onRotate() {
+  const portrait = matchMedia('(orientation: portrait)').matches;
+  if (portrait === lastPortrait) return;
+  lastPortrait = portrait;
+  setTimeout(resetAfterRotate, 250); // erst nach der Dreh-Animation
+}
+window.addEventListener('orientationchange', onRotate);
+window.addEventListener('resize', onRotate);
+
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && sheetRender) closeSheet();
 });
