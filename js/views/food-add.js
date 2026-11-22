@@ -6,7 +6,9 @@ import { MEALS, forGrams, NUTRIENTS } from '../nutrition.js';
 import { foodName, loadBlv, blvLoaded, searchLocal, searchOff, lookupBarcode, validBarcode } from '../foods.js';
 import { openScanner } from '../scanner.js';
 import { recipeFood, portionsLabel } from '../recipes.js';
-import { energy, sheetHead } from '../ui.js';
+import * as publicRecipes from '../publicRecipes.js';
+import * as sync from '../sync.js';
+import { energy, sheetHead, seg } from '../ui.js';
 
 let query = '';
 let online = { q: '', status: 'idle', list: [] }; // Open-Food-Facts-Suche
@@ -28,6 +30,7 @@ function defaultMeal() {
 
 function findFood(state, id) {
   if (shown.has(id)) return shown.get(id);
+  if (id.startsWith('pub-')) { const p = discover.list.find((x) => 'pub-' + x.id === id); return p ? publicFood(p) : null; }
   if (id.startsWith('recipe-')) { const r = (state.recipes || []).find((x) => 'recipe-' + x.id === id); return r ? recipeFood(r) : null; }
   const own = state.foods.find((f) => f.id === id);
   if (own) return { ...own, source: 'own' };
@@ -55,6 +58,46 @@ function row(state, f) {
 }
 
 let mode = {}; // aktuelle Parameter (für Ergebnisse, die ohne ctx neu gezeichnet werden)
+let recipeTab = 'mine'; // 'mine' | 'discover'
+let discover = { status: 'idle', list: [] }; // öffentliche Rezepte der anderen
+let pubDetail = null; // gerade angesehenes öffentliches Rezept
+
+/** Öffentliches Rezept als "Lebensmittel" zum Eintragen. */
+function publicFood(p) {
+  return { id: 'pub-' + p.id, source: 'recipe', isPublic: true, name: p.name, per100: p.data.per100, portion: p.data.portionGrams || 100, perPortion: p.data.perPortion };
+}
+
+function discoverHtml(state) {
+  if (!sync.getUser()) return `<div class="small muted">${esc(t('recipe.discoverNeedsAccount'))}</div>`;
+  if (discover.status === 'loading' || discover.status === 'idle') return `<div class="empty"><span class="spinner"></span></div>`;
+  if (discover.status === 'error') return `<div class="small">${esc(t('auth.errNetwork'))}</div><button class="link" data-act="discover-reload">${esc(t('food.retry'))}</button>`;
+  if (!discover.list.length) return `<div class="small muted">${esc(t('recipe.discoverEmpty'))}</div>`;
+  return `<div class="list">${discover.list.map((p) => `<div class="item"><button class="item-btn grow" data-act="pub-open" data-id="${esc(p.id)}">
+      <div class="ellipsis" style="font-weight:600">${esc(p.name)}</div>
+      <div class="meta ellipsis">${energy(state, p.data.perPortion?.kcal || 0)} ${esc(t('recipe.perPortionShort'))} · ${esc(t('n.pShort'))} ${num(p.data.perPortion?.p || 0)} g · ${esc(t('recipe.by', { name: p.author_name || t('recipe.anonymous') }))}</div></button>
+    ${icon(I.chevron)}</div>`).join('')}</div>`;
+}
+
+async function loadDiscover(ctx) {
+  if (!sync.getUser() || discover.status === 'loading') return;
+  discover = { status: 'loading', list: [] };
+  try { discover = { status: 'done', list: await publicRecipes.loadPublic() }; } catch { discover = { status: 'error', list: [] }; }
+  if (location.hash.startsWith('#/food/add')) refreshResults(ctx);
+}
+
+function pubSheet(state) {
+  const p = discover.list.find((x) => x.id === pubDetail);
+  if (!p) return null;
+  const d = p.data;
+  const pp = d.perPortion || {};
+  return `${sheetHead(p.name)}
+    <div class="small muted">${esc(t('recipe.by', { name: p.author_name || t('recipe.anonymous') }))} · ${esc(portionsLabel(d.servings || 1))}${d.portionGrams ? ` · ${esc(t('recipe.portionIs', { g: num(d.portionGrams) }))}` : ''}</div>
+    <div class="grid2"><div class="stack" style="gap:2px"><span class="tiny muted">${esc(t('recipe.perPortion'))}</span><span class="big">${energy(state, pp.kcal || 0)}</span></div>
+      <div class="stack small" style="gap:2px"><span>${esc(t('n.p'))} <b>${num(pp.p || 0, 1)} g</b></span><span>${esc(t('n.c'))} <b>${num(pp.c || 0, 1)} g</b></span><span>${esc(t('n.f'))} <b>${num(pp.f || 0, 1)} g</b></span></div></div>
+    <div><h3>${esc(t('recipe.ingredients'))}</h3><div class="list">${(d.items || []).map((it) => `<div class="item"><span class="grow small">${esc(it.name)}</span><span class="small muted">${num(it.grams)} g</span></div>`).join('')}</div></div>
+    ${d.instructions ? `<div><h3>${esc(t('recipe.instructions'))}</h3><div class="small" style="white-space:pre-wrap;line-height:1.5;margin-top:6px">${esc(d.instructions)}</div></div>` : ''}
+    <div class="grid2"><button class="btn" data-act="pub-copy">${esc(t('recipe.copy'))}</button><button class="btn primary" data-act="pub-log">${esc(t('recipe.log'))}</button></div>`;
+}
 
 function recipesCard(state) {
   const list = (state.recipes || []).filter((r) => r.items?.length).sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
@@ -67,8 +110,12 @@ function recipesCard(state) {
       <button class="icon-btn" data-act="edit-recipe" data-id="${esc(r.id)}" aria-label="${esc(t('recipe.edit'))}">${icon('<path d="M4 20h4L19 9l-4-4L4 16v4z"/>')}</button>
       <button class="icon-btn" data-act="pick" data-id="${esc(f.id)}" aria-label="${esc(t('food.add'))}">${icon(I.plus)}</button></div>`;
   }).join('');
+  const body = recipeTab === 'discover'
+    ? discoverHtml(state)
+    : (rows ? `<div class="list">${rows}</div>` : `<div class="small muted">${esc(t('recipe.none'))}</div>`);
   return `<section class="card tight"><div class="card-head"><h3>${esc(t('recipe.list'))}</h3><button class="link" data-act="new-recipe">${esc(t('recipe.create'))}</button></div>
-    ${rows ? `<div class="list">${rows}</div>` : `<div class="small muted">${esc(t('recipe.none'))}</div>`}</section>`;
+    ${seg('recipe-tab', [['mine', t('recipe.mine')], ['discover', t('recipe.discover')]], recipeTab)}
+    ${body}</section>`;
 }
 
 function resultsHtml(state) {
@@ -308,6 +355,32 @@ export const actions = {
     openPortion(ctx, { ...food, source: 'own' });
   },
   quick(el, ctx) { ctx.openSheet(quickSheet); },
+  'recipe-tab'(el, ctx) {
+    recipeTab = el.dataset.v;
+    refreshResults(ctx);
+    if (recipeTab === 'discover') loadDiscover(ctx);
+  },
+  'discover-reload'(el, ctx) { loadDiscover(ctx); },
+  'pub-open'(el, ctx) { pubDetail = el.dataset.id; ctx.openSheet(pubSheet); },
+  'pub-log'(el, ctx) {
+    const p = discover.list.find((x) => x.id === pubDetail);
+    if (p) openPortion(ctx, publicFood(p));
+  },
+  'pub-copy'(el, ctx) {
+    const p = discover.list.find((x) => x.id === pubDetail);
+    if (!p) return;
+    const d = p.data;
+    const r = {
+      id: uid(), name: p.name, servings: d.servings || 1, cookedWeight: d.cookedWeight ?? null, instructions: d.instructions || '',
+      items: (d.items || []).map((it) => ({ id: uid(), foodId: null, name: it.name, grams: it.grams, per100: it.per100 })),
+      public: false, copiedFrom: p.author_name || null, updatedAt: new Date().toISOString(),
+    };
+    ctx.update((s) => { (s.recipes ||= []).push(r); });
+    ctx.closeSheet();
+    recipeTab = 'mine';
+    refreshResults(ctx);
+    ctx.toast(t('recipe.copied', { name: p.name }));
+  },
   'new-recipe'(el, ctx) {
     const r = { id: uid(), name: '', servings: 1, cookedWeight: null, items: [], updatedAt: new Date().toISOString() };
     ctx.update((s) => { (s.recipes ||= []).push(r); }, { silent: true });

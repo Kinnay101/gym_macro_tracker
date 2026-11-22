@@ -2,7 +2,9 @@
 import { esc, num, icon, I, parseNum } from '../util.js';
 import { t } from '../i18n.js';
 import { recipeTotals } from '../recipes.js';
-import { energy } from '../ui.js';
+import { energy, seg } from '../ui.js';
+import * as sync from '../sync.js';
+import * as publicRecipes from '../publicRecipes.js';
 
 const recipeOf = (state, params) => (state.recipes || []).find((r) => r.id === params.id);
 
@@ -44,6 +46,11 @@ export function render(state, params) {
       <a class="btn sm ghost" href="#/food/add?${add}">${icon(I.plus)} ${esc(t('recipe.addItem'))}</a>
     </section>
     <section class="card" id="r-totals">${totalsHtml(state, tot)}</section>
+    <label class="field">${esc(t('recipe.instructions'))}<textarea class="input" data-in="r-instructions" style="min-height:140px;padding:10px 12px;line-height:1.45" placeholder="${esc(t('recipe.instructionsPh'))}">${esc(r.instructions || '')}</textarea></label>
+    <section class="card tight"><h3>${esc(t('recipe.visibility'))}</h3>
+      ${seg('r-public', [['private', t('recipe.private')], ['public', t('recipe.public')]], r.public ? 'public' : 'private')}
+      <div class="tiny muted">${esc(t(r.public ? (sync.getUser() ? 'recipe.publicHint' : 'recipe.publicNeedsAccount') : 'recipe.privateHint'))}</div>
+    </section>
     ${r.items?.length ? `<button class="btn primary block" data-act="r-log">${esc(t('recipe.log'))}</button>` : ''}
     <button class="link" data-act="r-delete" style="align-self:flex-start;color:var(--bad)">${esc(t('recipe.delete'))}</button>
   `;
@@ -80,6 +87,10 @@ function leave(ctx) {
 
 export const actions = {
   'r-back'(el, ctx) { leave(ctx); },
+  'r-public'(el, ctx) {
+    patch(ctx, (r) => { r.public = el.dataset.v === 'public'; });
+    publicRecipes.schedulePublish(300);
+  },
   'r-remove'(el, ctx) { patch(ctx, (r) => { r.items = r.items.filter((it) => it.id !== el.dataset.id); }); },
   'r-log'(el, ctx) {
     const p = backParams(ctx.params);
@@ -97,6 +108,7 @@ export const actions = {
 
 export const inputs = {
   'r-name'(el, ctx) { patch(ctx, (r) => { r.name = el.value; }, false); },
+  'r-instructions'(el, ctx) { patch(ctx, (r) => { r.instructions = el.value; }, false); },
   'r-servings'(el, ctx) { const v = parseNum(el.value); if (v > 0) { patch(ctx, (r) => { r.servings = v; }, false); refreshTotals(ctx); } },
   'r-cooked'(el, ctx) { const v = parseNum(el.value); patch(ctx, (r) => { r.cookedWeight = v > 0 ? v : null; }, false); refreshTotals(ctx); },
   'r-grams'(el, ctx) {
