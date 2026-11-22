@@ -8,6 +8,7 @@ import * as sync from '../sync.js';
 import * as social from '../social.js';
 import * as measuresView from './measures.js';
 import * as healthSetup from './healthSetup.js';
+import * as feedbackView from './feedback.js';
 
 
 export function render(state, params, ctx) {
@@ -74,6 +75,8 @@ export function render(state, params, ctx) {
       <div class="grid2"><button class="btn" data-act="export">${esc(t('settings.export'))}</button><label class="btn">${esc(t('settings.import'))}<input type="file" accept="application/json,.json" data-in="import" hidden></label></div>
       <button class="btn danger" data-act="reset">${esc(t('settings.reset'))}</button>
     </section>
+
+    ${feedbackView.card(state, ctx)}
     <div class="tiny muted" style="text-align:center">Gym Macro Tracker · ${esc(t('settings.version'))} 0.1</div>`;
 }
 
@@ -177,6 +180,7 @@ function manualSheet(state) {
 export const actions = {
   ...measuresView.actions,
   ...healthSetup.actions,
+  ...feedbackView.actions,
   'add-weight'(el, ctx) {
     const kg = parseNum(document.getElementById('w-in').value);
     if (!kg || kg < 20 || kg > 400) { ctx.toast(t('body.invalidWeight')); return; }
@@ -272,6 +276,7 @@ export const actions = {
 };
 
 export const inputs = {
+  ...feedbackView.inputs,
   'auth-email'(el) { authEmail = el.value; },
 };
 
