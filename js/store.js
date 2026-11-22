@@ -21,6 +21,8 @@ function blank() {
       goalOverride: null, // { kcal, p, c, f } wenn manuell gesetzt
       rhythm: 'full', // 'full' | 'light'
       rhythmNames: { full: null, light: null }, // null = Standardname
+      displayName: null, // Name, den Freunde sehen
+      share: { strength: true, consistency: true, volume: true, prs: true }, // was Freunde sehen dürfen
     },
     plans: defaultPlans(),
     foods: [], // eigene Lebensmittel: { id, name, brand, barcode, per100: { kcal, p, c, f, fiber, sugar, salt }, portion }

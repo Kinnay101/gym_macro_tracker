@@ -26,6 +26,7 @@ let applying = false;
 
 export function isConfigured() { return !!(SUPABASE_URL && SUPABASE_KEY) || !!client; }
 export function getUser() { return user; }
+export function getClient() { return user ? client : null; }
 export function getStatus() { return { ...status, user }; }
 export function onStatus(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 function setStatus(patch) { status = { ...status, ...patch }; listeners.forEach((l) => l(getStatus())); }

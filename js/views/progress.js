@@ -1,9 +1,10 @@
-// Fortschritt: 1RM-Verlauf, Bestwerte, Sätze pro Muskel, Kalender, Freunde (kommt mit Login)
+// Fortschritt: 1RM-Verlauf, Bestwerte, Sätze pro Muskel, Kalender; Umschalter zu Freunde & Rangliste
 import { esc, num, today, addDays, parseKey, dayKey, daysBetween, icon, I } from '../util.js';
 import { t, monthName, shortDate, weekdayHeaders } from '../i18n.js';
 import { historyFor, bestFor, setsPerMuscle } from '../workout.js';
 import { MUSCLES } from '../plan.js';
 import { header, seg, lineChart } from '../ui.js';
+import * as friendsView from './friends.js';
 
 let tab = 'me';
 let exName = null;
@@ -15,15 +16,10 @@ function exerciseNames(state) {
   return [...names].sort();
 }
 
-export function render(state) {
+export function render(state, params, ctx) {
   return `${header(t('nav.progress'))}
     ${seg('tab', [['me', t('progress.me')], ['friends', t('progress.friends')]], tab)}
-    ${tab === 'me' ? me(state) : friends()}`;
-}
-
-function friends() {
-  return `<section class="card"><div class="row">${icon(I.users)}<h2>${esc(t('friends.title'))}</h2></div>
-    <div class="small muted">${esc(t('friends.soon'))}</div></section>`;
+    ${tab === 'me' ? me(state) : friendsView.render(state, ctx)}`;
 }
 
 function me(state) {
@@ -85,7 +81,12 @@ function calendar(state) {
 }
 
 export const actions = {
-  tab(el, ctx) { tab = el.dataset.v; ctx.render(); },
+  ...friendsView.actions,
+  tab(el, ctx) {
+    tab = el.dataset.v;
+    if (tab === 'friends') friendsView.load(ctx, { quiet: true });
+    ctx.render();
+  },
   month(el, ctx) { monthOffset = Math.min(0, monthOffset + Number(el.dataset.v)); ctx.render(); },
 };
 export const changes = {

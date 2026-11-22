@@ -5,6 +5,7 @@ import { calcGoals, goals, currentWeight } from '../nutrition.js';
 import { header, seg, lineChart, energy, sheetHead } from '../ui.js';
 import * as store from '../store.js';
 import * as sync from '../sync.js';
+import * as social from '../social.js';
 
 const MEASURES = ['waist', 'chest', 'arm', 'thigh', 'hips'];
 const ACTIVITY = [[1.2, 'act.sedentary'], [1.375, 'act.light'], [1.55, 'act.moderate'], [1.725, 'act.high'], [1.9, 'act.veryHigh']];
@@ -61,6 +62,7 @@ export function render(state) {
     </section>
 
     ${accountCard()}
+    ${shareCard(state)}
     <section class="card tight"><h3>${esc(t('settings.health'))}</h3><div class="small muted">${esc(t('settings.healthSoon'))}</div></section>
 
     <section class="card tight">
@@ -105,10 +107,21 @@ function accountCard() {
   return `<section class="card" id="account"><h3>${esc(t('settings.sync'))}</h3>
     <div class="row between"><div class="grow"><div class="tiny muted">${esc(t('auth.signedInAs'))}</div><div class="ellipsis" style="font-weight:600">${esc(st.user.email || '')}</div></div>
       ${st.state === 'syncing' ? '<span class="spinner"></span>' : ''}</div>
+    <label class="field">${esc(t('share.name'))}<div class="row"><input class="input grow" id="share-name" maxlength="30" value="${esc(store.get().profile.displayName || '')}" placeholder="${esc(t('friends.namePh'))}">
+      <button class="btn" data-act="share-save-name">${esc(t('common.save'))}</button></div></label>
     <div class="small ${st.state === 'error' ? '' : 'muted'}" style="${st.state === 'error' ? 'color:var(--bad)' : ''}">${esc(line)}</div>
     ${msg}
     <div class="grid2"><button class="btn" data-act="sync-now" ${st.state === 'syncing' ? 'disabled' : ''}>${esc(t('sync.now'))}</button>
       <button class="btn" data-act="sign-out">${esc(t('auth.signOut'))}</button></div>
+  </section>`;
+}
+
+function shareCard(state) {
+  if (!sync.isConfigured()) return '';
+  const sh = social.shareSettings(state);
+  return `<section class="card" id="share"><h3>${esc(t('share.title'))}</h3>
+    <div class="chips">${social.CATEGORIES.map((c) => `<button class="chip" data-act="share-toggle" data-v="${c}" aria-pressed="${!!sh[c]}">${esc(t('friends.cat.' + c))}</button>`).join('')}</div>
+    <div class="tiny muted">${esc(t('share.hint'))}</div>
   </section>`;
 }
 
@@ -227,6 +240,16 @@ export const actions = {
     } catch (e) {
       err.textContent = t(sync.errorKey(e));
     }
+  },
+  'share-toggle'(el, ctx) {
+    const c = el.dataset.v;
+    ctx.update((s) => { s.profile.share = { ...social.shareSettings(s), [c]: !social.shareSettings(s)[c] }; });
+    social.schedulePublish(500);
+  },
+  async 'share-save-name'(el, ctx) {
+    const v = document.getElementById('share-name').value.trim();
+    if (!v) return;
+    try { await social.setDisplayName(v); ctx.toast(t('share.nameSaved')); } catch (e) { ctx.toast(t(social.errorKey(e))); }
   },
   'sync-now'(el, ctx) { authMsg = null; sync.syncNow().catch(() => {}); },
   async 'sign-out'(el, ctx) {
