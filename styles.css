@@ -30,7 +30,9 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; -webkit-text-size-adjust: 100%; }
-body { overscroll-behavior-y: none; }
+/* Die Seite selbst bewegt sich nie (iPhone verschiebt sie sonst nach Tastatur/Überwischen) – nur .main scrollt */
+html, body { overflow: hidden; overscroll-behavior: none; }
+body { position: fixed; inset: 0; }
 button, input, select, textarea { font: inherit; color: inherit; }
 a { color: var(--accent); text-decoration: none; }
 h1, h2, h3 { font-family: var(--font-display); margin: 0; }
@@ -40,8 +42,8 @@ h3 { font-size: 15px; font-weight: 700; }
 [hidden] { display: none !important; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.app { display: flex; flex-direction: column; height: 100dvh; max-width: 520px; margin: 0 auto; }
-.main { flex: 1; overflow-y: auto; padding: calc(16px + env(safe-area-inset-top)) 16px 24px; display: flex; flex-direction: column; gap: 16px; outline: none; }
+.app { display: flex; flex-direction: column; height: 100%; max-width: 520px; margin: 0 auto; overflow: hidden; }
+.main { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: calc(16px + env(safe-area-inset-top)) 16px 24px; display: flex; flex-direction: column; gap: 16px; outline: none; }
 
 /* Navigation */
 .nav { display: flex; background: var(--bg-nav); border-top: 1px solid var(--line); padding: 0 4px env(safe-area-inset-bottom); flex-shrink: 0; }

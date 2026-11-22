@@ -130,6 +130,17 @@ function handle(kind, e) {
 document.addEventListener('click', (e) => handle('click', e));
 document.addEventListener('input', (e) => handle('input', e));
 document.addEventListener('change', (e) => handle('change', e));
+// iPhone: Nach dem Schliessen der Tastatur bleibt die Seite manchmal verschoben → zurücksetzen
+document.addEventListener('focusout', () => {
+  setTimeout(() => {
+    const el = document.activeElement;
+    if (!el || !/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) window.scrollTo(0, 0);
+  }, 100);
+});
+window.visualViewport?.addEventListener('resize', () => {
+  if (window.visualViewport.height >= window.innerHeight - 1) window.scrollTo(0, 0);
+});
+
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && sheetRender) closeSheet();
 });
