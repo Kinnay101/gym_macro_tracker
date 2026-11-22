@@ -163,18 +163,38 @@ function resetAfterRotate() {
   window.scrollTo(0, 0);
   document.documentElement.scrollTop = 0;
   document.body.scrollTop = 0;
-  if (viewportMeta) {
-    viewportMeta.content = baseViewport + ', maximum-scale=1';
-    setTimeout(() => { viewportMeta.content = baseViewport; }, 400);
-  }
+  // Neu zeichnen erzwingen, damit iOS die Tipp-Positionen neu berechnet
+  const b = document.body;
+  b.style.transform = 'translateZ(0)';
+  void b.offsetHeight;
+  requestAnimationFrame(() => { b.style.transform = ''; });
+}
+function zoomReset() {
+  if (!viewportMeta) return;
+  viewportMeta.content = baseViewport + ', maximum-scale=1';
+  setTimeout(() => { viewportMeta.content = baseViewport; }, 400);
+}
+// Vorübergehend: Messwerte nach dem Drehen anzeigen, um den iPhone-Fehler einzugrenzen
+function rotateInfo() {
+  const vv = window.visualViewport;
+  const r = (x) => Math.round(x * 10) / 10;
+  const top = r(document.querySelector('.app').getBoundingClientRect().top);
+  toast(`↻ ${innerWidth}×${innerHeight} · vv ${vv ? `${r(vv.width)}×${r(vv.height)} @${r(vv.offsetTop)}/${r(vv.pageTop)} ×${r(vv.scale)}` : '-'} · y${r(scrollY)} · top${top} · ch${document.documentElement.clientHeight}`);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $toast.hidden = true; }, 10000);
 }
 let lastPortrait = matchMedia('(orientation: portrait)').matches;
 function onRotate() {
   const portrait = matchMedia('(orientation: portrait)').matches;
   if (portrait === lastPortrait) return;
   lastPortrait = portrait;
-  setTimeout(resetAfterRotate, 250); // erst nach der Dreh-Animation
+  // Die Dreh-Animation dauert unterschiedlich lange → mehrmals zurücksetzen
+  zoomReset();
+  for (const ms of [100, 400, 800, 1500]) setTimeout(resetAfterRotate, ms);
+  if (portrait) setTimeout(rotateInfo, 1600);
 }
+// Verschobene Ansicht auch sonst sofort zurücksetzen (Seite selbst scrollt nie, nur .main)
+window.visualViewport?.addEventListener('scroll', () => { if (window.scrollY) window.scrollTo(0, 0); });
 window.addEventListener('orientationchange', onRotate);
 window.addEventListener('resize', onRotate);
 
