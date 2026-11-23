@@ -164,15 +164,30 @@ export function nutritionChanges(state, from, to, sent = loadSent()) {
 
 // ---------- Abgleich ----------
 let running = null;
+let granted = null; // zuletzt bekannte Rechte (aus status)
 export function sendsNutrition(state) { return state.profile.hcNutrition !== false; } // Standard: an
 
-/** Daten lesen und übernehmen, danach Nährwerte der letzten 7 Tage schreiben. */
+/** Geänderte Mahlzeiten der letzten 7 Tage schreiben. Gibt die Anzahl geschriebener Mahlzeiten zurück. */
+async function pushNutrition() {
+  if (!sendsNutrition(store.get()) || !granted?.includes('write_nutrition')) return 0;
+  const sent = loadSent();
+  const ch = nutritionChanges(store.get(), addDays(today(), -6), today(), sent);
+  if (!ch.upsert.length && !ch.remove.length) return 0;
+  await call('writeNutrition', ch);
+  for (const r of ch.upsert) sent[r.id] = fp(r);
+  for (const id of ch.remove) delete sent[id];
+  saveSent(sent);
+  return ch.upsert.length;
+}
+
+/** Daten lesen und übernehmen, danach Mahlzeiten der letzten 7 Tage schreiben. */
 export function syncNow() {
   if (!available()) return Promise.resolve(null);
   if (running) return running;
   running = (async () => {
     const st = await call('status');
-    if (!st?.available || !st.granted?.length) return { skipped: true };
+    granted = st?.available ? (st.granted || []) : [];
+    if (!granted.length) return { skipped: true };
     const last = store.get().healthConnect?.lastRead;
     const from = last ? addDays(last.slice(0, 10), -2) : addDays(today(), -30); // ohne Zusatzrecht liefert Health Connect max. 30 Tage
     const res = await call('read', { from: new Date(from + 'T00:00:00').toISOString(), to: new Date().toISOString() });
@@ -180,24 +195,12 @@ export function syncNow() {
       applyHealth(s, fromHealthConnect(res));
       s.healthConnect = { ...(s.healthConnect || {}), lastRead: new Date().toISOString() };
     });
-    let written = 0;
-    if (sendsNutrition(store.get()) && st.granted.includes('write_nutrition')) {
-      const sent = loadSent();
-      const ch = nutritionChanges(store.get(), addDays(today(), -6), today(), sent);
-      if (ch.upsert.length || ch.remove.length) {
-        await call('writeNutrition', ch);
-        for (const r of ch.upsert) sent[r.id] = fp(r);
-        for (const id of ch.remove) delete sent[id];
-        saveSent(sent);
-        written = ch.upsert.length;
-      }
-    }
-    return { written };
+    return { written: await pushNutrition() };
   })().finally(() => { running = null; });
   return running;
 }
 
-// Automatisch: beim Start und beim Zurückkehren in die App (höchstens alle 15 Minuten)
+// Automatisch lesen: beim Start und beim Zurückkehren in die App (höchstens alle 15 Minuten)
 let lastAuto = 0;
 function auto() {
   if (!available() || Date.now() - lastAuto < 15 * 60000) return;
@@ -206,3 +209,14 @@ function auto() {
 }
 setTimeout(auto, 1500);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') auto(); });
+
+// Mahlzeit eingetragen/geändert → wenige Sekunden später nach Health Connect (ohne neu zu lesen)
+let pushTimer = null;
+store.onSave(() => {
+  if (!available() || !granted) return; // Rechte noch unbekannt → erledigt der nächste Abgleich
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => {
+    if (running) { pushTimer = null; running.then(() => pushNutrition()).catch(() => {}); return; }
+    pushNutrition().catch((e) => console.warn('Health Connect: Mahlzeiten senden', e));
+  }, 4000);
+});

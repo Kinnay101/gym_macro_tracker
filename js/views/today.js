@@ -4,7 +4,8 @@ import { t, weekdayShort, longDate } from '../i18n.js';
 import { goals, sumEntries, dayEntries, MEALS, currentWeight } from '../nutrition.js';
 import { schedule, planMuscles } from '../plan.js';
 import { startWorkout } from '../workout.js';
-import { lastNight, healthWorkoutsBetween } from '../health.js';
+import { healthWorkoutsBetween, isIOS, runShortcut } from '../health.js';
+import * as hc from '../healthConnect.js';
 import { header, ring, bar, energy, energyUnit, healthSourceName } from '../ui.js';
 import * as daySheet from './daySheet.js';
 
@@ -91,22 +92,28 @@ function weekCard(state, key) {
   return `<section class="card"><div class="card-head"><h3>${esc(t('today.week'))}</h3><span class="tiny muted">${esc(t('today.weekLegend'))}</span></div><div class="week">${days.join('')}</div></section>`;
 }
 
-/** Schritte, aktive kcal, Schlaf und Watch-Workouts aus Apple Health (nur wenn Daten da sind). */
+/** Schritte, aktive kcal, Training, Schlaf und Uhr-Workouts – immer nur vom aktuellen Tag (Schlaf = Nacht auf heute).
+ *  Noch keine Werte von heute (z. B. vor dem Morgen-Abgleich) → "–". Ohne Verbindung zu Apple Health/Health Connect keine Karte. */
 function healthCard(state, key) {
-  const days = state.healthDays || {};
-  const has = (x) => x && (x.steps != null || x.activeKcal != null || x.exerciseMin != null);
-  const d = has(days[key]) ? key : (has(days[addDays(key, -1)]) ? addDays(key, -1) : null);
-  const night = lastNight(state);
+  const day = state.healthDays?.[key] || {};
+  const night = state.healthSleep?.[key] || null;
   const ws = healthWorkoutsBetween(state, key, key);
-  if (!d && !night && !ws.length) return '';
+  const connected = !!state.healthLastImport || hc.available();
+  const hasToday = day.steps != null || day.activeKcal != null || day.exerciseMin != null || night || ws.length;
+  if (!connected && !hasToday) return '';
   const h = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')} h`;
-  const tiles = [];
-  if (d && days[d].steps != null) tiles.push([t('health.steps'), num(days[d].steps), d === key ? t('common.today') : t('health.yesterday')]);
-  if (d && days[d].activeKcal != null) tiles.push([t('health.active'), energy(state, days[d].activeKcal), d === key ? t('common.today') : t('health.yesterday')]);
-  if (d && days[d].exerciseMin != null) tiles.push([t('health.exercise'), `${num(days[d].exerciseMin)} min`, days[d].distanceKm ? `${num(days[d].distanceKm, 1)} km` : '']);
-  if (night) tiles.push([t('health.sleep'), h(night.minutes), night.deep || night.rem ? `${t('health.deep')} ${h(night.deep)} · REM ${h(night.rem)}` : '']);
-  return `<section class="card tight"><div class="card-head"><h3>${esc(t('health.title'))}</h3><span class="tiny muted">${esc(healthSourceName())}</span></div>
-    <div class="grid3">${tiles.map(([l, v, sub]) => `<div class="stack" style="gap:2px"><span class="tiny muted">${esc(l)}</span><b>${esc(v)}</b><span class="tiny muted">${esc(sub)}</span></div>`).join('')}</div>
+  const tiles = [
+    [t('health.steps'), day.steps != null ? num(day.steps) : '–', ''],
+    [t('health.active'), day.activeKcal != null ? energy(state, day.activeKcal) : '–', ''],
+    [t('health.exercise'), day.exerciseMin != null ? `${num(day.exerciseMin)} min` : '–', day.distanceKm ? `${num(day.distanceKm, 1)} km` : ''],
+    [t('health.sleep'), night ? h(night.minutes) : '–', night && (night.deep || night.rem) ? `${t('health.deep')} ${h(night.deep)} · REM ${h(night.rem)}` : ''],
+  ];
+  // Aktualisieren: Android-App liest Health Connect, iPhone startet den Kurzbefehl
+  const canRefresh = hc.available() || (isIOS() && state.healthLastImport);
+  const refresh = canRefresh ? `<button class="link tiny" data-act="health-refresh" aria-label="${esc(t('health.refresh'))}">↻ ${esc(healthSourceName())}</button>` : `<span class="tiny muted">${esc(healthSourceName())}</span>`;
+  return `<section class="card tight"><div class="card-head"><h3>${esc(t('health.title'))}</h3>${refresh}</div>
+    <div class="grid3">${tiles.map(([l, v, sub]) => `<div class="stack" style="gap:2px"><span class="tiny muted">${esc(l)}</span><b>${esc(v)}</b>${sub ? `<span class="tiny muted">${esc(sub)}</span>` : ''}</div>`).join('')}</div>
+    ${hasToday ? '' : `<div class="tiny muted">${esc(t('health.noToday'))}</div>`}
     ${ws.map((w) => `<div class="small muted">⌚ ${esc(t('cardio.' + w.kind))} · ${num(w.minutes)} min${w.kcal ? ` · ${energy(state, w.kcal)}` : ''}${w.avgHr ? ` · Ø ${w.avgHr} bpm` : ''}</div>`).join('')}
   </section>`;
 }
@@ -132,6 +139,10 @@ function weightCard(state) {
 export const actions = {
   ...daySheet.actions,
   'toggle-ring'(el, ctx) { showEaten = !showEaten; ctx.render(); },
+  async 'health-refresh'(el, ctx) {
+    if (!hc.available()) { runShortcut(); return; }
+    try { await hc.syncNow(); ctx.render(); ctx.toast(t('hc.synced')); } catch { ctx.toast(t('hc.error')); }
+  },
   start(el, ctx) {
     ctx.update((s) => startWorkout(s, el.dataset.plan), { silent: true });
     ctx.go('active');

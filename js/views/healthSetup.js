@@ -35,6 +35,7 @@ export function card(state, ctx) {
   return `<section class="card tight">${head}
     <div class="small">${esc(t('hs.connected'))}</div>
     <div class="tiny muted">${esc(t('hs.lastRun', { time: fmtTime(r.last_used) }))}<br>${esc(t('hs.lastData', { time: fmtTime(lastData) }))}${r.last_export ? `<br>${esc(t('hs.lastExport', { date: shortDate(r.last_export) }))}` : ''}</div>
+    ${health.isIOS() ? `<button class="btn primary sm" data-act="hs-run">${esc(t('hs.runNow'))}</button><div class="tiny muted">${esc(t('hs.runHint'))}</div>` : ''}
     <div class="grid2"><button class="btn sm" data-act="hs-guide">${esc(t('hs.guide'))}</button><button class="btn sm" data-act="hs-connect">${esc(t('hs.newKey'))}</button></div>
     <button class="link" data-act="hs-disconnect" style="align-self:flex-start;color:var(--bad)">${esc(t('hs.disconnect'))}</button>
   </section>`;
@@ -122,6 +123,7 @@ export const actions = {
     }
   },
   'hs-guide'(el, ctx) { ctx.openSheet(guideSheet); },
+  'hs-run'() { health.runShortcut(); },
   async 'hs-copy'(el, ctx) {
     try { await navigator.clipboard.writeText(el.dataset.v); ctx.toast(t('hs.copied')); } catch { ctx.toast(t('hs.copyFail')); }
   },

@@ -196,6 +196,13 @@ export function watchStatsFor(state, date) {
   return Object.values(state.healthWorkouts || {}).find((w) => w.date === date && w.kind === 'strength') || null;
 }
 
+// ---------- Kurzbefehl aus der App starten (iPhone) ----------
+// Eine Web-App kann Apple Health nicht selbst lesen. Sie kann aber den Kurzbefehl starten: iOS wechselt kurz in die
+// Kurzbefehle-App, der Kurzbefehl schickt die Daten, und beim Zurückkehren holt die App sie über den Sync ab.
+export const SHORTCUT_NAME = 'Gym Sync';
+export const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+export function runShortcut() { location.href = 'shortcuts://run-shortcut?name=' + encodeURIComponent(SHORTCUT_NAME); }
+
 // ---------- Verbindung (Schlüssel) ----------
 export async function connectionStatus() {
   const c = sync.getClient();
