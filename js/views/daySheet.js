@@ -16,7 +16,7 @@ function sheet(state) {
   if (!day) return null;
   const d = day;
   const isToday = d === today();
-  const head = `<div class="row between">
+  const head = `<div class="row between day-head">
     <button class="icon-btn" data-act="day-step" data-v="-1" aria-label="${esc(t('common.prev'))}">${icon(I.back)}</button>
     <div style="text-align:center"><h2>${esc(longDate(d))}</h2>${isToday ? `<div class="tiny muted">${esc(t('common.today'))}</div>` : ''}</div>
     ${isToday ? `<button class="icon-btn" data-act="sheet-close" aria-label="${esc(t('common.close'))}">${icon(I.x)}</button>`
