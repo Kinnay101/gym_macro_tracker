@@ -1,6 +1,14 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
 }
+
+// Signier-Schlüssel für Release-Builds: liegt NICHT im Repo/OneDrive, sondern unter %USERPROFILE%\.gym-macro-signing\
+// (keystore.properties mit storeFile, storePassword, keyAlias, keyPassword). Ohne die Datei: Release unsigniert.
+val signingProps = file("${System.getProperty("user.home")}/.gym-macro-signing/keystore.properties")
+    .takeIf { it.exists() }
+    ?.let { f -> Properties().apply { f.inputStream().use { load(it) } } }
 
 android {
     namespace = "io.github.kinnay101.gymmacro"
@@ -18,11 +26,24 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (signingProps != null) {
+            create("release") {
+                storeFile = file(signingProps.getProperty("storeFile"))
+                storePassword = signingProps.getProperty("storePassword")
+                keyAlias = signingProps.getProperty("keyAlias")
+                keyPassword = signingProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (signingProps != null) signingConfig = signingConfigs.getByName("release")
+            // Keine R8-Optimierung: Die Vorlage (nur androidx/kotlin optimieren) liess die App beim Start abstürzen
+            // (IllegalAccessError in kotlin.collections). Die App ist klein, die Grösse spielt keine Rolle.
             optimization {
-                enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
+                enable = false
             }
         }
     }
