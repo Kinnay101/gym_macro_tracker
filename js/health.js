@@ -53,9 +53,10 @@ function mergeIntervals(list) {
 }
 
 /**
- * Einzeleinträge mehrerer Geräte → Tagessummen ohne Doppelzählung.
- * Geräte werden nach Rang abgearbeitet; von jedem Eintrag zählt nur der Anteil, den kein höher gestelltes Gerät
- * schon abdeckt. Einträge über Mitternacht werden anteilig auf die Tage verteilt.
+ * Einzeleinträge mehrerer Geräte → Tagessummen ohne Doppelzählung, so wie Apple Health rechnet:
+ * Geräte nach Rang abarbeiten; ein Eintrag zählt nur, wenn er sich mit KEINEM Eintrag eines höher gestellten
+ * Geräts überschneidet – sonst fällt er ganz weg (nicht anteilig). Mit echten Daten geprüft: ergibt genau den
+ * Health-Wert (2'136 statt 3'760). Einträge über Mitternacht werden anteilig auf die Tage verteilt.
  * samples: [{ s: Date, e: Date, v: Zahl, src: Text }] → { 'yyyy-MM-dd': Summe }
  */
 export function dedupSamples(samples) {
@@ -72,14 +73,14 @@ export function dedupSamples(samples) {
         if (!covered.some((c) => s >= c.s && s < c.e)) days[dayKey(x.s)] = (days[dayKey(x.s)] || 0) + x.v;
         continue;
       }
-      // Anteilig auf die Kalendertage verteilen, jeweils nur den nicht abgedeckten Teil
+      if (overlapMs(covered, s, e) > 0) continue; // höher gestelltes Gerät war zu der Zeit aktiv → ganz weglassen
+      // Anteilig auf die Kalendertage verteilen (nur bei Einträgen über Mitternacht relevant)
       let a = s;
       while (a < e) {
         const d = new Date(a);
         const next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();
         const b = Math.min(e, next);
-        const free = (b - a) - overlapMs(covered, a, b);
-        if (free > 0) days[dayKey(d)] = (days[dayKey(d)] || 0) + x.v * (free / (e - s));
+        days[dayKey(d)] = (days[dayKey(d)] || 0) + x.v * ((b - a) / (e - s));
         a = b;
       }
     }
