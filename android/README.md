@@ -16,7 +16,10 @@ cd android\app-shell; .\gradlew.bat assembleDebug
   `adb shell am start -S -n io.github.kinnay101.gymmacro/.MainActivity --es url "http://localhost:8010/#/body"`
 - Nur im Debug-Build: Konsole der Web-Seite im Logcat (Tag `GymWeb`), WebView-DevTools, Brücken-Methoden
   `debugInsertTestData` (Beispielwerte nach Health Connect) und `debugReadNutrition` (geschriebene Mahlzeiten lesen).
-- Release-Build (zum Verteilen) braucht einen eigenen Signier-Schlüssel – nie ins Repo (`*.jks` steht in `.gitignore`).
+- Release-Build: `.\gradlew.bat assembleRelease` → signiert mit dem Schlüssel aus `%USERPROFILE%\.gym-macro-signing\`
+  (`keystore.properties` + `gym-macro-release.p12`, nie ins Repo/OneDrive). Fertige APK nach `android/release/` kopieren
+  (von Git ignoriert). Für Updates `versionCode` in `app/build.gradle.kts` erhöhen – und immer mit demselben Schlüssel signieren.
+- R8-Optimierung ist aus: Die Vorlage (nur androidx/kotlin optimieren) stürzte beim Start ab (IllegalAccessError).
 
 ## Was ist Health Connect?
 - Googles zentraler Gesundheitsspeicher auf dem Handy (das Gegenstück zu Apple Health). Ab Android 14 im System eingebaut,
@@ -100,7 +103,7 @@ Später möglich: täglicher Hintergrund-Abgleich (WorkManager), braucht das Zus
 - Seite lädt beim allerersten Start ein paar Sekunden (danach aus dem Zwischenspeicher).
 
 ## Offen
-- Release-Build mit Signier-Schlüssel, Verteilung (APK direkt oder Play Store mit Health-Freigabe).
+- Verteilung: Version 1.0 als APK direkt; Play Store (mit Health-Freigabe) später falls nötig.
 - Datenschutzerklärung als Web-Seite (für den Play Store nötig; in der App gibt es sie schon).
 - Export als Datei (Blob-Download) geht in der WebView noch nicht.
 - Abgleich im Hintergrund (morgens automatisch) – bisher nur beim Öffnen der App.
