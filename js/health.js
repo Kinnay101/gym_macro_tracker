@@ -10,6 +10,11 @@
 //   A;Tag;kcal                 aktive Energie pro Tag
 //   E;Tag;Minuten              Trainingsminuten pro Tag (grüner Ring)
 //   D;Tag;km                   Distanz Gehen + Laufen pro Tag
+//   SR;Start;Ende;Schritte;Quelle   einzelner Schritte-Eintrag mit Gerät (Datum gern mit Sekunden) – genauer als S
+//   AR;Start;Ende;kcal;Quelle       einzelner Eintrag aktive Energie – genauer als A
+//   DR;Start;Ende;km;Quelle         einzelner Eintrag Distanz – genauer als D
+//   (Tagessummen von «Gruppieren nach Tag» zählen iPhone + Watch doppelt; aus den Einzeleinträgen rechnet
+//    dedupSamples() die Überschneidung heraus wie Apple Health: Uhr bevorzugt, iPhone nur für Zeiten ohne Uhr.)
 //   T;Start;Ende;Name[;kcal[;km[;Puls]]]   Workout (Kurzbefehle kann Workouts derzeit nicht lesen – für später)
 //   P;Start;Ende;Phase         Schlaf (Kern/Tief/REM/Wach/Im Bett/Schlafend)
 import { dayKey, parseNum, round, addDays, today } from './util.js';
@@ -18,9 +23,69 @@ import * as store from './store.js';
 
 // ---------- Text lesen ----------
 function parseDate(s) {
-  const m = String(s || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2}))?/);
+  const m = String(s || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
   if (!m) return null;
-  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4] || 0), Number(m[5] || 0));
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4] || 0), Number(m[5] || 0), Number(m[6] || 0));
+}
+
+// ---------- Doppelte Einträge (iPhone + Watch) herausrechnen ----------
+/** Rangfolge wie in Apple Health: Uhr vor iPhone vor anderen Apps. */
+const sourceRank = (src) => (/watch/i.test(src) ? 0 : /iphone|ipad/i.test(src) ? 1 : 2);
+
+/** Überlappung des Zeitraums [a, b) mit den (sortierten, zusammengeführten) Zeiträumen in covered, in ms. */
+function overlapMs(covered, a, b) {
+  let ms = 0;
+  for (const c of covered) {
+    if (c.e <= a) continue;
+    if (c.s >= b) break;
+    ms += Math.min(b, c.e) - Math.max(a, c.s);
+  }
+  return ms;
+}
+function mergeIntervals(list) {
+  const xs = list.filter((x) => x.e > x.s).sort((x, y) => x.s - y.s);
+  const out = [];
+  for (const x of xs) {
+    const last = out[out.length - 1];
+    if (last && x.s <= last.e) { if (x.e > last.e) last.e = x.e; } else out.push({ s: x.s, e: x.e });
+  }
+  return out;
+}
+
+/**
+ * Einzeleinträge mehrerer Geräte → Tagessummen ohne Doppelzählung.
+ * Geräte werden nach Rang abgearbeitet; von jedem Eintrag zählt nur der Anteil, den kein höher gestelltes Gerät
+ * schon abdeckt. Einträge über Mitternacht werden anteilig auf die Tage verteilt.
+ * samples: [{ s: Date, e: Date, v: Zahl, src: Text }] → { 'yyyy-MM-dd': Summe }
+ */
+export function dedupSamples(samples) {
+  const bySource = new Map();
+  for (const x of samples) (bySource.get(x.src) || bySource.set(x.src, []).get(x.src)).push(x);
+  const sources = [...bySource.keys()].sort((a, b) => sourceRank(a) - sourceRank(b) || a.localeCompare(b));
+  let covered = [];
+  const days = {};
+  for (const src of sources) {
+    const list = bySource.get(src);
+    for (const x of list) {
+      const s = x.s.getTime(); const e = x.e.getTime();
+      if (e <= s) { // Zeitpunkt ohne Dauer
+        if (!covered.some((c) => s >= c.s && s < c.e)) days[dayKey(x.s)] = (days[dayKey(x.s)] || 0) + x.v;
+        continue;
+      }
+      // Anteilig auf die Kalendertage verteilen, jeweils nur den nicht abgedeckten Teil
+      let a = s;
+      while (a < e) {
+        const d = new Date(a);
+        const next = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();
+        const b = Math.min(e, next);
+        const free = (b - a) - overlapMs(covered, a, b);
+        if (free > 0) days[dayKey(d)] = (days[dayKey(d)] || 0) + x.v * (free / (e - s));
+        a = b;
+      }
+    }
+    covered = mergeIntervals([...covered, ...list.map((x) => ({ s: x.s.getTime(), e: x.e.getTime() }))]);
+  }
+  return days;
 }
 const minuteKey = (d) => `${dayKey(d)}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
@@ -54,6 +119,7 @@ function sleepStage(v) {
 
 export function parseHealth(text) {
   const out = { weights: {}, bodyFat: {}, steps: {}, active: {}, exercise: {}, distance: {}, workouts: {}, sleepSamples: [], unknown: 0, hasExercise: false, exerciseBad: false };
+  const single = { SR: [], AR: [], DR: [] }; // Einzeleinträge mit Gerät
   for (const raw of String(text || '').split(/\r?\n/)) {
     const parts = raw.split(';').map((x) => x.trim());
     const kind = parts[0]?.toUpperCase();
@@ -71,6 +137,10 @@ export function parseHealth(text) {
       if (kind === 'E') out.hasExercise = true;
       const map = { S: out.steps, A: out.active, E: out.exercise, D: out.distance }[kind];
       map[dayKey(d)] = kind === 'D' ? round(v, 2) : Math.round(v);
+    } else if (kind === 'SR' || kind === 'AR' || kind === 'DR') {
+      const s = parseDate(parts[1]); const e = parseDate(parts[2]); const v = parseNum(parts[3]);
+      if (!s || !e || e < s || v == null || v < 0 || e - s > 24 * 3600000) { out.unknown++; continue; }
+      single[kind].push({ s, e, v, src: parts[4] || '' });
     } else if (kind === 'T') {
       const s = parseDate(parts[1]); const e = parseDate(parts[2]);
       if (!s || !e || e <= s) { out.unknown++; continue; }
@@ -88,6 +158,14 @@ export function parseHealth(text) {
     } else {
       out.unknown++;
     }
+  }
+  // Einzeleinträge → Tagessummen ohne Doppelzählung; ersetzen die Tagessummen aus S/A/D.
+  // Der älteste Tag einer Lieferung ist oft nur angeschnitten («in den letzten 3 Tagen» kann mitten im Tag beginnen)
+  // → weglassen; er wurde bei einem früheren Lauf schon vollständig übernommen.
+  for (const [kind, map, dec] of [['SR', out.steps, 0], ['AR', out.active, 0], ['DR', out.distance, 2]]) {
+    const totals = dedupSamples(single[kind]);
+    const keys = Object.keys(totals).sort();
+    for (const k of keys.length > 1 ? keys.slice(1) : keys) map[k] = round(totals[k], dec);
   }
   // Unmögliche Trainingsminuten verwerfen: mehr als ein Tag, oder gleich wie die Schritte
   // (dann liest der Kurzbefehl im Block «Trainingsminuten» versehentlich die Schritte)

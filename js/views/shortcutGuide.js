@@ -9,7 +9,7 @@ const UI = {
   en: {
     find: 'Find', samples: 'Health Samples', where: 'where', all: 'All', allTrue: 'of the following are true', typeIs: 'Type is', startDate: 'Start Date',
     inLast: 'is in the last', days: 'days', unit: 'Unit', groupBy: 'Group by', fill: 'Fill Missing', none: 'None', day: 'Day',
-    repeat: 'Repeat with each item in', endRepeat: 'End Repeat', text: 'Text', add: 'Add', to: 'to', item: 'Repeat Item', start: 'Start Date', end: 'End Date', value: 'Value',
+    repeat: 'Repeat with each item in', endRepeat: 'End Repeat', text: 'Text', add: 'Add', to: 'to', item: 'Repeat Item', start: 'Start Date', end: 'End Date', value: 'Value', source: 'Source',
     date: 'Date', current: 'Current Date', adjust: 'Adjust', subtract: 'Subtract', oneDay: '1 day', from: 'from', format: 'Format', custom: 'Custom',
     combine: 'Combine', with: 'with', newLines: 'New Lines', combined: 'Combined Text', getContents: 'Get contents of', method: 'Method', headers: 'Headers', body: 'Request Body',
     get: 'Get', valueFor: 'Value for', inW: 'in', contents: 'Contents of URL', dict: 'Dictionary Value', ifW: 'If', hasAny: 'has any value', endIf: 'End If',
@@ -20,7 +20,7 @@ const UI = {
   de: {
     find: 'Suche', samples: 'Health-Proben', where: 'wo', all: 'Alle', allTrue: 'der folgenden Bedingungen erfüllt sind', typeIs: 'Typ ist', startDate: 'Startdatum',
     inLast: 'liegt in den letzten', days: 'Tagen', unit: 'Einheit', groupBy: 'Gruppieren nach', fill: 'Fehlende auffüllen', none: 'Keine', day: 'Tag',
-    repeat: 'Mit jedem Objekt wiederholen in', endRepeat: 'Wiederholung beenden', text: 'Text', add: 'Füge', to: 'hinzu zu', item: 'Wiederholungsobjekt', start: 'Startdatum', end: 'Enddatum', value: 'Wert',
+    repeat: 'Mit jedem Objekt wiederholen in', endRepeat: 'Wiederholung beenden', text: 'Text', add: 'Füge', to: 'hinzu zu', item: 'Wiederholungsobjekt', start: 'Startdatum', end: 'Enddatum', value: 'Wert', source: 'Quelle',
     date: 'Datum', current: 'Aktuelles Datum', adjust: 'Datum anpassen', subtract: 'Subtrahiere', oneDay: '1 Tag', from: 'von', format: 'Formatiere', custom: 'Eigenes',
     combine: 'Kombiniere', with: 'mit', newLines: 'Neue Zeilen', combined: 'Kombinierter Text', getContents: 'Inhalte abrufen von', method: 'Methode', headers: 'Header', body: 'Anfragetext',
     get: 'Hole', valueFor: 'Wert für', inW: 'in', contents: 'Inhalte der URL', dict: 'Wörterbuchwert', ifW: 'Wenn', hasAny: 'einen Wert hat', endIf: 'Ende Wenn',
@@ -57,7 +57,7 @@ function findCard(u, o) {
 function loopBlock(u, o) {
   const fields = o.fields.map((f) => {
     if (f === 'item') return vtok(u.item);
-    return vtok(f === 'start' ? u.start : f === 'end' ? u.end : u.value);
+    return vtok(f === 'start' ? u.start : f === 'end' ? u.end : f === 'source' ? u.source : u.value);
   });
   const text = [lit(o.prefix), ...fields.flatMap((x, i) => (i ? [lit(';'), x] : [x]))].join('');
   return card(ICON.repeat, `${u.repeat} ${vtok(u.samples, 'health', o.changed?.includes('repeat') ? 'sc-chg-tok' : '')}`, '', 'sc-repeat')
@@ -68,7 +68,7 @@ function loopBlock(u, o) {
 
 /** Das Fenster, das beim Antippen von «Start Date» im Text erscheint */
 function datePanel(u, fmt, ends) {
-  const example = fmt.includes('HH') ? '2026-09-15 09:41' : '2026-09-15';
+  const example = fmt.includes('ss') ? '2026-09-15 09:41:07' : fmt.includes('HH') ? '2026-09-15 09:41' : '2026-09-15';
   const check = '<span style="color:#64a8ff">✓</span>';
   return `<div class="sc-panel">
     <div class="sc-panel-title">⟳ ${esc(u.item)}</div>
@@ -98,22 +98,27 @@ function steps(u, token) {
   const dateHint = (fmt, both) => L(`Im Text «${u.start}»${both ? ` und «${u.end}»` : ''} antippen und so einstellen (Format genau so eintippen, mit Bindestrichen${fmt.includes('HH') ? ', Leerzeichen und Doppelpunkt' : ''}):`,
     `In the text tap "${u.start}"${both ? ` and "${u.end}"` : ''} and set it like this (type the format exactly, with dashes${fmt.includes('HH') ? ', space and colon' : ''}):`);
   const withDate = (fmt, both) => `<div class="small">${dateHint(fmt, both)}</div>${datePanel(u, fmt, both ? L('genauso', 'same') : '')}`;
+  const sourceHint = L(`Im Text nach «${u.value}» ein «;» und ein weiteres «${u.item}» einfügen → <b>${u.source}</b> wählen (der Name des Geräts, z. B. «Apple Watch» oder «iPhone»).`,
+    `In the text, after "${u.value}" add ";" and another "${u.item}" → choose <b>${u.source}</b> (the device name, e.g. "Apple Watch" or "iPhone").`);
   const valueHint = L(`Zweites «${u.item}» antippen → <b>${u.value}</b>`, `Tap the second "${u.item}" → <b>${u.value}</b>`);
   return [
     { title: L('Gewicht', 'Weight'), body: findCard(u, { type: u.weight, unit: 'kg' }) + loopBlock(u, { prefix: 'W;', fields: ['start', 'value'] }) + withDate('yyyy-MM-dd HH:mm'),
       notes: [L('Aktionen über die Suche unten einfügen und in diese Reihenfolge ziehen.', 'Add actions via the search at the bottom and drag them into this order.'), valueHint], result: 'W;2026-11-17 23:26;72' },
     { title: L('Körperfett', 'Body fat'), body: findCard(u, { type: u.bf, changed: ['type', 'unit'] }) + loopBlock(u, { prefix: 'F;', fields: ['start', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd HH:mm'),
       notes: [dupHint, repointHint], result: 'F;2026-11-17 23:26;12.2' },
-    { title: L('Schritte', 'Steps'), body: findCard(u, { type: u.steps, group: true, changed: ['type', 'group'] }) + loopBlock(u, { prefix: 'S;', fields: ['start', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd'),
-      notes: [dupHint, repointHint, L('Hier ohne Uhrzeit. «Fill Missing» aus lassen.', 'Here without time. Leave "Fill Missing" off.')], result: 'S;2026-11-16;15129' },
-    { title: L('Aktive Energie', 'Active energy'), body: findCard(u, { type: u.active, unit: 'kcal', group: true, changed: ['type', 'unit'] }) + loopBlock(u, { prefix: 'A;', fields: ['start', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd'),
-      notes: [L('Den Schritte-Block kopieren.', 'Copy the steps block.'), repointHint], result: 'A;2026-11-16;612' },
+    { title: L('Schritte', 'Steps'), body: findCard(u, { type: u.steps, days: 3, changed: ['type', 'days', 'group'] }) + loopBlock(u, { prefix: 'SR;', fields: ['start', 'end', 'value', 'source'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd HH:mm:ss', true),
+      notes: [dupHint, repointHint, sourceHint,
+        L('<b>Wichtig:</b> «Group by» auf <b>None</b> (nicht «Day») und nur die letzten <b>3</b> Tage. Sonst zählt Kurzbefehle iPhone und Watch doppelt – die App rechnet die Überschneidung aus den einzelnen Einträgen heraus wie Health.',
+          '<b>Important:</b> "Group by" set to <b>None</b> (not "Day") and only the last <b>3</b> days. Otherwise Shortcuts counts iPhone and Watch twice – the app removes the overlap from the single entries like Health does.')],
+      result: 'SR;2026-11-23 09:41:07;2026-11-23 09:47:51;412;Apple Watch' },
+    { title: L('Aktive Energie', 'Active energy'), body: findCard(u, { type: u.active, unit: 'kcal', days: 3, changed: ['type', 'unit'] }) + loopBlock(u, { prefix: 'AR;', fields: ['start', 'end', 'value', 'source'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd HH:mm:ss', true),
+      notes: [L('Den Schritte-Block kopieren.', 'Copy the steps block.'), repointHint], result: 'AR;2026-11-23 09:41:07;2026-11-23 09:47:51;18.4;Apple Watch' },
     { title: L('Schlaf', 'Sleep'), body: findCard(u, { type: u.sleep, days: 3, noUnit: true, changed: ['type', 'days'] }) + loopBlock(u, { prefix: 'P;', fields: ['start', 'end', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd HH:mm', true),
       notes: [L('Den Gewicht-Block kopieren (mit Uhrzeit).', 'Copy the weight block (with time).'), repointHint, L(`Im Text nach «${u.start}» ein «;» und ein weiteres «${u.item}» → «${u.end}» einfügen. Schlaf hat keine «Unit» und kein «Group by» – das ist richtig.`, `In the text, after "${u.start}" add ";" and another "${u.item}" → "${u.end}". Sleep has no "Unit" and no "Group by" – that is correct.`),
         L('<b>Kontrolle:</b> Im Quick Look steht hinten bei «P;» ein Wort wie «Core», «Deep», «REM» oder «Awake» – keine Kommazahl. Steht dort dieselbe Zahl wie bei «A;», liest der Repeat noch die aktive Energie.',
           '<b>Check:</b> in Quick Look each "P;" line ends with a word like "Core", "Deep", "REM" or "Awake" – not a decimal number. If it shows the same number as "A;", the repeat still reads active energy.')], result: 'P;2026-11-21 23:10;2026-11-22 01:30;Core' },
-    { title: L('Trainingsminuten', 'Exercise minutes'), body: findCard(u, { type: u.exercise, unit: 'min', group: true, changed: ['type', 'unit'] }) + loopBlock(u, { prefix: 'E;', fields: ['start', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd'),
-      notes: [L('Den Schritte-Block kopieren.', 'Copy the steps block.'), repointHint, L('Statt einzelner Workouts (die kann Kurzbefehle nicht lesen): die Minuten des grünen Rings pro Tag – zählt auch Gym-Training.', 'Instead of single workouts (Shortcuts cannot read them): the minutes of the green ring per day – gym training counts too.'),
+    { title: L('Trainingsminuten', 'Exercise minutes'), body: findCard(u, { type: u.exercise, unit: 'min', group: true, changed: ['type', 'unit', 'group', 'days'] }) + loopBlock(u, { prefix: 'E;', fields: ['start', 'value'], changed: ['text', 'repeat'] }) + withDate('yyyy-MM-dd'),
+      notes: [L('Den Schritte-Block kopieren, dann «Group by» wieder auf <b>Day</b>, <b>7</b> Tage und im Text nur Startdatum (ohne Uhrzeit) und Wert.', 'Copy the steps block, then set "Group by" back to <b>Day</b>, <b>7</b> days and in the text only start date (without time) and value.'), repointHint, L('Statt einzelner Workouts (die kann Kurzbefehle nicht lesen): die Minuten des grünen Rings pro Tag – zählt auch Gym-Training.', 'Instead of single workouts (Shortcuts cannot read them): the minutes of the green ring per day – gym training counts too.'),
         L('<b>Kontrolle:</b> Im Quick Look darf die Zahl bei «E;» nicht gleich sein wie bei «S;» am selben Tag. Sonst liest der Repeat noch die Schritte → blaues «Health Samples» antippen → Reveal Action muss zur Suche «Exercise Minutes» springen.',
           '<b>Check:</b> in Quick Look the number after "E;" must not equal the one after "S;" for the same day. Otherwise the repeat still reads the steps → tap the blue "Health Samples" → Reveal Action must jump to the "Exercise Minutes" search.')], result: 'E;2026-11-16;52' },
     { title: L('Datum von gestern', "Yesterday's date"), body:
