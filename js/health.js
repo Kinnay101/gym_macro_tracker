@@ -1,4 +1,4 @@
-// Apple Health über einen iPhone-Kurzbefehl.
+// Apple Health über einen iPhone-Kurzbefehl (Android/Health Connect: js/healthConnect.js, nutzt applyHealth von hier).
 //
 // Der Kurzbefehl schickt Textzeilen an health_sync (supabase/health.sql); sie landen als Dokument "hinbox:…"
 // im Konto. Nach jedem Sync verarbeitet die App diese Zeilen und löscht das Dokument wieder.
@@ -27,7 +27,7 @@ const minuteKey = (d) => `${dayKey(d)}T${String(d.getHours()).padStart(2, '0')}:
 /** Workout-Name aus Health → eigene Art */
 export function workoutKind(name) {
   const n = String(name || '').toLowerCase();
-  if (/kraft|strength|functional|gewichtheben/.test(n)) return 'strength'; // vor "rad" prüfen ("Traditionelles Krafttraining")
+  if (/kraft|strength|functional|gewichtheben|weightlifting|calisthenics/.test(n)) return 'strength'; // vor "rad" prüfen ("Traditionelles Krafttraining")
   if (/laufband|treadmill|indoor.?lauf|indoor.?run/.test(n)) return 'treadmill';
   if (/lauf|run|jog/.test(n)) return 'run';
   if (/(^|\s|-)rad|fahrrad|velo|cycl|bike/.test(n)) return 'bike';

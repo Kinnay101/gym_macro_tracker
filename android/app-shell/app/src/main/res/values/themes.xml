@@ -1,0 +1,9 @@
+<resources>
+    <!-- Immer dunkel wie die Web-App -->
+    <style name="Base.Theme.GymMacroTracker" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">@color/accent</item>
+        <item name="android:windowBackground">@color/app_bg</item>
+    </style>
+
+    <style name="Theme.GymMacroTracker" parent="Base.Theme.GymMacroTracker" />
+</resources>

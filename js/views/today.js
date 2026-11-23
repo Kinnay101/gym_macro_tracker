@@ -5,7 +5,7 @@ import { goals, sumEntries, dayEntries, MEALS, currentWeight } from '../nutritio
 import { schedule, planMuscles } from '../plan.js';
 import { startWorkout } from '../workout.js';
 import { lastNight, healthWorkoutsBetween } from '../health.js';
-import { header, ring, bar, energy, energyUnit } from '../ui.js';
+import { header, ring, bar, energy, energyUnit, healthSourceName } from '../ui.js';
 import * as daySheet from './daySheet.js';
 
 let showEaten = false;
@@ -105,7 +105,7 @@ function healthCard(state, key) {
   if (d && days[d].activeKcal != null) tiles.push([t('health.active'), energy(state, days[d].activeKcal), d === key ? t('common.today') : t('health.yesterday')]);
   if (d && days[d].exerciseMin != null) tiles.push([t('health.exercise'), `${num(days[d].exerciseMin)} min`, days[d].distanceKm ? `${num(days[d].distanceKm, 1)} km` : '']);
   if (night) tiles.push([t('health.sleep'), h(night.minutes), night.deep || night.rem ? `${t('health.deep')} ${h(night.deep)} · REM ${h(night.rem)}` : '']);
-  return `<section class="card tight"><div class="card-head"><h3>${esc(t('health.title'))}</h3><span class="tiny muted">Apple Health</span></div>
+  return `<section class="card tight"><div class="card-head"><h3>${esc(t('health.title'))}</h3><span class="tiny muted">${esc(healthSourceName())}</span></div>
     <div class="grid3">${tiles.map(([l, v, sub]) => `<div class="stack" style="gap:2px"><span class="tiny muted">${esc(l)}</span><b>${esc(v)}</b><span class="tiny muted">${esc(sub)}</span></div>`).join('')}</div>
     ${ws.map((w) => `<div class="small muted">⌚ ${esc(t('cardio.' + w.kind))} · ${num(w.minutes)} min${w.kcal ? ` · ${energy(state, w.kcal)}` : ''}${w.avgHr ? ` · Ø ${w.avgHr} bpm` : ''}</div>`).join('')}
   </section>`;

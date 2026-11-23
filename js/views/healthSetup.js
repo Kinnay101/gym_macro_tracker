@@ -1,11 +1,12 @@
 // Apple Health im Körper-Tab: Verbindung (Schlüssel) einrichten, Status, Anleitung für den Kurzbefehl
-import { esc, num, icon, I } from '../util.js';
+import { esc, num, icon, I, dayKey } from '../util.js';
 import { t, shortDate } from '../i18n.js';
 import { SUPABASE_URL, SUPABASE_KEY } from '../config.js';
 import * as sync from '../sync.js';
 import * as health from '../health.js';
 import { sheetHead } from '../ui.js';
 import * as shortcutGuide from './shortcutGuide.js';
+import * as hcSetup from './healthConnectSetup.js';
 
 let status = { loaded: false, row: null, error: null };
 let newToken = null; // nur direkt nach dem Erstellen sichtbar
@@ -16,9 +17,11 @@ export async function loadStatus(ctx) {
   ctx.render();
 }
 
-const fmtTime = (iso) => (iso ? `${shortDate(iso.slice(0, 10))}, ${new Date(iso).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}` : '–');
+// Datum und Uhrzeit in Ortszeit (iso.slice(0, 10) wäre UTC → kurz nach Mitternacht der falsche Tag)
+const fmtTime = (iso) => (iso ? `${shortDate(dayKey(new Date(iso)))}, ${new Date(iso).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}` : '–');
 
 export function card(state, ctx) {
+  if (hcSetup.applies()) return hcSetup.card(state, ctx); // Android: Health Connect statt Kurzbefehl
   const head = `<h3>${esc(t('settings.health'))}</h3>`;
   if (!sync.isConfigured() || !sync.getUser()) return `<section class="card tight">${head}<div class="small muted">${esc(t('hs.needAccount'))}</div></section>`;
   if (!status.loaded) { setTimeout(() => loadStatus(ctx), 0); return `<section class="card tight">${head}<div class="empty"><span class="spinner"></span></div></section>`; }
@@ -107,6 +110,7 @@ function guideSheet() {
 
 export const actions = {
   ...shortcutGuide.actions,
+  ...hcSetup.actions,
   async 'hs-connect'(el, ctx) {
     if (status.row && !confirm(t('hs.newKeyConfirm'))) return;
     try {

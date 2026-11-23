@@ -9,8 +9,10 @@ export function energy(state, kcal, withUnit = true) {
   const v = num(Math.round(kj ? kcalToKj(kcal) : kcal));
   return withUnit ? `${v} ${kj ? 'kJ' : 'kcal'}` : v;
 }
-/** Kleines Herz: Wert stammt aus Apple Health (nicht unbedingt von der Watch) */
-export function healthMark() { return '<span class="hk" title="Apple Health" aria-label="Apple Health">♥︎</span>'; }
+/** Kleines Herz: Wert stammt aus Apple Health bzw. Health Connect (nicht unbedingt von der Uhr) */
+export function healthMark() { return '<span class="hk" title="Apple Health / Health Connect" aria-label="Health">♥︎</span>'; }
+/** Name der Gesundheits-App des Geräts (Android: Health Connect, sonst Apple Health) */
+export function healthSourceName() { return window.GymHC || /Android/i.test(navigator.userAgent) ? 'Health Connect' : 'Apple Health'; }
 export function energyUnit(state) { return state.profile.energyUnit === 'kj' ? 'kJ' : 'kcal'; }
 
 export function header(title, sub = '', right = '') {

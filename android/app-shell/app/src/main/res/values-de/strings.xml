@@ -1,0 +1,4 @@
+<resources>
+    <string name="privacy_title">Datenschutz</string>
+    <string name="privacy_text">Gym Macro Tracker und Health Connect\n\nMit deiner Erlaubnis liest die App Gewicht, Körperfett, Schritte, aktive Kalorien, Distanz, Trainings (inkl. durchschnittlichem Puls) und Schlaf aus Health Connect und zeigt sie in der App an. Sie schreibt deine erfassten Mahlzeiten (Kalorien, Makros, Ballaststoffe, Zucker, Natrium) in Health Connect – das lässt sich in der App ausschalten (Körper → Health Connect).\n\nDie Daten werden in der App gespeichert und, wenn du angemeldet bist, in dein privates Konto synchronisiert, damit du sie auf deinen anderen Geräten siehst. Sie werden nie verkauft, nie für Werbung genutzt und nie mit Freunden geteilt – die Rangliste zeigt nur Zusammenfassungen, die du selbst freigibst.\n\nDu kannst die Rechte jederzeit in den Health-Connect-Einstellungen wieder entziehen.</string>
+</resources>
