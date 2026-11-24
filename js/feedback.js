@@ -2,15 +2,12 @@
 // Jeder sieht nur seine eigenen Einträge, Admins (app_admins) alle – geregelt in supabase/feedback.sql.
 import * as sync from './sync.js';
 import * as store from './store.js';
+import { appVersion } from './version.js';
 
 export const KINDS = ['bug', 'idea'];
 export const STATUSES = ['new', 'planned', 'done', 'rejected'];
 const COLS = 'id,user_id,author_name,kind,body,app_version,status,reply,created_at,updated_at';
 
-/** Version der App (Name des Service-Worker-Zwischenspeichers, z. B. "gym-v40"). */
-async function appVersion() {
-  try { return (await caches.keys()).filter((k) => k.startsWith('gym-')).sort().pop() || null; } catch { return null; }
-}
 
 export async function isAdmin() {
   const c = sync.getClient();

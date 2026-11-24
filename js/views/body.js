@@ -10,6 +10,7 @@ import * as measuresView from './measures.js';
 import * as healthSetup from './healthSetup.js';
 import * as feedbackView from './feedback.js';
 import { rhythmName } from './today.js';
+import * as version from '../version.js';
 
 
 export function render(state, params, ctx) {
@@ -80,7 +81,14 @@ export function render(state, params, ctx) {
     </section>
 
     ${feedbackView.card(state, ctx)}
-    <div class="tiny muted" style="text-align:center">Gym Macro Tracker · ${esc(t('settings.version'))} 0.1</div>`;
+    <div class="tiny muted" style="text-align:center">Gym Macro Tracker · ${esc(t('settings.version'))} ${esc(versionText(ctx))}</div>`;
+}
+
+/** Versionsnummer (Android „1.3.55“, sonst „55“) – wird einmal geladen, dann neu gezeichnet. */
+function versionText(ctx) {
+  const v = version.cached();
+  if (v === undefined) { version.load().then(() => ctx?.render()); return '…'; }
+  return v ?? '–';
 }
 
 // ---------- Konto & Sync ----------
