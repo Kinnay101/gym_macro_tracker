@@ -1,6 +1,6 @@
 # Android / Health Connect
 
-Stand: 24.11.2026 (App 1.2). Web-Seite: `js/healthConnect.js`, `js/views/healthConnectSetup.js`.
+Stand: 24.11.2026 (App 1.3). Web-Seite: `js/healthConnect.js`, `js/views/healthConnectSetup.js`.
 Android-Hülle: `android/app-shell` (Kotlin, WebView + Brücke `GymHC`), im Emulator (Android 17) getestet:
 Rechte-Dialog, Lesen aller Datenarten, Mahlzeiten schreiben.
 
@@ -29,6 +29,9 @@ cd android\app-shell; .\gradlew.bat assembleDebug
 - **Version 1.2 (24.11.):** Mahlzeiten gehen mit gesättigten und ungesättigten Fetten an Health Connect
   (`saturatedFat`/`unsaturatedFat`, nur wenn die Web-App sie für alle Einträge der Mahlzeit kennt, sonst leer).
   Im Emulator geprüft (Debug-Build + `debugReadNutrition`), 1.2 als Update über 1.1 installiert.
+- **Version 1.3 (24.11.):** Die Hülle hängt `GymMacroApp/<versionName>` an den User-Agent der WebView. Die Web-App zeigt damit
+  unter Körper „Version 1.3.55“ (Hülle + Web-Stand aus `APP_CACHE`) und speichert diese Nummer im Feedback. Ältere Hüllen: „55 · Android“.
+  Im Emulator geprüft (Debug gegen lokale Vorschau), 1.3 als Update über 1.2 installiert.
 - Emulator-Fenster zu gross für den Bildschirm: `window.scale = 0.3` in `%USERPROFILE%\.android\avd\Medium_Phone.avd\emulator-user.ini`.
   Samsung-ähnlich testen: `adb shell cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.threebutton`.
 

@@ -101,6 +101,8 @@ class MainActivity : AppCompatActivity() {
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
         web.settings.mediaPlaybackRequiresUserGesture = false
+        // Versionsnummer der Hülle für die Web-App (Anzeige „1.3.55“ unter Körper und im Feedback)
+        web.settings.userAgentString = "${web.settings.userAgentString} GymMacroApp/${BuildConfig.VERSION_NAME}"
 
         web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
