@@ -51,7 +51,6 @@ export function render(state, params, ctx) {
       ${bar(t('n.c'), tot.c, g.c, 'var(--carbs)')}
       ${bar(t('n.f'), tot.f, g.f, 'var(--fat)')}
     </section>
-    ${meals}
     <section class="card tight">
       <h3>${esc(t('food.more'))}</h3>
       <div class="grid3">
@@ -60,7 +59,8 @@ export function render(state, params, ctx) {
         ${mini(t('n.salt'), tot.salt, g.salt, 'g', true)}
       </div>
       ${fatSplit(tot, g)}
-    </section>`;
+    </section>
+    ${meals}`;
 }
 
 /**
