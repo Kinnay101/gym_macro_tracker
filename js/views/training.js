@@ -1,7 +1,7 @@
 // Training: Rhythmus, heutiger Vorschlag (flexibel), 7-Tage-Vorschau, Cardio, Pläne, Verlauf
 import { esc, num, today, weekStart, addDays, icon, I, parseNum, uid } from '../util.js';
 import { t, weekdayShort, shortDate } from '../i18n.js';
-import { schedule, lastDone, planMuscles, CARDIO_TYPES } from '../plan.js';
+import { schedule, lastDone, planMuscles, CARDIO_TYPES, splitFor, indexOfPlan, restartAt } from '../plan.js';
 import { startWorkout, volume, workingSets } from '../workout.js';
 import { header, seg, sheetHead } from '../ui.js';
 import { healthWorkoutsBetween, watchStatsFor } from '../health.js';
@@ -12,6 +12,7 @@ import * as planEdit from './planEdit.js';
 export { CARDIO_TYPES };
 
 let cardioDraft = null;
+let continueOther = true; // „Anderes Training“: Plan ab heute von diesem Training aus fortsetzen
 let detailId = null;
 
 export function render(state) {
@@ -24,7 +25,7 @@ export function render(state) {
     ${todayCard(state, sched[0], plans)}
     <section class="card tight"><div class="card-head"><h3>${esc(t('training.preview'))}</h3><span class="tiny muted">${esc(rhythmName(state))}</span></div><div>
       ${sched.map((d, i) => `<button type="button" class="preview-day item-btn" data-act="day-open" data-d="${esc(d.date)}"><span class="small" style="${i === 0 ? 'color:var(--accent);font-weight:700' : 'color:var(--muted)'}">${esc(i === 0 ? t('common.today') : weekdayShort(d.date))}</span>
-        <span>${esc(d.kind === 'rest' ? (d.shifted ? t('plan.pause') : t('training.rest')) : plans[d.planId]?.name || '')}${d.cardio.length ? ` <span class="tiny" style="color:var(--cardio)">+ ${esc(d.cardio.map((c) => `${t('cardio.' + c.type)} ${num(c.minutes)} min`).join(', '))}</span>` : ''}</span>
+        <span>${esc(d.kind === 'rest' ? (d.sick ? `🤒 ${t('plan.sick')}` : d.shifted ? t('plan.pause') : t('training.rest')) : plans[d.planId]?.name || '')}${d.cardio.length ? ` <span class="tiny" style="color:var(--cardio)">+ ${esc(d.cardio.map((c) => `${t('cardio.' + c.type)} ${num(c.minutes)} min`).join(', '))}</span>` : ''}</span>
         <span class="tiny muted">${d.kind === 'done' ? esc(t('training.done')) : d.chosen ? esc(t('training.chosen')) : d.shifted ? '↷' : ''}</span></button>`).join('')}
     </div><div class="tiny muted">${esc(t('training.flexHint'))}</div></section>
     ${cardioCard(state, key)}
@@ -51,7 +52,7 @@ function todayCard(state, d, plans) {
   return `<section class="card">
     <div class="tiny muted">${esc(d.chosen ? t('training.yourChoice') : t('today.suggested'))} · ${esc(rhythmName(state))}</div>
     ${isRest
-      ? `<h2>${esc(d.shifted ? t('plan.pause') : t('training.rest'))}</h2><div class="small muted">${esc(d.shifted ? t('plan.shiftedHint') : t('training.restHint'))}</div>`
+      ? `<h2>${esc(d.sick ? `🤒 ${t('plan.sick')}` : d.shifted ? t('plan.pause') : t('training.rest'))}</h2><div class="small muted">${esc(d.sick ? t('today.sickHint') : d.shifted ? t('plan.shiftedHint') : t('training.restHint'))}</div>`
       : `<div class="card-head"><div class="grow"><h2>${esc(p.name)}</h2><div class="small muted">${esc(planMuscles(p).map((m) => t('m.' + m)).join(' · '))}</div></div>
          <button class="btn primary" data-act="start" data-plan="${esc(p.id)}">${esc(t('training.start'))}</button></div>`}
     ${d.cardio.length ? `<div class="small" style="color:var(--cardio)">${icon(I.run)} ${esc(d.cardio.map((c) => `${t('cardio.' + c.type)} ${num(c.minutes)} min`).join(' · '))}</div>` : ''}
@@ -73,10 +74,11 @@ function restTodaySheet(state) {
 function otherSheet(state) {
   const last = lastDone(state);
   return `${sheetHead(t('training.another'))}
-    <div class="small muted">${esc(t('training.anotherHint'))}</div>
+    <label class="row small" style="gap:8px;align-items:flex-start"><input type="checkbox" data-in="other-continue" ${continueOther ? 'checked' : ''} style="margin-top:3px">
+      <span><b>${esc(t('training.continueOther'))}</b><br><span class="tiny muted">${esc(t('training.continueOtherHint'))}</span></span></label>
     <div class="list">${state.plans.map((p) => `<div class="item"><div class="grow"><div style="font-weight:600">${esc(p.name)}</div><div class="meta">${esc(planMuscles(p).map((m) => t('m.' + m)).join(' · '))}</div></div>
       <span class="tiny muted">${last[p.id] ? esc(shortDate(last[p.id])) : '–'}</span>
-      <button class="btn sm primary" data-act="start" data-plan="${esc(p.id)}">${esc(t('training.start'))}</button></div>`).join('')}</div>`;
+      <button class="btn sm primary" data-act="start" data-from="other" data-plan="${esc(p.id)}">${esc(t('training.start'))}</button></div>`).join('')}</div>`;
 }
 
 function cardioCard(state, key) {
@@ -137,6 +139,14 @@ export const actions = {
   ...daySheet.actions,
   start(el, ctx) {
     if (ctx.state.active) { ctx.go('active'); return; }
+    // Aus „Anderes Training“ mit Häkchen: Plan ab heute von diesem Training aus fortsetzen (z. B. Push 1 ausgelassen)
+    if (el.dataset.from === 'other' && continueOther) {
+      const key = today();
+      const [d] = schedule(ctx.state, key, 1);
+      const sp = splitFor(ctx.state, key);
+      const idx = indexOfPlan(sp, el.dataset.plan, d.pos);
+      if (idx >= 0 && idx !== d.pos) ctx.update((s) => restartAt(s, key, idx, sp.id), { silent: true });
+    }
     ctx.update((s) => startWorkout(s, el.dataset.plan), { silent: true });
     ctx.closeSheet();
     ctx.go('active');
@@ -191,4 +201,4 @@ function keepCardioInputs() {
 }
 
 export const inputs = { ...daySheet.inputs };
-export const changes = { ...daySheet.changes };
+export const changes = { ...daySheet.changes, 'other-continue'(el) { continueOther = el.checked; } };

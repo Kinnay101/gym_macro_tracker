@@ -85,6 +85,7 @@ function calendar(state) {
     let cls = 'c';
     let label = '';
     if (w) { count++; cls += ' k'; label = planShort(plans[w.planId]); }
+    else if (p?.sick) { cls += ' sick'; label = '🤒'; }
     else if (p && (k >= nowKey || k >= planStart)) {
       if (p.shifted) { cls += ' rest'; label = '↷'; }
       else if (p.kind === 'train') { cls += k < nowKey ? ' miss' : ' plan'; label = planShort(plans[p.planId]); if (k >= nowKey) planned++; }
@@ -94,15 +95,17 @@ function calendar(state) {
     const dot = cardio.has(k) ? '<i class="dot"></i>' : p && k >= nowKey && p.cardio.length ? '<i class="dot plan"></i>' : '';
     cells.push(`<button type="button" class="${cls}" data-act="day-open" data-d="${k}"><span>${d}</span>${label ? `<small>${esc(label)}</small>` : ''}${dot}</button>`);
   }
+  // Immer 6 Wochenzeilen → der Kalender ist jeden Monat gleich hoch, die Pfeile springen beim Blättern nicht
+  while (cells.length < 42) cells.push('<span class="c pad" aria-hidden="true"></span>');
   const sub = [count || monthOffset <= 0 ? t('progress.trainings', { n: count }) : '', planned ? t('progress.planned', { n: planned }) : ''].filter(Boolean).join(' · ');
   return `<section class="card tight">
     <div class="card-head"><button class="icon-btn" data-act="month" data-v="-1" aria-label="${esc(t('common.prev'))}">${icon(I.back)}</button>
-      <div style="text-align:center"><h3>${esc(monthName(first))}</h3><div class="tiny muted">${esc(sub)}</div></div>
+      <div style="text-align:center"><h3>${esc(monthName(first))}</h3><div class="tiny muted" style="height:16px;line-height:16px;white-space:nowrap">${esc(sub)}${monthOffset !== 0 ? `${sub ? ' · ' : ''}<button type="button" class="link tiny" data-act="month-today">${esc(t('common.toToday'))}</button>` : ''}</div></div>
       <button class="icon-btn" data-act="month" data-v="1" ${monthOffset >= MONTHS_AHEAD ? 'disabled style="opacity:.35"' : ''} aria-label="${esc(t('common.next'))}">${icon(I.chevron)}</button></div>
     <div class="cal">${weekdayHeaders().map((h) => `<span class="h">${esc(h)}</span>`).join('')}${cells.join('')}</div>
     <div class="cal-legend tiny muted">
       <span><i class="lg k"></i>${esc(t('progress.strength'))}</span><span><i class="lg plan"></i>${esc(t('progress.legendPlan'))}</span>
-      <span><i class="lg miss"></i>${esc(t('progress.legendMissed'))}</span><span><i class="lgdot"></i>${esc(t('progress.cardio'))}</span><span><i class="lgdot plan"></i>${esc(t('progress.legendCardioPlan'))}</span>
+      <span><i class="lg miss"></i>${esc(t('progress.legendMissed'))}</span><span><i class="lgdot"></i>${esc(t('progress.cardio'))}</span><span><i class="lgdot plan"></i>${esc(t('progress.legendCardioPlan'))}</span><span><i class="lg sick"></i>${esc(t('progress.legendSick'))}</span>
     </div>
     <div class="tiny muted">${esc(t('progress.calHint'))}</div>
   </section>`;
@@ -117,6 +120,7 @@ export const actions = {
     ctx.render();
   },
   month(el, ctx) { monthOffset = Math.min(MONTHS_AHEAD, monthOffset + Number(el.dataset.v)); ctx.render(); },
+  'month-today'(el, ctx) { monthOffset = 0; ctx.render(); },
 };
 export const inputs = { ...daySheet.inputs };
 export const changes = {

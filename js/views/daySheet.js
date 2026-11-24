@@ -22,7 +22,7 @@ function sheet(state) {
   const isToday = d === today();
   const head = `<div class="row between day-head">
     <button class="icon-btn" data-act="day-step" data-v="-1" aria-label="${esc(t('common.prev'))}">${icon(I.back)}</button>
-    <div style="text-align:center"><h2>${esc(longDate(d))}</h2>${isToday ? `<div class="tiny muted">${esc(t('common.today'))}</div>` : ''}</div>
+    <div style="text-align:center"><h2>${esc(longDate(d))}</h2>${isToday ? `<div class="tiny" style="color:var(--accent);font-weight:700">${esc(t('common.today'))}</div>` : `<button type="button" class="link tiny" data-act="day-today">${esc(t('common.toToday'))}</button>`}</div>
     ${d >= addDays(today(), MAX_AHEAD) ? `<button class="icon-btn" data-act="sheet-close" aria-label="${esc(t('common.close'))}">${icon(I.x)}</button>`
       : `<button class="icon-btn" data-act="day-step" data-v="1" aria-label="${esc(t('common.next'))}">${icon(I.chevron)}</button>`}</div>`;
   const parts = [];
@@ -91,6 +91,12 @@ export function open(ctx, date) { day = date; ctx.openSheet(sheet); }
 export const actions = {
   ...planEdit.actions,
   'day-open'(el, ctx) { open(ctx, el.dataset.d); },
+  'day-today'(el, ctx) {
+    day = today();
+    ctx.refreshSheet();
+    const s = document.querySelector('#sheet-root .sheet');
+    if (s) s.scrollTop = 0;
+  },
   'day-step'(el, ctx) {
     const next = addDays(day, Number(el.dataset.v));
     if (next > addDays(today(), MAX_AHEAD)) return;

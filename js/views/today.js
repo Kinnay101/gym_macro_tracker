@@ -54,8 +54,8 @@ function trainingCard(state, key) {
   }
   const cardioLine = d.cardio?.length ? `<div class="small" style="color:var(--cardio)">${icon(I.run)} ${esc(d.cardio.map((c) => `${t('cardio.' + c.type)} ${num(c.minutes)} min`).join(' · '))}</div>` : '';
   if (d.kind === 'rest') {
-    return `<section class="card"><div class="tiny muted">${esc(t('today.suggested'))} · ${esc(rhythmName(state))}</div><h2>${esc(d.shifted ? t('plan.pause') : t('training.rest'))}</h2>
-      <div class="small muted">${esc(d.shifted ? t('plan.shiftedHint') : t('today.restHint'))}</div>${cardioLine}<a class="link" href="#/training">${esc(t('today.toTraining'))}</a></section>`;
+    return `<section class="card"><div class="tiny muted">${esc(t('today.suggested'))} · ${esc(rhythmName(state))}</div><h2>${esc(d.sick ? `🤒 ${t('plan.sick')}` : d.shifted ? t('plan.pause') : t('training.rest'))}</h2>
+      <div class="small muted">${esc(d.sick ? t('today.sickHint') : d.shifted ? t('plan.shiftedHint') : t('today.restHint'))}</div>${cardioLine}<a class="link" href="#/training">${esc(t('today.toTraining'))}</a></section>`;
   }
   const p = plans[d.planId];
   const muscles = planMuscles(p).map((m) => t('m.' + m)).join(' · ');

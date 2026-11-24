@@ -4,6 +4,8 @@
 // Der Ablauf hängt am Kalender: Ankerpunkt (Datum + Position im Split), ab dort ein Tag = ein Schritt.
 // Verpasst man ein Training, fällt es weg (der Plan bleibt am Kalender). Wer stattdessen „verschieben“ wählt,
 // setzt an diesem Tag eine Pause (shifts) – ab da rutscht alles einen Tag nach hinten.
+// „Plan ab hier fortsetzen mit …“ setzt einen Neustart (restarts: { date, index, splitId }): ab diesem Tag zählt der Split
+// von dieser Position weiter – frühere Tage bleiben, wie sie waren (z. B. Push 1 ausgelassen → ab heute Pull 1).
 // Einzelne Tage lassen sich ändern (dayChoice: 'rest' oder Training), Cardio kommt aus dem Split,
 // aus festen Wochentagen (weeklyCardio) oder ist für einen Tag eingetragen (plannedCardio).
 import { addDays, parseKey, daysBetween, today, uid } from './util.js';
@@ -171,6 +173,7 @@ export function defaultSplits() {
  */
 export function ensureTraining(state, now = today()) {
   state.plannedCardio ||= {};
+  state.sickDays ||= {};
   if (state.training?.splits?.length) return state;
   const splits = defaultSplits().map((x) => ({ ...x, name: state.profile?.rhythmNames?.[x.id] || null }));
   const activeId = state.profile?.rhythm === 'light' ? 'light' : 'full';
@@ -196,14 +199,29 @@ export function activeSplit(state) {
   return tr?.splits?.find((s) => s.id === tr.activeSplit) || tr?.splits?.[0] || null;
 }
 
+export function splitById(state, id) {
+  return state.training?.splits?.find((s) => s.id === id) || activeSplit(state);
+}
+
 const mod = (a, n) => ((a % n) + n) % n;
 
-/** Position im Split an einem Tag (Verschiebungen zwischen Anker und Tag eingerechnet). */
+/** Bezugspunkt für einen Tag: letzter Neustart an oder vor dem Tag, sonst der ursprüngliche Anker. */
+export function refFor(state, date) {
+  const tr = state.training || {};
+  let ref = { date: tr.anchor?.date || date, index: tr.anchor?.index || 0, splitId: tr.anchor?.splitId || tr.activeSplit };
+  for (const r of tr.restarts || []) if (r.date <= date && r.date >= ref.date) ref = r;
+  return ref;
+}
+
+/** Split, der an einem Tag gilt (nach Neustarts mit anderem Split). */
+export function splitFor(state, date) { return splitById(state, refFor(state, date).splitId); }
+
+/** Position im Split an einem Tag (ab dem Bezugspunkt; Verschiebungen dazwischen eingerechnet). */
 export function cyclePos(state, date) {
   const tr = state.training;
-  const sp = activeSplit(state);
+  const a = refFor(state, date);
+  const sp = splitById(state, a.splitId);
   const len = sp?.days?.length || 1;
-  const a = tr?.anchor || { date, index: 0 };
   const shifts = tr?.shifts || [];
   const n = date >= a.date
     ? shifts.filter((s) => s >= a.date && s < date).length
@@ -212,12 +230,77 @@ export function cyclePos(state, date) {
 }
 
 /**
+ * Plan ab einem Tag neu ausrichten: an diesem Tag gilt Tag `index` des Splits, danach geht es normal weiter.
+ * Ersetzt einen Neustart am selben Tag; eine Änderung oder Verschiebung genau an diesem Tag fällt weg.
+ */
+export function restartAt(state, date, index, splitId) {
+  const tr = state.training;
+  tr.anchor.splitId ||= tr.activeSplit; // ursprünglicher Split bleibt für frühere Tage erhalten
+  const sid = splitId || splitFor(state, date)?.id || tr.activeSplit;
+  tr.restarts = [...(tr.restarts || []).filter((r) => r.date !== date), { date, index, splitId: sid }].sort((a, b) => a.date.localeCompare(b.date));
+  tr.shifts = (tr.shifts || []).filter((s) => s !== date);
+  delete state.dayChoice[date];
+  if (date <= today()) tr.activeSplit = sid;
+}
+
+/**
+ * Ruhetag oder krank für einen Tag eintragen. mode 'shift' = Plan rückt nach (Pause, alles danach einen Tag später),
+ * 'skip' = geplantes Training fällt weg. An Tagen mit Training passiert nichts.
+ */
+export function markDay(state, date, type, mode) {
+  if (state.workouts.some((w) => w.date === date)) return false;
+  const tr = state.training;
+  const planned = dayPlan(state, date);
+  const wasTrain = planned.kind === 'train' || planned.shifted;
+  if (type === 'sick') state.sickDays[date] = mode;
+  if (mode === 'shift' && wasTrain) {
+    tr.shifts = [...new Set([...(tr.shifts || []), date])].sort();
+    delete state.dayChoice[date];
+  } else if (type === 'rest') {
+    state.dayChoice[date] = 'rest';
+  }
+  return true;
+}
+
+/** Ruhetag/krank an einem Tag wieder aufheben (inkl. der Verschiebung, die dazu gehört). */
+export function unmarkDay(state, date) {
+  delete state.sickDays[date];
+  if (state.dayChoice[date] === 'rest') delete state.dayChoice[date];
+  state.training.shifts = (state.training.shifts || []).filter((s) => s !== date);
+}
+
+/** Mehrere Tage am Stück (von–bis) eintragen, vom ersten Tag an der Reihe nach. */
+export function markRange(state, from, to, type, mode) {
+  let n = 0;
+  for (let d = from; d <= to; d = addDays(d, 1)) if (markDay(state, d, type, mode)) n++;
+  return n;
+}
+
+/** Neustart an einem Tag aufheben (Plan läuft wieder wie vorher). */
+export function removeRestart(state, date) {
+  const tr = state.training;
+  tr.restarts = (tr.restarts || []).filter((r) => r.date !== date);
+  const cur = refFor(state, today());
+  if (cur.splitId) tr.activeSplit = cur.splitId;
+}
+
+/** Position eines Trainings im Split, ab einer Position vorwärts gesucht (für „ab hier mit … fortsetzen“). */
+export function indexOfPlan(sp, planId, fromPos = 0) {
+  const len = sp?.days?.length || 0;
+  for (let i = 0; i < len; i++) {
+    const k = (fromPos + i) % len;
+    if (sp.days[k].kind === 'train' && sp.days[k].planId === planId) return k;
+  }
+  return -1;
+}
+
+/**
  * Geplanter Tag: { date, kind: 'train' | 'rest', planId, chosen (Tag geändert), shifted (Pause durch Verschieben),
  *   pos, base (Tag laut Split), cardio: [{ type, minutes, from: 'split' | 'weekly' | 'day', id? }] }
  */
 export function dayPlan(state, date) {
   const tr = state.training || {};
-  const sp = activeSplit(state);
+  const sp = splitFor(state, date);
   const planIds = new Set(state.plans.map((p) => p.id));
   const shifted = (tr.shifts || []).includes(date);
   const pos = cyclePos(state, date);
@@ -230,16 +313,19 @@ export function dayPlan(state, date) {
     if (choice === 'rest') { kind = 'rest'; planId = null; chosen = true; }
     else if (planIds.has(choice)) { kind = 'train'; planId = choice; chosen = true; }
   }
+  // Krank: an diesem Tag kein Training (bei „Plan rückt nach“ liegt zusätzlich eine Verschiebung auf dem Tag)
+  const sick = state.sickDays?.[date] || null;
+  if (sick && !shifted) { kind = 'rest'; planId = null; }
   const cardio = [];
-  if (!shifted && !chosen && base.cardio?.minutes) cardio.push({ type: base.cardio.type, minutes: base.cardio.minutes, from: 'split' });
+  if (!shifted && !chosen && !sick && base.cardio?.minutes) cardio.push({ type: base.cardio.type, minutes: base.cardio.minutes, from: 'split' });
   for (const w of tr.weeklyCardio || []) if (w.weekday === weekdayIndex(date)) cardio.push({ type: w.type, minutes: w.minutes, from: 'weekly', id: w.id });
   for (const c of state.plannedCardio?.[date] || []) cardio.push({ ...c, from: 'day' });
-  return { date, kind, planId, chosen, shifted, pos, base, cardio };
+  const restarted = (tr.restarts || []).some((r) => r.date === date);
+  return { date, kind, planId, chosen, shifted, sick, restarted, pos, base, cardio, splitId: sp?.id };
 }
 
 /** Nächstes Training im Split nach einer Position (für „Trotzdem trainieren“ an einem Ruhetag). */
-function nextTrainAfter(state, pos) {
-  const sp = activeSplit(state);
+function nextTrainAfter(state, pos, sp = activeSplit(state)) {
   const ids = new Set(state.plans.map((p) => p.id));
   const len = sp?.days?.length || 0;
   for (let i = 1; i <= len; i++) {
@@ -259,7 +345,7 @@ export function schedule(state, startKey, days = 7) {
     const date = addDays(startKey, i);
     const p = dayPlan(state, date);
     const done = state.workouts.filter((w) => w.date === date);
-    const firstOpen = p.kind === 'train' ? p.planId : nextTrainAfter(state, p.pos);
+    const firstOpen = p.kind === 'train' ? p.planId : nextTrainAfter(state, p.pos, splitById(state, p.splitId));
     if (done.length) out.push({ ...p, kind: 'done', plannedKind: p.kind, plannedPlanId: p.planId, planId: done[done.length - 1].planId, firstOpen });
     else out.push({ ...p, firstOpen });
   }

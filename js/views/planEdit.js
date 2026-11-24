@@ -1,12 +1,13 @@
 // Planung bearbeiten: Plan-Teil der Tagesübersicht (Tag ändern, verschieben, Cardio), Split-Editor,
 // Trainings-Editor (Übungen) und fester Cardio-Plan (Wochentage). Wird von Heute, Training und Fortschritt benutzt.
-import { esc, num, today, addDays, icon, I, parseNum, uid } from '../util.js';
+import { esc, num, today, addDays, icon, I, parseNum, uid, daysBetween } from '../util.js';
 import { t, weekdayShort } from '../i18n.js';
-import { dayPlan, activeSplit, cyclePos, planShort, newPlan, newSplit, planMuscles, MUSCLES, CARDIO_TYPES } from '../plan.js';
-import { sheetHead } from '../ui.js';
+import { dayPlan, activeSplit, cyclePos, planShort, newPlan, newSplit, planMuscles, MUSCLES, CARDIO_TYPES, splitById, restartAt, removeRestart, markDay, unmarkDay, markRange } from '../plan.js';
+import { sheetHead, seg } from '../ui.js';
 import { splitName } from './today.js';
 
 const MONDAY = '2026-11-23'; // irgendein Montag – für Wochentagsnamen
+const MAX_BACK = 60; // so weit zurück lassen sich Ruhetage/Kranktage nachtragen
 const weekdayName = (i) => weekdayShort(addDays(MONDAY, i));
 const opt = (v, label, sel) => `<option value="${esc(v)}" ${sel ? 'selected' : ''}>${esc(label)}</option>`;
 const cardioLabel = (c) => `${t('cardio.' + c.type)} · ${num(c.minutes)} min`;
@@ -22,14 +23,17 @@ export function dayPlanCard(state, date) {
   const done = state.workouts.some((w) => w.date === date);
   const past = date < now;
   const tracked = date >= (state.training.anchor?.date || now); // vor der Umstellung gab es keinen Plan
-  if (past && !tracked && !done) return '';
+  const editable = !done && date >= addDays(now, -MAX_BACK); // Ruhetag/krank bis 60 Tage zurück eintragbar
+  if (past && !tracked && !done && !editable) return '';
 
   const baseName = p.base.kind === 'train' && plans[p.base.planId] ? plans[p.base.planId].name : t('plan.rest');
-  const what = p.shifted ? t('plan.pause') : p.kind === 'train' ? plans[p.planId]?.name : t('plan.rest');
+  const what = p.sick ? `🤒 ${t('plan.sick')}` : p.shifted ? t('plan.pause') : !tracked && past ? '–' : p.kind === 'train' ? plans[p.planId]?.name : t('plan.rest');
   let status = '';
-  if (p.shifted) status = t('plan.shiftedHint');
+  if (p.sick) status = t(p.sick === 'shift' && p.shifted ? 'plan.sickShifted' : 'plan.sickSkipped');
+  else if (p.shifted) status = t('plan.shiftedHint');
   else if (past && p.kind === 'train' && !done) status = t('plan.missed');
   else if (p.chosen) status = t('plan.changed', { name: baseName });
+  else if (p.restarted) status = t('plan.restartedHint');
 
   // Tag ändern (heute und später): wie im Split / Ruhetag / anderes Training
   const choice = state.dayChoice?.[date] || '';
@@ -38,12 +42,20 @@ export function dayPlanCard(state, date) {
         ${opt('', t('plan.asSplit', { name: baseName }), !choice)}${opt('rest', t('plan.rest'), choice === 'rest')}
         ${state.plans.map((x) => opt(x.id, x.name, choice === x.id)).join('')}</select></label>` : '';
 
-  // Verschieben: nur an Tagen ohne Training; ab heute minus 14 Tage
-  const canShift = !done && date >= addDays(now, -14);
-  const shiftBtn = p.shifted
-    ? `<button class="btn sm" data-act="dp-unshift" data-d="${esc(date)}">${esc(t('plan.unshift'))}</button>`
-    : canShift && (p.kind === 'train' || p.base.kind === 'train')
-      ? `<button class="btn sm" data-act="dp-shift" data-d="${esc(date)}">${esc(t('plan.shiftHere'))}</button>` : '';
+  // Ruhetag / krank (auch nachträglich, bis 60 Tage zurück): je zwei Knöpfe – Plan rückt nach oder Training fällt weg.
+  // An Ruhetagen laut Split nur „krank“ (es gibt nichts zu verschieben). Bereits eingetragen → aufheben.
+  const b = (act, mode, label, cls = '') => `<button class="btn sm ${cls}" data-act="${act}" data-d="${esc(date)}" data-mode="${mode}">${esc(label)}</button>`;
+  const marked = p.sick || p.shifted || (p.chosen && p.kind === 'rest');
+  let restBtns = '';
+  if (marked && !done) {
+    restBtns = b('dp-unmark', '', p.sick ? t('plan.unsick') : p.shifted ? t('plan.unshift') : t('plan.unrest', { name: baseName }));
+  } else if (editable && p.kind === 'train' && (tracked || !past)) {
+    restBtns = `<div class="grid2">${b('dp-mark', 'shift', t('plan.restShift'))}${b('dp-mark', 'skip', t('plan.restSkip'))}</div>
+      <div class="grid2">${b('dp-sick', 'shift', t('plan.sickShift'), 'sick')}${b('dp-sick', 'skip', t('plan.sickSkip'), 'sick')}</div>`;
+  } else if (editable) {
+    restBtns = b('dp-sick', 'skip', `🤒 ${t('plan.sick')}`, 'sick');
+  }
+  if (editable || marked) restBtns += `<button class="link tiny" style="align-self:flex-start" data-act="dp-range" data-d="${esc(date)}">${esc(t('plan.rangeOpen'))}</button>`;
 
   const cardio = p.cardio.map((c) => `<div class="item">${icon(I.run)}<div class="grow"><div style="font-weight:600">${esc(cardioLabel(c))}</div>
       <div class="meta">${esc(t('plan.from.' + c.from))}</div></div>
@@ -53,13 +65,46 @@ export function dayPlanCard(state, date) {
       <input class="input" id="dp-cmin" inputmode="numeric" placeholder="min" style="width:70px" value="30">
       <button class="btn sm" data-act="dp-cardio-add" data-d="${esc(date)}">${icon(I.plus)}</button></div>`;
 
-  return `<section class="card tight"><div class="card-head"><h3>${esc(t('plan.title'))}</h3><span class="tiny muted">${esc(splitName(activeSplit(state)))}</span></div>
+  // Plan ab hier fortsetzen mit Tag X des Splits (z. B. Push 1 ausgelassen → ab heute Pull 1, danach normal weiter)
+  const sp = splitById(state, p.splitId);
+  const cont = !past && sp ? `<label class="field">${esc(t('plan.continueLabel'))}<select class="input" data-in="dp-restart" data-d="${esc(date)}" data-s="${esc(sp.id)}">
+      ${sp.days.map((d, i) => opt(String(i), `${i + 1}. ${d.kind === 'train' ? plans[d.planId]?.name || '?' : t('plan.rest')}`, !p.shifted && i === p.pos)).join('')}</select></label>
+      <div class="tiny muted">${esc(t('plan.continueHint'))}</div>` : '';
+  const unrestart = p.restarted ? `<button class="btn sm" data-act="dp-unrestart" data-d="${esc(date)}">${esc(t('plan.unrestart'))}</button>` : '';
+
+  return `<section class="card tight"><div class="card-head"><h3>${esc(t('plan.title'))}</h3><span class="tiny muted">${esc(splitName(sp || activeSplit(state)))}</span></div>
     <div class="row between"><b>${esc(what || '')}</b>${done ? `<span class="tag accent">${esc(t('training.done'))}</span>` : ''}</div>
     ${status ? `<div class="tiny muted">${esc(status)}</div>` : ''}
+    ${restBtns}
+    ${cont}${unrestart}
     ${select}
-    ${shiftBtn ? `<div class="stack" style="gap:4px">${shiftBtn}${p.shifted ? '' : `<span class="tiny muted">${esc(t('plan.shiftHint'))}</span>`}</div>` : ''}
     ${cardio || addCardio ? `<div class="small" style="font-weight:600">${esc(t('plan.cardio'))}</div>${cardio ? `<div class="list">${cardio}</div>` : ''}${addCardio}` : ''}
   </section>`;
+}
+
+// ---------- Mehrere Tage eintragen (Ruhetag/krank von–bis) ----------
+let rangeDraft = null; // { from, to, type: 'sick' | 'rest', mode: 'shift' | 'skip' }
+
+function keepRange() {
+  if (!rangeDraft) return;
+  const f = document.getElementById('rg-from')?.value; const to = document.getElementById('rg-to')?.value;
+  if (f) rangeDraft.from = f;
+  if (to) rangeDraft.to = to;
+}
+
+function rangeSheet() {
+  const r = rangeDraft;
+  if (!r) return null;
+  const min = addDays(today(), -MAX_BACK);
+  const max = addDays(today(), 90);
+  return `${sheetHead(t('plan.rangeTitle'))}
+    <div class="grid2"><label class="field">${esc(t('plan.rangeFrom'))}<input class="input" type="date" id="rg-from" value="${esc(r.from)}" min="${min}" max="${max}"></label>
+      <label class="field">${esc(t('plan.rangeTo'))}<input class="input" type="date" id="rg-to" value="${esc(r.to)}" min="${min}" max="${max}"></label></div>
+    ${seg('rg-type', [['rest', t('plan.rest')], ['sick', `🤒 ${t('plan.sick')}`]], r.type)}
+    ${seg('rg-mode', [['shift', t('plan.modeShift')], ['skip', t('plan.modeSkip')]], r.mode)}
+    <div class="tiny muted">${esc(t(r.mode === 'shift' ? 'plan.rangeHintShift' : 'plan.rangeHintSkip'))}</div>
+    <div class="small" id="rg-err" style="color:var(--bad)"></div>
+    <button class="btn primary block" data-act="rg-save">${esc(t('common.save'))}</button>`;
 }
 
 // ---------- Split-Editor ----------
@@ -185,6 +230,53 @@ export const actions = {
     });
     ctx.toast(t('plan.shiftedToast'));
   },
+  'dp-mark'(el, ctx) {
+    const { d, mode } = el.dataset;
+    ctx.update((s) => markDay(s, d, 'rest', mode));
+    ctx.toast(t(mode === 'shift' ? 'plan.shiftedToast' : 'plan.restSkipToast'));
+  },
+  'dp-sick'(el, ctx) {
+    const { d, mode } = el.dataset;
+    ctx.update((s) => markDay(s, d, 'sick', mode));
+    ctx.toast(t('plan.sickToast'));
+  },
+  'dp-unmark'(el, ctx) {
+    const d = el.dataset.d;
+    ctx.update((s) => unmarkDay(s, d));
+  },
+  'dp-range'(el, ctx) {
+    const d = el.dataset.d;
+    rangeDraft = { from: d, to: d, type: 'rest', mode: 'shift' };
+    ctx.openSheet(rangeSheet);
+  },
+  'rg-type'(el, ctx) { keepRange(); rangeDraft.type = el.dataset.v; ctx.refreshSheet(); },
+  'rg-mode'(el, ctx) { keepRange(); rangeDraft.mode = el.dataset.v; ctx.refreshSheet(); },
+  'rg-save'(el, ctx) {
+    keepRange();
+    const { from, to, type, mode } = rangeDraft;
+    const err = document.getElementById('rg-err');
+    if (!from || !to || to < from) { err.textContent = t('plan.rangeErrOrder'); return; }
+    if (daysBetween(from, to) > MAX_BACK) { err.textContent = t('plan.rangeErrLong', { n: MAX_BACK }); return; }
+    if (from < addDays(today(), -MAX_BACK)) { err.textContent = t('plan.rangeErrOld', { n: MAX_BACK }); return; }
+    let n = 0;
+    ctx.update((s) => { n = markRange(s, from, to, type, mode); });
+    rangeDraft = null;
+    ctx.closeSheet();
+    ctx.toast(t('plan.rangeDone', { n }));
+  },
+  'dp-rest'(el, ctx) {
+    const d = el.dataset.d;
+    ctx.update((s) => { s.dayChoice[d] = 'rest'; });
+    ctx.toast(t('plan.restSkipToast'));
+  },
+  'dp-unrest'(el, ctx) {
+    const d = el.dataset.d;
+    ctx.update((s) => { delete s.dayChoice[d]; });
+  },
+  'dp-unrestart'(el, ctx) {
+    const d = el.dataset.d;
+    ctx.update((s) => removeRestart(s, d));
+  },
   'dp-unshift'(el, ctx) {
     const d = el.dataset.d;
     updTraining(ctx, (tr) => { tr.shifts = (tr.shifts || []).filter((x) => x !== d); });
@@ -242,13 +334,11 @@ export const actions = {
     updTraining(ctx, (tr) => {
       const i = tr.splits.findIndex((x) => x.id === sp.id);
       if (i >= 0) tr.splits[i] = sp; else tr.splits.push(sp);
-      if (mode === 'keep' || mode === 'use') {
-        // Ab heute neu ausrichten: heute = gewählter Tag; ältere Verschiebungen sind damit erledigt
-        tr.activeSplit = sp.id;
-        tr.anchor = { date: now, index: Math.min(d.startIdx, sp.days.length - 1) };
-        tr.shifts = (tr.shifts || []).filter((x) => x > now);
-      }
     });
+    if (mode === 'keep' || mode === 'use') {
+      // Ab heute neu ausrichten: heute = gewählter Tag des Splits, frühere Tage bleiben wie sie waren
+      ctx.update((s) => restartAt(s, now, Math.min(d.startIdx, sp.days.length - 1), sp.id));
+    }
     splitDraft = null;
     ctx.closeSheet();
     ctx.toast(t('split.saved'));
@@ -256,9 +346,12 @@ export const actions = {
   'se-delete'(el, ctx) {
     const id = splitDraft.split.id;
     if (!confirm(t('split.deleteConfirm', { name: splitName(splitDraft.split) || '?' }))) return;
-    updTraining(ctx, (tr) => {
+    ctx.update((s) => {
+      const tr = s.training;
+      const wasActive = tr.activeSplit === id;
+      tr.anchor.splitId ||= tr.activeSplit;
       tr.splits = tr.splits.filter((x) => x.id !== id);
-      if (tr.activeSplit === id) { tr.activeSplit = tr.splits[0].id; tr.anchor = { date: today(), index: 0 }; }
+      if (wasActive) restartAt(s, today(), 0, tr.splits[0].id);
     });
     splitDraft = null;
     ctx.closeSheet();
@@ -343,6 +436,11 @@ export const inputs = {
 };
 
 export const changes = {
+  'dp-restart'(el, ctx) {
+    const { d, s: sid } = el.dataset;
+    ctx.update((s) => restartAt(s, d, Number(el.value), sid));
+    ctx.toast(t('plan.restartedToast'));
+  },
   'dp-choice'(el, ctx) {
     const d = el.dataset.d;
     const v = el.value;

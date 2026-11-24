@@ -40,6 +40,7 @@ function blankRaw() {
     // Splits & Kalender-Planung (siehe js/plan.js): { splits, activeSplit, anchor: { date, index }, shifts: [Datum], weeklyCardio: [{ id, weekday, type, minutes }] }
     training: null,
     plannedCardio: {}, // { 'JJJJ-MM-TT': [{ id, type, minutes }] } – Cardio für einen bestimmten Tag geplant
+    sickDays: {}, // { 'JJJJ-MM-TT': 'shift' | 'skip' } – krank (Plan rückt nach bzw. Training fällt weg)
     active: null, // laufendes Training
     // Apple Health (über Kurzbefehl, siehe js/health.js)
     healthDays: {}, // { 'JJJJ-MM-TT': { steps, activeKcal, bodyFat } }
