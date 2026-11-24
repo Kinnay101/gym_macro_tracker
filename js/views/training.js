@@ -1,15 +1,16 @@
 // Training: Rhythmus, heutiger Vorschlag (flexibel), 7-Tage-Vorschau, Cardio, Pläne, Verlauf
 import { esc, num, today, weekStart, addDays, icon, I, parseNum, uid } from '../util.js';
 import { t, weekdayShort, shortDate } from '../i18n.js';
-import { schedule, roundStatus, planMuscles, RHYTHMS } from '../plan.js';
+import { schedule, lastDone, planMuscles, CARDIO_TYPES } from '../plan.js';
 import { startWorkout, volume, workingSets } from '../workout.js';
 import { header, seg, sheetHead } from '../ui.js';
 import { healthWorkoutsBetween, watchStatsFor } from '../health.js';
 import { rhythmName } from './today.js';
+import * as daySheet from './daySheet.js';
+import * as planEdit from './planEdit.js';
 
-export const CARDIO_TYPES = ['run', 'treadmill', 'bike', 'crosstrainer', 'rowing', 'stairs', 'swim', 'other'];
+export { CARDIO_TYPES };
 
-let openPlan = null;
 let cardioDraft = null;
 let detailId = null;
 
@@ -17,23 +18,17 @@ export function render(state) {
   const key = today();
   const plans = Object.fromEntries(state.plans.map((p) => [p.id, p]));
   const sched = schedule(state, key, 7);
-  const r = state.profile.rhythm;
 
   return `
     ${header(t('nav.training'))}
-    <section class="stack">
-      <div class="small muted">${esc(t('training.rhythm'))}</div>
-      ${seg('rhythm', Object.keys(RHYTHMS).map((k) => [k, state.profile.rhythmNames?.[k] || t('rhythm.' + k)]), r)}
-      <div class="tiny muted">${esc(t('rhythm.' + r + 'Sub'))} · ${esc(t('training.flexHint'))}</div>
-    </section>
     ${todayCard(state, sched[0], plans)}
-    <section class="card tight"><h3>${esc(t('training.preview'))}</h3><div>
-      ${sched.map((d, i) => `<div class="preview-day"><span class="small" style="${i === 0 ? 'color:var(--accent);font-weight:700' : 'color:var(--muted)'}">${esc(i === 0 ? t('common.today') : weekdayShort(d.date))}</span>
-        <span>${esc(d.kind === 'rest' ? t('training.rest') : plans[d.planId]?.name || '')}</span>
-        <span class="tiny muted">${d.kind === 'done' ? esc(t('training.done')) : d.chosen ? esc(t('training.chosen')) : ''}</span></div>`).join('')}
-    </div></section>
+    <section class="card tight"><div class="card-head"><h3>${esc(t('training.preview'))}</h3><span class="tiny muted">${esc(rhythmName(state))}</span></div><div>
+      ${sched.map((d, i) => `<button type="button" class="preview-day item-btn" data-act="day-open" data-d="${esc(d.date)}"><span class="small" style="${i === 0 ? 'color:var(--accent);font-weight:700' : 'color:var(--muted)'}">${esc(i === 0 ? t('common.today') : weekdayShort(d.date))}</span>
+        <span>${esc(d.kind === 'rest' ? (d.shifted ? t('plan.pause') : t('training.rest')) : plans[d.planId]?.name || '')}${d.cardio.length ? ` <span class="tiny" style="color:var(--cardio)">+ ${esc(d.cardio.map((c) => `${t('cardio.' + c.type)} ${num(c.minutes)} min`).join(', '))}</span>` : ''}</span>
+        <span class="tiny muted">${d.kind === 'done' ? esc(t('training.done')) : d.chosen ? esc(t('training.chosen')) : d.shifted ? '↷' : ''}</span></button>`).join('')}
+    </div><div class="tiny muted">${esc(t('training.flexHint'))}</div></section>
     ${cardioCard(state, key)}
-    <section class="stack"><h2>${esc(t('training.plans'))}</h2>${state.plans.map((p) => planCard(p)).join('')}</section>
+    ${planEdit.manageCards(state)}
     ${historyCard(state, plans)}
   `;
 }
@@ -49,39 +44,39 @@ function todayCard(state, d, plans) {
   const isRest = d.kind === 'rest';
   const p = plans[d.planId];
   let restBtn;
-  if (!isRest && !d.chosen) restBtn = `<button class="btn" data-act="choose" data-v="rest">${esc(t('training.restToday'))}</button>`;
+  if (!isRest && !d.chosen) restBtn = `<button class="btn" data-act="rest-today">${esc(t('training.restToday'))}</button>`;
   else if (isRest && !d.chosen) restBtn = `<button class="btn" data-act="choose" data-v="${esc(d.firstOpen)}">${esc(t('training.trainAnyway'))}</button>`;
+  else if (d.shifted) restBtn = `<button class="btn" data-act="dp-unshift" data-d="${esc(d.date)}">${esc(t('plan.unshift'))}</button>`;
   else restBtn = `<button class="btn" data-act="choose" data-v="">${esc(t('training.backToSuggestion'))}</button>`;
   return `<section class="card">
     <div class="tiny muted">${esc(d.chosen ? t('training.yourChoice') : t('today.suggested'))} · ${esc(rhythmName(state))}</div>
     ${isRest
-      ? `<h2>${esc(t('training.rest'))}</h2><div class="small muted">${esc(t('training.restHint'))}</div>`
+      ? `<h2>${esc(d.shifted ? t('plan.pause') : t('training.rest'))}</h2><div class="small muted">${esc(d.shifted ? t('plan.shiftedHint') : t('training.restHint'))}</div>`
       : `<div class="card-head"><div class="grow"><h2>${esc(p.name)}</h2><div class="small muted">${esc(planMuscles(p).map((m) => t('m.' + m)).join(' · '))}</div></div>
          <button class="btn primary" data-act="start" data-plan="${esc(p.id)}">${esc(t('training.start'))}</button></div>`}
+    ${d.cardio.length ? `<div class="small" style="color:var(--cardio)">${icon(I.run)} ${esc(d.cardio.map((c) => `${t('cardio.' + c.type)} ${num(c.minutes)} min`).join(' · '))}</div>` : ''}
     <div class="grid2"><button class="btn" data-act="other">${esc(t('training.another'))}</button>${restBtn}</div>
   </section>`;
 }
 
+/** Heute nicht trainieren: Training fällt weg (Plan bleibt) oder Plan ab heute einen Tag verschieben. */
+function restTodaySheet(state) {
+  const [d] = schedule(state, today(), 1);
+  const name = state.plans.find((p) => p.id === d.planId)?.name || '';
+  return `${sheetHead(t('training.restToday'))}
+    <button class="btn block" data-act="choose" data-v="rest">${esc(t('training.skipToday', { name }))}</button>
+    <div class="tiny muted">${esc(t('training.skipTodayHint'))}</div>
+    <button class="btn block" data-act="dp-shift" data-d="${esc(d.date)}">${esc(t('plan.shiftHere'))}</button>
+    <div class="tiny muted">${esc(t('training.shiftTodayHint', { name }))}</div>`;
+}
+
 function otherSheet(state) {
-  const status = roundStatus(state, today());
+  const last = lastDone(state);
   return `${sheetHead(t('training.another'))}
     <div class="small muted">${esc(t('training.anotherHint'))}</div>
     <div class="list">${state.plans.map((p) => `<div class="item"><div class="grow"><div style="font-weight:600">${esc(p.name)}</div><div class="meta">${esc(planMuscles(p).map((m) => t('m.' + m)).join(' · '))}</div></div>
-      <span class="tag ${status[p.id] ? '' : 'accent'}">${esc(status[p.id] ? t('training.doneRound') : t('training.open'))}</span>
+      <span class="tiny muted">${last[p.id] ? esc(shortDate(last[p.id])) : '–'}</span>
       <button class="btn sm primary" data-act="start" data-plan="${esc(p.id)}">${esc(t('training.start'))}</button></div>`).join('')}</div>`;
-}
-
-function planCard(p) {
-  const open = openPlan === p.id;
-  const ex = open ? `<div class="list">${p.ex.map((e) => `<div class="item"><div class="grow">
-      <div style="font-weight:600">${esc(e.name)} ${e.optional ? `<span class="tag">${esc(t('training.optional'))}</span>` : ''}</div>
-      <div class="meta">${esc(e.target)} · ${esc(t('m.' + e.muscle))}</div>
-      ${e.variant ? `<div class="meta">${icon(I.swap, 'icon')} ${esc(t('training.variant'))}: ${esc(e.variant.name)}${e.variant.note ? ` (${esc(e.variant.note)})` : ''}</div>` : ''}
-    </div></div>`).join('')}</div>
-    <button class="btn primary" data-act="start" data-plan="${esc(p.id)}">${esc(t('training.startPlan', { name: p.name }))}</button>` : '';
-  return `<section class="card tight"><button class="item-btn row between" data-act="toggle-plan" data-id="${esc(p.id)}" aria-expanded="${open}">
-    <div><h3>${esc(p.name)}</h3><div class="meta small muted">${esc(planMuscles(p).map((m) => t('m.' + m)).join(' · '))} · ${esc(t('training.exCount', { n: p.ex.length }))}</div></div>
-    ${icon(open ? I.down : I.chevron)}</button>${ex}</section>`;
 }
 
 function cardioCard(state, key) {
@@ -139,7 +134,7 @@ function detailSheet(state) {
 }
 
 export const actions = {
-  rhythm(el, ctx) { ctx.update((s) => { s.profile.rhythm = el.dataset.v; }); },
+  ...daySheet.actions,
   start(el, ctx) {
     if (ctx.state.active) { ctx.go('active'); return; }
     ctx.update((s) => startWorkout(s, el.dataset.plan), { silent: true });
@@ -148,10 +143,11 @@ export const actions = {
   },
   choose(el, ctx) {
     const v = el.dataset.v;
+    ctx.closeSheet();
     ctx.update((s) => { if (v) s.dayChoice[today()] = v; else delete s.dayChoice[today()]; });
   },
+  'rest-today'(el, ctx) { ctx.openSheet(restTodaySheet); },
   other(el, ctx) { ctx.openSheet(otherSheet); },
-  'toggle-plan'(el, ctx) { openPlan = openPlan === el.dataset.id ? null : el.dataset.id; ctx.render(); },
   'add-cardio'(el, ctx) {
     cardioDraft = { type: 'run', minutes: null, km: null, date: today(), after: ctx.state.workouts.some((w) => w.date === today()) };
     ctx.openSheet(cardioSheet);
@@ -193,3 +189,6 @@ function keepCardioInputs() {
   if (k) cardioDraft.km = parseNum(k.value);
   if (d && d.value) cardioDraft.date = d.value;
 }
+
+export const inputs = { ...daySheet.inputs };
+export const changes = { ...daySheet.changes };

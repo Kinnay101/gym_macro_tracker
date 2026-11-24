@@ -19,6 +19,8 @@ export function toDocs(state) {
   for (const w of state.workouts || []) m.set(`workout:${w.id}`, w);
   for (const c of state.cardio || []) m.set(`cardio:${c.id}`, c);
   for (const [date, v] of Object.entries(state.dayChoice || {})) m.set(`choice:${date}`, v);
+  if (state.training) m.set('training', state.training);
+  for (const [date, v] of Object.entries(state.plannedCardio || {})) if (v?.length) m.set(`pcardio:${date}`, v);
   for (const [date, v] of Object.entries(state.healthDays || {})) m.set(`hday:${date}`, v);
   for (const [id, v] of Object.entries(state.healthWorkouts || {})) m.set(`hw:${id}`, v);
   for (const [date, v] of Object.entries(state.healthSleep || {})) m.set(`sleep:${date}`, v);
@@ -53,6 +55,8 @@ export function applyDoc(state, key, value) {
     case 'workout': upsertBy(state.workouts, 'id', a); break;
     case 'cardio': upsertBy(state.cardio, 'id', a); break;
     case 'choice': if (del) delete state.dayChoice[a]; else state.dayChoice[a] = value; break;
+    case 'training': if (!del && value?.splits?.length) state.training = value; break;
+    case 'pcardio': state.plannedCardio ||= {}; if (del) delete state.plannedCardio[a]; else state.plannedCardio[a] = value; break;
     case 'hday': state.healthDays ||= {}; if (del) delete state.healthDays[a]; else state.healthDays[a] = value; break;
     case 'hw': state.healthWorkouts ||= {}; if (del) delete state.healthWorkouts[a]; else state.healthWorkouts[a] = value; break;
     case 'sleep': state.healthSleep ||= {}; if (del) delete state.healthSleep[a]; else state.healthSleep[a] = value; break;

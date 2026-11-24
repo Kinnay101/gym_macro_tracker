@@ -1,7 +1,7 @@
 // Körper & Profil: Gewicht, Maße, Ziele, Einstellungen, Daten-Export
 import { esc, num, today, daysBetween, icon, I, parseNum } from '../util.js';
 import { t, shortDate } from '../i18n.js';
-import { calcGoals, goals, currentWeight, activityLevel, goalAmount, rebalanceGoals, ADJ_MAX } from '../nutrition.js';
+import { calcGoals, goals, currentWeight, activityLevel, goalAmount, rebalanceGoals, lockedFields, GOAL_FIELDS, ADJ_MAX, extraGoalDefaults } from '../nutrition.js';
 import { header, seg, lineChart, energy, sheetHead, healthMark } from '../ui.js';
 import * as store from '../store.js';
 import * as sync from '../sync.js';
@@ -9,6 +9,7 @@ import * as social from '../social.js';
 import * as measuresView from './measures.js';
 import * as healthSetup from './healthSetup.js';
 import * as feedbackView from './feedback.js';
+import { rhythmName } from './today.js';
 
 
 export function render(state, params, ctx) {
@@ -58,6 +59,7 @@ export function render(state, params, ctx) {
         ? `<div class="row between"><span class="tag accent">${esc(t('body.manual'))}</span><button class="link" data-act="auto-goals">${esc(t('body.backToAuto'))}</button></div>`
         : ''}
       <button class="btn sm ghost" data-act="manual-goals">${esc(t('body.setManual'))}</button>
+      ${extraGoalsBox(p, g)}
     </section>
 
     <section class="card">
@@ -159,7 +161,7 @@ function activityBox(state) {
   const a = activityLevel(state);
   const how = a.source === 'tracked'
     ? t('body.actTracked', { n: num(a.perWeek, 1) })
-    : t('body.actRhythm', { rhythm: state.profile.rhythmNames?.[state.profile.rhythm] || t('rhythm.' + state.profile.rhythm) });
+    : t('body.actRhythm', { rhythm: rhythmName(state) });
   return `<div class="stack" style="gap:2px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px">
     <div class="row between"><span class="tiny muted">${esc(t('body.activity'))}</span><b>${esc(t('act.' + a.key))} · ×${num(a.factor, 3)}</b></div>
     <div class="tiny muted">${esc(how)}</div></div>`;
@@ -174,15 +176,28 @@ function adjField(p) {
     <span class="tiny muted">${esc(t(p.goal === 'cut' ? 'body.adjCutHint' : 'body.adjBulkHint'))}</span></label>`;
 }
 
+/** Ballaststoffe (min.), Zucker, Salz, gesättigte Fette (max.) – leer = Standard. */
+function extraGoalsBox(p, g) {
+  const def = extraGoalDefaults(g.kcal);
+  const own = p.goalExtra || {};
+  const rows = [['fiber', 'n.fiber', 'body.min'], ['sugar', 'n.sugar', 'body.max'], ['salt', 'n.salt', 'body.max'], ['sfa', 'n.sfa', 'body.max']];
+  return `<div class="stack" style="gap:8px"><div class="small" style="font-weight:600">${esc(t('body.moreGoals'))}</div>
+    <div class="grid2">${rows.map(([k, l, mm]) => `<label class="field">${esc(t(l))} · ${esc(t(mm))} (g)<input class="input" inputmode="decimal" data-in="goal-extra" data-k="${k}" value="${own[k] ?? ''}" placeholder="${num(def[k], k === 'salt' ? 1 : 0)}"></label>`).join('')}</div>
+    <div class="tiny muted">${esc(t('body.moreGoalsHint'))}</div></div>`;
+}
+
 function goalBox(label, v) {
   return `<div class="stack" style="gap:2px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px"><span class="tiny muted">${esc(label)}</span><b>${esc(v)}</b></div>`;
 }
 
-// Ziel-Fenster: aktuelle Werte und Ausgangslage des gerade bearbeiteten Feldes (damit Tippen „3“ → „30“ → „3000“
-// immer vom gleichen Stand aus rechnet und das Verhältnis nicht verloren geht)
+// Ziel-Fenster: aktuelle Werte, Ausgangslage des gerade bearbeiteten Feldes (damit Tippen „3“ → „30“ → „3000“
+// immer vom gleichen Stand aus rechnet) und Reihenfolge der Eingaben (die letzten drei bleiben stehen).
+// Zu Beginn gelten die kcal als „eingegeben“ → wer nur ein Makro ändert, behält seine kcal.
 let gCur = null;
 let gBase = null;
 let gField = null;
+let gOrder = ['kcal'];
+let gLocked = ['kcal'];
 
 function splitText(o) {
   const tot = o.p * 4 + o.c * 4 + o.f * 9 || 1;
@@ -193,10 +208,10 @@ function splitText(o) {
 function manualSheet(state) {
   const g = goals(state);
   gCur = { kcal: g.kcal, p: g.p, c: g.c, f: g.f };
-  gBase = null; gField = null;
+  gBase = null; gField = null; gOrder = ['kcal']; gLocked = ['kcal'];
   return `${sheetHead(t('body.setManual'))}
     <div class="small muted">${esc(t('body.manualHint'))}</div>
-    <div class="grid2">${[['kcal', 'n.kcal'], ['p', 'n.p'], ['c', 'n.c'], ['f', 'n.f']].map(([k, l]) => `<label class="field">${esc(t(l))}${k === 'kcal' ? ' (kcal)' : ' (g)'}<input class="input" inputmode="numeric" id="g-${k}" data-in="goal-field" data-k="${k}" value="${gCur[k]}"></label>`).join('')}</div>
+    <div class="grid2">${[['kcal', 'n.kcal'], ['p', 'n.p'], ['c', 'n.c'], ['f', 'n.f']].map(([k, l]) => `<label class="field"><span>${esc(t(l))}${k === 'kcal' ? ' (kcal)' : ' (g)'} <span class="tiny" id="g-tag-${k}" style="color:var(--accent)" hidden>${esc(t('body.computed'))}</span></span><input class="input" inputmode="numeric" id="g-${k}" data-in="goal-field" data-k="${k}" value="${gCur[k]}"></label>`).join('')}</div>
     <div class="tiny muted" id="g-split">${esc(splitText(gCur))}</div>
     <button class="btn primary block" data-act="save-goals">${esc(t('common.save'))}</button>`;
 }
@@ -309,10 +324,18 @@ export const inputs = {
     if (!gCur) return;
     const k = el.dataset.k;
     const v = parseNum(el.value);
-    if (gField !== k) { gBase = { ...gCur }; gField = k; }
+    if (gField !== k) {
+      // neues Feld angefangen → Stand merken, Feld ans Ende der Reihenfolge, die letzten drei bleiben stehen
+      gBase = { ...gCur }; gField = k;
+      gOrder = [...gOrder.filter((x) => x !== k), k];
+      gLocked = lockedFields(gOrder);
+    }
     if (v == null) return;
-    gCur = rebalanceGoals(gBase, k, v);
-    for (const f of ['kcal', 'p', 'c', 'f']) {
+    const { values, computed } = rebalanceGoals(gBase, gLocked, k, v);
+    gCur = values;
+    for (const f of GOAL_FIELDS) {
+      const tag = document.getElementById('g-tag-' + f);
+      if (tag) tag.hidden = !computed.includes(f);
       if (f === k) continue;
       const inp = document.getElementById('g-' + f);
       if (inp) inp.value = gCur[f];
@@ -324,6 +347,17 @@ export const inputs = {
 
 export const changes = {
   ...measuresView.changes,
+  'goal-extra'(el, ctx) {
+    const k = el.dataset.k;
+    const raw = el.value.trim();
+    const v = raw === '' ? null : parseNum(raw);
+    if (raw !== '' && (v == null || v < 0 || v > 1000)) { ctx.toast(t('body.extraInvalid')); ctx.render(); return; }
+    ctx.update((s) => {
+      const e = { ...(s.profile.goalExtra || {}) };
+      if (v == null) delete e[k]; else e[k] = Math.round(v * 10) / 10;
+      s.profile.goalExtra = e;
+    });
+  },
   goalAdj(el, ctx) {
     const v = parseNum(el.value);
     const goal = ctx.state.profile.goal;

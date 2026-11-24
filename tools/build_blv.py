@@ -7,7 +7,8 @@ Aufruf (beide Excel-Dateien vorher von der Seite herunterladen, deutsch und engl
     python tools/build_blv.py Schweizer_Nahrwertdatenbank.xlsx Swiss_food_composition_database.xlsx
 
 Ergebnis: data/blv.json mit kompakten Zeilen
-    [id, name_de, name_en, synonyme_de, kategorie (1 = generisch, 2 = Markenprodukt), kcal, p, c, f, fiber, sugar, salt]
+    [id, name_de, name_en, synonyme_de, kategorie (1 = generisch, 2 = Markenprodukt), kcal, p, c, f, fiber, sugar, salt, sfa]
+(sfa = gesättigte Fettsäuren; ungesättigte rechnet die App als Fett minus gesättigte)
 Werte pro 100 g essbarer Anteil; fehlende Angaben ("k.A.") werden zu null.
 """
 import json
@@ -27,8 +28,9 @@ COLS = {
     'fiber': 'Nahrungsfasern (g)',
     'sugar': 'Zucker (g)',
     'salt': 'Salz (NaCl) (g)',
+    'sfa': 'Fettsäuren, gesättigt (g)',
 }
-ORDER = ['kcal', 'p', 'c', 'f', 'fiber', 'sugar', 'salt']
+ORDER = ['kcal', 'p', 'c', 'f', 'fiber', 'sugar', 'salt', 'sfa']
 
 
 def num(v, dec):

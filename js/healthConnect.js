@@ -142,6 +142,8 @@ export function nutritionRecords(state, from, to) {
         start: start.toISOString(), end: new Date(start.getTime() + 15 * 60000).toISOString(),
         kcal: round(n.kcal, 0), proteinG: round(n.p, 1), carbsG: round(n.c, 1), fatG: round(n.f, 1),
         fiberG: round(n.fiber, 1), sugarG: round(n.sugar, 1), sodiumG: round(n.salt / 2.5, 3), // Salz → Natrium
+        // Gesättigte/ungesättigte Fette nur, wenn sie für alle Einträge der Mahlzeit bekannt sind (sonst wären sie zu tief)
+        ...(n.sfaN === n.count ? { saturatedFatG: round(n.sfa, 1), unsaturatedFatG: round(Math.max(0, n.f - n.sfa), 1) } : {}),
       });
     }
   }
@@ -151,7 +153,7 @@ export function nutritionRecords(state, from, to) {
 const SENT_KEY = 'gmt-hc-sent'; // pro Gerät: was zuletzt an Health Connect geschickt wurde { id: Fingerabdruck }
 const loadSent = () => { try { return JSON.parse(localStorage.getItem(SENT_KEY)) || {}; } catch { return {}; } };
 const saveSent = (m) => { try { localStorage.setItem(SENT_KEY, JSON.stringify(m)); } catch { /* egal */ } };
-const fp = (r) => JSON.stringify([r.kcal, r.proteinG, r.carbsG, r.fatG, r.fiberG, r.sugarG, r.sodiumG, r.name]);
+const fp = (r) => JSON.stringify([r.kcal, r.proteinG, r.carbsG, r.fatG, r.fiberG, r.sugarG, r.sodiumG, r.saturatedFatG ?? null, r.unsaturatedFatG ?? null, r.name]);
 
 /** Nur Geänderte schicken; gelöschte Mahlzeiten (früher geschickt, jetzt leer) entfernen. */
 export function nutritionChanges(state, from, to, sent = loadSent()) {

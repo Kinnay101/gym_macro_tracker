@@ -11,9 +11,11 @@ import { NUTRIENTS, forGrams, emptyTotals } from './nutrition.js';
 export function recipeTotals(r) {
   const total = emptyTotals();
   let raw = 0;
+  let sfaUnknown = false; // gesättigte Fette einer Zutat mit Fett unbekannt → fürs ganze Rezept unbekannt
   for (const it of r.items || []) {
     const n = forGrams(it.per100, it.grams || 0);
-    for (const k of NUTRIENTS) total[k] += n[k];
+    for (const k of NUTRIENTS) total[k] += n[k] || 0;
+    if (n.sfa == null && n.f > 0) sfaUnknown = true;
     raw += it.grams || 0;
   }
   const totalWeight = r.cookedWeight > 0 ? r.cookedWeight : raw;
@@ -26,6 +28,7 @@ export function recipeTotals(r) {
     perPortion[k] = round(total[k] / servings, dec);
     total[k] = round(total[k], dec);
   }
+  if (sfaUnknown) { per100.sfa = null; perPortion.sfa = null; total.sfa = null; }
   return { total, raw: round(raw, 0), totalWeight: round(totalWeight, 0), servings, per100, perPortion, portionGrams: totalWeight ? round(totalWeight / servings, 0) : 0 };
 }
 

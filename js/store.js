@@ -1,13 +1,16 @@
 // Datenspeicher. Vorerst nur lokal im Browser (localStorage).
 // Später kommt hier der Sync mit Supabase dazu – der Rest der App spricht nur mit diesem Modul.
 import { uid } from './util.js';
-import { defaultPlans } from './plan.js';
+import { defaultPlans, ensureTraining } from './plan.js';
 
 const KEY = 'gmt-data-v1';
 const listeners = new Set();
 let data = load();
 
 function blank() {
+  return ensureTraining(blankRaw());
+}
+function blankRaw() {
   return {
     version: 1,
     profile: {
@@ -33,7 +36,10 @@ function blank() {
     measures: [], // { date, status?, bf?, shoulders, chest, waist, hips, bicepsR/L, bicepsR/LFlex, forearmR/LFlex, thighR/L, calfR/L … } in cm, siehe js/measures.js
     workouts: [], // abgeschlossene Trainings
     cardio: [], // { id, date, type, minutes, km, after }
-    dayChoice: {}, // { 'JJJJ-MM-TT': 'rest' | planId } – manuelle Wahl für einen Tag
+    dayChoice: {}, // { 'JJJJ-MM-TT': 'rest' | planId } – Tag im Plan geändert
+    // Splits & Kalender-Planung (siehe js/plan.js): { splits, activeSplit, anchor: { date, index }, shifts: [Datum], weeklyCardio: [{ id, weekday, type, minutes }] }
+    training: null,
+    plannedCardio: {}, // { 'JJJJ-MM-TT': [{ id, type, minutes }] } – Cardio für einen bestimmten Tag geplant
     active: null, // laufendes Training
     // Apple Health (über Kurzbefehl, siehe js/health.js)
     healthDays: {}, // { 'JJJJ-MM-TT': { steps, activeKcal, bodyFat } }
@@ -56,9 +62,11 @@ function load() {
 
 /** Ergänzt fehlende Felder, wenn eine ältere Version gespeichert war. */
 function migrate(d) {
-  const b = blank();
+  const b = blankRaw();
   const out = { ...b, ...d, profile: { ...b.profile, ...(d.profile || {}) } };
   if (!Array.isArray(out.plans) || !out.plans.length) out.plans = b.plans;
+  // Vor den Splits: Rhythmus „Volle Woche“/„Locker“ → Split, beginnt heute beim bisherigen Vorschlag
+  ensureTraining(out);
   // Alte Masse (vor 22.11.): 'arm' hiess jetzt 'biceps'
   out.measures = (out.measures || []).map((m) => {
     if (m.arm == null) return m;

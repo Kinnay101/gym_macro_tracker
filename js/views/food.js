@@ -59,7 +59,45 @@ export function render(state, params, ctx) {
         ${mini(t('n.sugar'), tot.sugar, g.sugar, 'g', true)}
         ${mini(t('n.salt'), tot.salt, g.salt, 'g', true)}
       </div>
+      ${fatSplit(tot, g)}
     </section>`;
+}
+
+/**
+ * Fett-Balken: ganzer Balken = Fett-Ziel des Tages. Darin gesättigt (kräftig), ungesättigt (heller),
+ * unbekannt (gestreift, Einträge ohne Angabe) und der Rest bis zum Ziel (leer).
+ * Der Strich markiert das Maximum für gesättigte Fette. Über dem Ziel wird der Balken länger und das Ziel ebenfalls markiert.
+ * Ungesättigt = Fett − gesättigt (nur aus Einträgen, bei denen gesättigt bekannt ist).
+ */
+function fatSplit(tot, g) {
+  if (!tot.count || !(tot.f > 0)) return '';
+  const sat = tot.sfa || 0;
+  const unsat = Math.max(0, tot.sfaFat - sat);
+  const unknown = Math.max(0, tot.f - tot.sfaFat);
+  const free = Math.max(0, g.f - tot.f);
+  const scale = Math.max(g.f, tot.f) || 1;
+  const w = (v) => `${((v / scale) * 100).toFixed(2)}%`;
+  const over = sat > g.sfa;
+  const pct = tot.sfaFat > 0 ? Math.round((sat / tot.sfaFat) * 100) : null;
+  const sw = (cls) => `<i class="fs ${cls}"></i>`;
+  return `<div class="stack" style="gap:8px">
+    <div class="row between"><span class="tiny muted">${esc(t('n.f'))}</span>
+      <span class="tiny muted">${num(tot.f, 1)} / ${num(g.f)} g</span></div>
+    <div class="fat-bar" role="img" aria-label="${esc(t('n.sfa'))} ${num(sat, 1)} g, ${esc(t('n.unsatShort'))} ${num(unsat, 1)} g, ${esc(t('n.f'))} ${num(tot.f, 1)} / ${num(g.f)} g">
+      <div class="fat-fill"><i class="s" style="width:${w(sat)}"></i><i class="u" style="width:${w(unsat)}"></i><i class="x" style="width:${w(unknown)}"></i></div>
+      <span class="fat-mark" style="left:${w(Math.min(g.sfa, scale))}"></span>
+      ${tot.f > g.f ? `<span class="fat-mark goal" style="left:${w(g.f)}"></span>` : ''}
+    </div>
+    <div class="fat-legend small">
+      <span>${sw('s')}<b style="${over ? 'color:var(--warn)' : ''}">${num(sat, 1)} g</b> ${esc(t('n.sfaShort'))}${pct != null ? ` (${pct} %)` : ''}</span>
+      <span>${sw('u')}<b>${num(unsat, 1)} g</b> ${esc(t('n.unsatShort'))}</span>
+      ${unknown > 0.05 ? `<span>${sw('x')}<b>${num(unknown, 1)} g</b> ${esc(t('food.fatUnknown'))}</span>` : ''}
+      <span>${sw('free')}<b>${num(free, 1)} g</b> ${esc(t('food.fatFree'))}</span>
+      <span><i class="fs mark"></i>${esc(t('food.max'))} ${num(g.sfa)} g ${esc(t('n.sfaShort'))}</span>
+    </div>
+    <div class="tiny muted">${esc(over ? t('food.sfaOver') : t('food.fatTip'))}</div>
+    ${unknown > 0.05 ? `<div class="tiny muted">${esc(t('food.sfaPartial', { n: tot.count - tot.sfaN }))}</div>` : ''}
+  </div>`;
 }
 
 // ---------- Tab Rezepte ----------

@@ -71,7 +71,7 @@ begin
   if export_date ~ '^\d{4}-\d{2}-\d{2}$' then
     d := export_date::date;
     if t.last_export is null or d > t.last_export then
-      select jsonb_build_object(
+      select jsonb_strip_nulls(jsonb_build_object(
           'date', export_date,
           'kcal', round(coalesce(sum((x.data->'n'->>'kcal')::numeric), 0), 0),
           'protein', round(coalesce(sum((x.data->'n'->>'p')::numeric), 0), 1),
@@ -80,7 +80,10 @@ begin
           'fiber', round(coalesce(sum((x.data->'n'->>'fiber')::numeric), 0), 1),
           'sugar', round(coalesce(sum((x.data->'n'->>'sugar')::numeric), 0), 1),
           'salt', round(coalesce(sum((x.data->'n'->>'salt')::numeric), 0), 2),
-          'entries', count(*))
+          -- gesättigte Fette nur, wenn sie bei allen Einträgen mit Fett bekannt sind (sonst fehlt der Schlüssel)
+          'satfat', case when bool_and((x.data->'n'->>'sfa') is not null or coalesce((x.data->'n'->>'f')::numeric, 0) = 0)
+                         then round(coalesce(sum((x.data->'n'->>'sfa')::numeric), 0), 1) end,
+          'entries', count(*)))
         into tot
         from public.docs x
         where x.user_id = t.user_id and not x.deleted and x.key like 'entry:' || export_date || ':%';

@@ -1,8 +1,9 @@
 // Ernährung: Tagesziele berechnen, Summen bilden, Grundnahrungsmittel.
 import { round, today, addDays, daysBetween } from './util.js';
+import { plannedPerWeek } from './plan.js';
 
 export const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'];
-export const NUTRIENTS = ['kcal', 'p', 'c', 'f', 'fiber', 'sugar', 'salt'];
+export const NUTRIENTS = ['kcal', 'p', 'c', 'f', 'fiber', 'sugar', 'salt', 'sfa']; // sfa = gesättigte Fettsäuren (kann null sein)
 
 /** Aktuelles Körpergewicht = letzter Eintrag. */
 export function currentWeight(state) {
@@ -15,7 +16,7 @@ const LEVELS = [[1, 1.2, 'sedentary'], [3, 1.375, 'light'], [5.5, 1.55, 'moderat
 
 /**
  * Aktivität aus dem, was in der App erfasst ist: Krafttrainings (Tage) + Cardio (45 min ≈ 1 Einheit)
- * der letzten 4 Wochen. Mit weniger als 2 Wochen Verlauf: Schätzung aus dem Rhythmus (Volle Woche 6, Locker ≈ 5,25).
+ * der letzten 4 Wochen. Mit weniger als 2 Wochen Verlauf: Schätzung aus dem aktiven Split (Trainingstage + geplantes Cardio pro Woche).
  */
 export function activityLevel(state, now = today()) {
   // Apple-Watch-Workouts zählen mit: Krafttraining als Trainingstag, alles andere als Cardio-Minuten.
@@ -28,7 +29,7 @@ export function activityLevel(state, now = today()) {
   let perWeek;
   let source;
   if (!all.length || daysBetween(all[0], now) < 13) {
-    perWeek = state.profile.rhythm === 'light' ? 5.25 : 6;
+    perWeek = plannedPerWeek(state).total;
     source = 'rhythm';
   } else {
     const from = addDays(now, -27);
@@ -55,38 +56,49 @@ export function goalAdjust(profile) {
   return profile.goal === 'cut' ? -v : v;
 }
 
+export const GOAL_FIELDS = ['kcal', 'p', 'c', 'f'];
+const KCAL_PER_G = { p: 4, c: 4, f: 9 };
+
+/** Welche Felder bleiben stehen: die drei zuletzt eingegebenen (order = Eingabe-Reihenfolge, ältestes zuerst). */
+export function lockedFields(order) {
+  return [...new Set([...order].reverse())].slice(0, 3);
+}
+
 /**
- * Makros anpassen, wenn im Ziel-Fenster ein Wert geändert wird (base = Werte vor dem Ändern):
- * - kcal: Protein, Kohlenhydrate und Fett im gleichen Verhältnis mitskalieren
- * - Protein: kcal bleiben, Kohlenhydrate und Fett teilen sich den Rest im bisherigen Verhältnis
- * - Kohlenhydrate: kcal bleiben, Fett gleicht aus · Fett: kcal bleiben, Kohlenhydrate gleichen aus
+ * Ziel-Fenster: Ein Wert wurde eingegeben → die anderen passen sich an (base = Werte vor dieser Eingabe).
+ * Die drei zuletzt eingegebenen Werte bleiben stehen (locked), der Rest wird ausgerechnet:
+ * - kcal nicht mehr unter den letzten drei → kcal = 4 × Protein + 4 × KH + 9 × Fett
+ * - nur kcal festgelegt → Protein, KH und Fett im gleichen Verhältnis mitskalieren
+ * - zwei Makros offen → die teilen sich den Rest im bisherigen Verhältnis; Protein bleibt dabei möglichst stehen
  * Reicht der Rest nicht (Ausgleich wäre unter 0), steigen die kcal stattdessen.
+ * Gibt { values, computed } zurück – computed = Felder, die ausgerechnet wurden.
  */
-export function rebalanceGoals(base, field, value) {
+export function rebalanceGoals(base, locked, field, value) {
   const v = Math.max(0, value);
   const kcalOf = (o) => o.p * 4 + o.c * 4 + o.f * 9;
-  if (field === 'kcal') {
-    const from = kcalOf(base) || 1;
-    const k = v / from;
-    return { kcal: Math.round(v), p: Math.round(base.p * k), c: Math.round(base.c * k), f: Math.round(base.f * k) };
-  }
   const out = { ...base, [field]: v };
-  const kcal = base.kcal;
-  if (field === 'p') {
-    const rest = kcal - v * 4;
-    const cE = base.c * 4, fE = base.f * 9;
-    const share = cE + fE > 0 ? cE / (cE + fE) : 0.6;
-    out.c = Math.max(0, (rest * share) / 4);
-    out.f = Math.max(0, (rest * (1 - share)) / 9);
-  } else if (field === 'c') {
-    out.f = Math.max(0, (kcal - base.p * 4 - v * 4) / 9);
-  } else if (field === 'f') {
-    out.c = Math.max(0, (kcal - base.p * 4 - v * 9) / 4);
+  const lock = new Set([...locked, field]);
+  let free = ['p', 'c', 'f'].filter((m) => !lock.has(m));
+
+  // kcal offen → aus den drei Makros ausrechnen
+  if (!lock.has('kcal')) {
+    out.kcal = Math.round(kcalOf(out));
+    return { values: out, computed: ['kcal'] };
   }
-  for (const k of ['p', 'c', 'f']) out[k] = Math.round(out[k]);
+  // Protein ändert sich nur, wenn sonst nichts offen ist (z. B. nur kcal eingegeben)
+  if (free.length === 2 && free.includes('p')) free = free.filter((m) => m !== 'p');
+
+  const fixedE = ['p', 'c', 'f'].filter((m) => !free.includes(m)).reduce((s, m) => s + out[m] * KCAL_PER_G[m], 0);
+  const rest = out.kcal - fixedE;
+  const baseE = free.reduce((s, m) => s + base[m] * KCAL_PER_G[m], 0);
+  for (const m of free) {
+    const share = baseE > 0 ? (base[m] * KCAL_PER_G[m]) / baseE : 1 / free.length;
+    out[m] = Math.max(0, Math.round((rest * share) / KCAL_PER_G[m]));
+  }
+  // Reicht der Rest nicht (Makros schon über den kcal) → kcal steigen
   const need = kcalOf(out);
-  out.kcal = need > kcal + 10 ? Math.round(need / 10) * 10 : kcal; // kleine Rundungsdifferenzen ignorieren
-  return out;
+  if (need > out.kcal + 10) return { values: { ...out, kcal: Math.round(need) }, computed: [...free, 'kcal'] };
+  return { values: out, computed: free };
 }
 
 /**
@@ -110,19 +122,37 @@ export function calcGoals(state) {
   return { kcal, p, c, f, tdee: Math.round(tdee), bmr: Math.round(bmr), act };
 }
 
-/** Ziel, das die App benutzt: manuell gesetzt oder berechnet. */
+/** Weitere Tagesziele (selbst einstellbar unter Körper → Ziel). Gesättigte Fette: max. 10 % der kcal (WHO). */
+export const EXTRA_GOALS = ['fiber', 'sugar', 'salt', 'sfa'];
+export function extraGoalDefaults(kcal) {
+  return { fiber: 30, sugar: 50, salt: 5, sfa: Math.round((kcal * 0.1) / 9) };
+}
+
+/** Ziel, das die App benutzt: manuell gesetzt oder berechnet; weitere Ziele selbst gesetzt oder Standard. */
 export function goals(state) {
   const base = state.profile.goalOverride || calcGoals(state);
-  return { fiber: 30, sugar: 50, salt: 5, ...(base || { kcal: 2500, p: 150, c: 280, f: 80 }), isDefault: !base };
+  const main = base || { kcal: 2500, p: 150, c: 280, f: 80 };
+  const extra = Object.fromEntries(Object.entries(state.profile.goalExtra || {}).filter(([k, v]) => EXTRA_GOALS.includes(k) && v != null));
+  return { ...extraGoalDefaults(main.kcal), ...main, ...extra, isDefault: !base };
 }
 
 export function emptyTotals() {
   return Object.fromEntries(NUTRIENTS.map((k) => [k, 0]));
 }
 
+/**
+ * Summen eines Tages. Gesättigte Fette sind nicht bei allen Einträgen bekannt (ältere Einträge, manche Produkte):
+ * sfa = Summe der bekannten, sfaFat = Fett genau dieser Einträge (für das Verhältnis), sfaN/count = wie viele bekannt.
+ */
 export function sumEntries(entries) {
   const t = emptyTotals();
-  for (const e of entries) for (const k of NUTRIENTS) t[k] += e.n?.[k] || 0;
+  t.sfaFat = 0; t.sfaN = 0; t.count = 0;
+  for (const e of entries) {
+    for (const k of NUTRIENTS) t[k] += e.n?.[k] || 0;
+    t.count++;
+    if (e.n?.sfa != null) { t.sfaN++; t.sfaFat += e.n.f || 0; }
+    else if (!(e.n?.f > 0)) t.sfaN++; // ohne Fett ist nichts unbekannt
+  }
   return t;
 }
 
@@ -133,7 +163,11 @@ export function dayEntries(state, key) {
 /** Nährwerte für eine Menge berechnen (Werte pro 100 g). */
 export function forGrams(per100, grams) {
   const out = {};
-  for (const k of NUTRIENTS) out[k] = round(((per100?.[k] || 0) * grams) / 100, k === 'salt' ? 2 : 1);
+  for (const k of NUTRIENTS) {
+    // gesättigte Fette: unbekannt bleibt unbekannt (null), nicht 0
+    if (k === 'sfa' && per100?.sfa == null) { out.sfa = null; continue; }
+    out[k] = round(((per100?.[k] || 0) * grams) / 100, k === 'salt' ? 2 : 1);
+  }
   return out;
 }
 

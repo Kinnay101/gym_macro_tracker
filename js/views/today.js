@@ -2,7 +2,7 @@
 import { esc, num, today, addDays, weekStart, parseKey, icon, I } from '../util.js';
 import { t, weekdayShort, longDate } from '../i18n.js';
 import { goals, sumEntries, dayEntries, MEALS, currentWeight } from '../nutrition.js';
-import { schedule, planMuscles } from '../plan.js';
+import { schedule, planMuscles, activeSplit } from '../plan.js';
 import { startWorkout } from '../workout.js';
 import { healthWorkoutsBetween, isIOS, runShortcut } from '../health.js';
 import * as hc from '../healthConnect.js';
@@ -52,9 +52,10 @@ function trainingCard(state, key) {
   if (d.kind === 'done') {
     return `<section class="card"><div class="tiny muted">${esc(t('today.doneToday'))}</div><div class="row between"><h2>${esc(plans[d.planId]?.name || t('training.workout'))}</h2>${icon(I.check)}</div></section>`;
   }
+  const cardioLine = d.cardio?.length ? `<div class="small" style="color:var(--cardio)">${icon(I.run)} ${esc(d.cardio.map((c) => `${t('cardio.' + c.type)} ${num(c.minutes)} min`).join(' · '))}</div>` : '';
   if (d.kind === 'rest') {
-    return `<section class="card"><div class="tiny muted">${esc(t('today.suggested'))}</div><h2>${esc(t('training.rest'))}</h2>
-      <div class="small muted">${esc(t('today.restHint'))}</div><a class="link" href="#/training">${esc(t('today.toTraining'))}</a></section>`;
+    return `<section class="card"><div class="tiny muted">${esc(t('today.suggested'))} · ${esc(rhythmName(state))}</div><h2>${esc(d.shifted ? t('plan.pause') : t('training.rest'))}</h2>
+      <div class="small muted">${esc(d.shifted ? t('plan.shiftedHint') : t('today.restHint'))}</div>${cardioLine}<a class="link" href="#/training">${esc(t('today.toTraining'))}</a></section>`;
   }
   const p = plans[d.planId];
   const muscles = planMuscles(p).map((m) => t('m.' + m)).join(' · ');
@@ -64,12 +65,15 @@ function trainingCard(state, key) {
     <div class="card-head"><div class="grow"><h2>${esc(p.name)}</h2><div class="small muted">${esc(muscles)}</div>
       <div class="tiny muted" style="margin-top:4px">${esc(t('training.exCount', { n: p.ex.length }))}${optional ? ' · ' + esc(t('training.optCount', { n: optional })) : ''}</div></div>
       <button class="btn primary" data-act="start" data-plan="${esc(p.id)}">${esc(t('training.start'))}</button></div>
+    ${cardioLine}
   </section>`;
 }
 
-export function rhythmName(state) {
-  const r = state.profile.rhythm;
-  return state.profile.rhythmNames?.[r] || t('rhythm.' + r);
+/** Name des aktiven Splits (Standard-Splits ohne eigenen Namen: „Volle Woche“ / „Locker“). */
+export function rhythmName(state) { return splitName(activeSplit(state)); }
+export function splitName(sp) {
+  if (!sp) return '';
+  return sp.name || (sp.id === 'full' || sp.id === 'light' ? t('rhythm.' + sp.id) : t('split.unnamed'));
 }
 
 function weekCard(state, key) {
@@ -81,13 +85,14 @@ function weekCard(state, key) {
     const d = addDays(start, i);
     const trained = state.workouts.some((w) => w.date === d);
     const cardio = state.cardio.some((c) => c.date === d) || healthWorkoutsBetween(state, d, d).some((w) => w.kind !== 'strength');
+    const cardioPlanned = !cardio && d >= key && byDate[d]?.cardio?.length;
     let cls = '';
     if (trained) cls = 'done';
     else if (d === key) cls = 'today';
     else if (d < key || byDate[d]?.kind === 'rest') cls = 'rest';
-    const inner = `<span style="${d === key ? 'color:var(--accent)' : ''}">${esc(weekdayShort(d))}</span><span class="c ${cls}">${parseKey(d).getDate()}</span><span class="dot ${cardio ? 'on' : ''}"></span>`;
-    // Vergangene Tage und heute antippbar → Tagesübersicht
-    days.push(d <= key ? `<button type="button" class="d" data-act="day-open" data-d="${esc(d)}" aria-label="${esc(longDate(d))}">${inner}</button>` : `<div class="d">${inner}</div>`);
+    const inner = `<span style="${d === key ? 'color:var(--accent)' : ''}">${esc(weekdayShort(d))}</span><span class="c ${cls}">${parseKey(d).getDate()}</span><span class="dot ${cardio ? 'on' : cardioPlanned ? 'plan' : ''}"></span>`;
+    // Jeder Tag antippbar → Tagesübersicht (kommende Tage: Plan ändern, Cardio planen)
+    days.push(`<button type="button" class="d" data-act="day-open" data-d="${esc(d)}" aria-label="${esc(longDate(d))}">${inner}</button>`);
   }
   return `<section class="card"><div class="card-head"><h3>${esc(t('today.week'))}</h3><span class="tiny muted">${esc(t('today.weekLegend'))}</span></div><div class="week">${days.join('')}</div></section>`;
 }
@@ -135,6 +140,9 @@ function weightCard(state) {
   return `<a class="card tight" href="#/body" style="color:inherit"><div class="row between"><div><div class="tiny muted">${esc(t('body.weight'))}</div>
     <div class="big">${kg ? num(kg, 1) + ' kg' : '–'}</div></div><span class="link">${esc(kg ? t('body.addWeight') : t('body.firstWeight'))}</span></div></a>`;
 }
+
+export const inputs = { ...daySheet.inputs };
+export const changes = { ...daySheet.changes };
 
 export const actions = {
   ...daySheet.actions,

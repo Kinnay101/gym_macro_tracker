@@ -3,6 +3,7 @@
 import { today, addDays, weekStart, e1rm, round } from './util.js';
 import { currentWeight } from './nutrition.js';
 import { workingSets } from './workout.js';
+import { plannedPerWeek } from './plan.js';
 import { fingerprint } from './docs.js';
 import * as sync from './sync.js';
 import * as store from './store.js';
@@ -16,8 +17,8 @@ export function shareSettings(state) {
   return { strength: true, consistency: true, volume: true, prs: true, ...(state.profile.share || {}) };
 }
 
-/** Wochenziel aus dem Rhythmus: Volle Woche 6, Locker 3 von 4 Tagen (≈ 5,25). */
-function weeklyTarget(state) { return state.profile.rhythm === 'light' ? 5.25 : 6; }
+/** Wochenziel aus dem aktiven Split: Krafttrainings pro Woche (Volle Woche 6, Locker ≈ 5,25). */
+function weeklyTarget(state) { return plannedPerWeek(state).strength || 1; }
 
 /** Die Zusammenfassung, die Freunde sehen dürfen (nur freigegebene Bereiche). */
 export function computeStats(state, now = today()) {

@@ -25,9 +25,9 @@ export function loadBlv() {
   blvPromise ??= fetch('data/blv.json')
     .then((r) => r.json())
     .then((d) => {
-      blv = d.rows.map(([id, de, en, syn, kind, kcal, p, c, f, fiber, sugar, salt]) => ({
+      blv = d.rows.map(([id, de, en, syn, kind, kcal, p, c, f, fiber, sugar, salt, sfa]) => ({
         id: 'blv-' + id, source: kind === 2 ? 'blvBrand' : 'blv', name: { de, en }, syn,
-        per100: { kcal, p: p ?? 0, c: c ?? 0, f: f ?? 0, fiber: fiber ?? 0, sugar: sugar ?? 0, salt: salt ?? 0 },
+        per100: { kcal, p: p ?? 0, c: c ?? 0, f: f ?? 0, fiber: fiber ?? 0, sugar: sugar ?? 0, salt: salt ?? 0, sfa: sfa ?? null },
         portion: 100,
       }));
       return blv;
@@ -106,6 +106,7 @@ export function fromOff(p) {
     per100: {
       kcal: Math.round(kcal), p: round(num(n.proteins_100g) ?? 0, 1), c: round(num(n.carbohydrates_100g) ?? 0, 1), f: round(num(n.fat_100g) ?? 0, 1),
       fiber: round(num(n.fiber_100g) ?? 0, 1), sugar: round(num(n.sugars_100g) ?? 0, 1), salt: round(salt, 2),
+      sfa: num(n['saturated-fat_100g']) != null ? round(num(n['saturated-fat_100g']), 1) : null, // gesättigte Fette, fehlt oft
     },
     portion: serving && serving > 0 && serving < 2000 ? round(serving, 0) : 100,
   };

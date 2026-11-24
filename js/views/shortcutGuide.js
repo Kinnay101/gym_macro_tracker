@@ -15,7 +15,7 @@ const UI = {
     get: 'Get', valueFor: 'Value for', inW: 'in', contents: 'Contents of URL', dict: 'Dictionary Value', ifW: 'If', hasAny: 'has any value', endIf: 'End If',
     log: 'Log', sampleWith: 'sample with', atDate: 'at', show: 'Show', quickLook: 'in Quick Look', formatted: 'Formatted Date', adjusted: 'Adjusted Date', yesterday: 'Yesterday',
     weight: 'Weight', bf: 'Body Fat Percentage', steps: 'Steps', active: 'Active Energy', sleep: 'Sleep', exercise: 'Exercise Minutes', distance: 'Walking + Running Distance', energy: 'Dietary Energy',
-    protein: 'Protein', carbs: 'Carbohydrates', fat: 'Total Fat', fiber: 'Fiber', sugar: 'Sugar',
+    protein: 'Protein', carbs: 'Carbohydrates', fat: 'Total Fat', fiber: 'Fiber', sugar: 'Sugar', satfat: 'Saturated Fat',
   },
   de: {
     find: 'Suche', samples: 'Health-Proben', where: 'wo', all: 'Alle', allTrue: 'der folgenden Bedingungen erfüllt sind', typeIs: 'Typ ist', startDate: 'Startdatum',
@@ -26,7 +26,7 @@ const UI = {
     get: 'Hole', valueFor: 'Wert für', inW: 'in', contents: 'Inhalte der URL', dict: 'Wörterbuchwert', ifW: 'Wenn', hasAny: 'einen Wert hat', endIf: 'Ende Wenn',
     log: 'Protokolliere', sampleWith: 'Probe mit', atDate: 'am', show: 'Zeige', quickLook: 'in Übersicht', formatted: 'Formatiertes Datum', adjusted: 'Angepasstes Datum', yesterday: 'Yesterday',
     weight: 'Gewicht', bf: 'Körperfettanteil', steps: 'Schritte', active: 'Aktivitätsenergie', sleep: 'Schlaf', exercise: 'Trainingsminuten', distance: 'Gehen- und Laufdistanz', energy: 'Nahrungsenergie',
-    protein: 'Protein', carbs: 'Kohlenhydrate', fat: 'Fett gesamt', fiber: 'Ballaststoffe', sugar: 'Zucker',
+    protein: 'Protein', carbs: 'Kohlenhydrate', fat: 'Fett gesamt', fiber: 'Ballaststoffe', sugar: 'Zucker', satfat: 'Gesättigte Fettsäuren',
   },
 };
 
@@ -172,7 +172,11 @@ function steps(u, token) {
           + card(ICON.log, `${u.log} ${chg(tok(type))} ${u.sampleWith} ${vtok(u.dict, 'dict')} ${chg(tok(unit))} ${u.atDate} ${vtok(u.adjusted, 'date')}`);
         const visual = card(ICON.dict, `${u.get} ${tok(u.valueFor)} ${chg(tok('export'))} ${u.inW} ${vtok(u.contents, 'url')}`)
           + card(ICON.ifI, `${u.ifW} ${vtok(u.dict, 'dict')} ${chg(tok(u.hasAny))}`)
-          + indent(pair('kcal', u.energy, 'kcal') + `<div class="sc-more">${L('… und gleich für', '… and the same for')}: protein → ${esc(u.protein)} (g) · carbs → ${esc(u.carbs)} (g) · fat → ${esc(u.fat)} (g) · fiber → ${esc(u.fiber)} (g) · sugar → ${esc(u.sugar)} (g)</div>`)
+          + indent(pair('kcal', u.energy, 'kcal') + `<div class="sc-more">${L('… und gleich für', '… and the same for')}: protein → ${esc(u.protein)} (g) · carbs → ${esc(u.carbs)} (g) · fat → ${esc(u.fat)} (g) · fiber → ${esc(u.fiber)} (g) · sugar → ${esc(u.sugar)} (g)</div>`
+            + card(ICON.dict, `${u.get} ${tok(u.valueFor)} ${chg(tok('satfat'))} ${u.inW} ${vtok(u.dict, 'dict')}`)
+            + card(ICON.ifI, `${u.ifW} ${vtok(u.dict, 'dict')} ${chg(tok(u.hasAny))}`)
+            + indent(card(ICON.log, `${u.log} ${chg(tok(u.satfat))} ${u.sampleWith} ${vtok(u.dict, 'dict')} ${chg(tok('g'))} ${u.atDate} ${vtok(u.adjusted, 'date')}`))
+            + card(ICON.ifI, u.endIf, '', 'sc-repeat'))
           + card(ICON.ifI, `<span class="muted">Otherwise</span>`, '', 'sc-repeat')
           + card(ICON.ifI, u.endIf, '', 'sc-repeat');
         const list = [
@@ -186,6 +190,8 @@ function steps(u, token) {
           fill('G', L('Springt es falsch: Feld antippen → <b>Clear Variable</b> → aufs leere Feld → <b>Select Variable</b> → die richtige Aktion antippen (bei «in»: nach oben scrollen zu «Get Value for export»). Die Variablen-Liste zeigt nur das letzte «Dictionary Value» – darum über «Select Variable».',
             'If it jumps wrong: tap the field → <b>Clear Variable</b> → tap the empty field → <b>Select Variable</b> → tap the right action (for "in": scroll up to "Get Value for export"). The variable list only shows the latest "Dictionary Value" – that is why you use "Select Variable".')),
           fill('H', L('Zwischen «Otherwise» und «End If» bleibt alles leer. Quick Look ganz nach unten unter «End If» schieben.', 'Leave everything between "Otherwise" and "End If" empty. Move Quick Look to the very bottom below "End If".')),
+          fill('I', L('<b>Gesättigte Fette (optional, neu):</b> unter dem letzten «Log Health Sample» (noch vor «Otherwise») <b>Get Dictionary Value</b> mit Key <code>satfat</code> (in → «Get Value for export»). Darunter ein eigenes <b>If</b> → «Dictionary Value» <b>has any value</b>, darin <b>Log Health Sample</b>: <b>Saturated Fat</b> (deutsch «Gesättigte Fettsäuren»), Einheit <b>g</b>, Datum → <b>Adjusted Date</b>. Das eigene If ist nötig: Fehlt bei einem Eintrag die Angabe, schickt die App keinen Wert – sonst würde der Kurzbefehl dort abbrechen.',
+            '<b>Saturated fat (optional, new):</b> below the last "Log Health Sample" (still before "Otherwise") add <b>Get Dictionary Value</b> with key <code>satfat</code> (in → "Get Value for export"). Below it its own <b>If</b> → "Dictionary Value" <b>has any value</b>, inside <b>Log Health Sample</b>: <b>Saturated Fat</b>, unit <b>g</b>, date → <b>Adjusted Date</b>. The extra If is needed: if an entry has no value, the app sends none – otherwise the shortcut would stop there.')),
         ].join('');
         return `${visual}<div class="small" style="margin-top:4px"><b>${L('So baust du es', 'How to build it')}</b></div>${list}`;
       })(),

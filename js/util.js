@@ -72,6 +72,8 @@ export const I = {
   back: '<path d="M15 5l-7 7 7 7"/>',
   chevron: '<path d="M9 6l6 6-6 6"/>',
   down: '<path d="M6 9l6 6 6-6"/>',
+  up: '<path d="M6 15l6-6 6 6"/>',
+  edit: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/>',
   trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
   swap: '<path d="M7 7h11l-3-3M17 17H6l3 3"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',

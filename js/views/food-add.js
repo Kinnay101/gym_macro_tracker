@@ -172,7 +172,7 @@ function portionSheet(state, ctx) {
 }
 function portionNutrients(state, n) {
   return `<div class="stack" style="gap:2px"><span class="tiny muted">${esc(t('n.kcal'))}</span><span class="big">${energy(state, n.kcal)}</span></div>
-    <div class="stack small" style="gap:2px"><span>${esc(t('n.p'))} <b>${num(n.p, 1)} g</b></span><span>${esc(t('n.c'))} <b>${num(n.c, 1)} g</b></span><span>${esc(t('n.f'))} <b>${num(n.f, 1)} g</b></span></div>`;
+    <div class="stack small" style="gap:2px"><span>${esc(t('n.p'))} <b>${num(n.p, 1)} g</b></span><span>${esc(t('n.c'))} <b>${num(n.c, 1)} g</b></span><span>${esc(t('n.f'))} <b>${num(n.f, 1)} g</b>${n.sfa != null && n.f > 0 ? ` <span class="tiny muted">(${esc(t('n.sfaShort'))} ${num(n.sfa, 1)} g)</span>` : ''}</span></div>`;
 }
 
 // ---- Barcode-Ergebnis ----
@@ -188,7 +188,7 @@ function scanSheet() {
 }
 
 // ---- Eigenes Lebensmittel / Schnell eintragen ----
-const FIELDS = [['kcal', 'n.kcal'], ['p', 'n.p'], ['c', 'n.c'], ['f', 'n.f'], ['fiber', 'n.fiber'], ['sugar', 'n.sugar'], ['salt', 'n.salt']];
+const FIELDS = [['kcal', 'n.kcal'], ['p', 'n.p'], ['c', 'n.c'], ['f', 'n.f'], ['fiber', 'n.fiber'], ['sugar', 'n.sugar'], ['salt', 'n.salt'], ['sfa', 'n.sfa']];
 function newFoodSheet() {
   const pre = newFoodPrefill;
   return `${sheetHead(t('food.ownTitle'))}
@@ -309,7 +309,7 @@ export const actions = {
   },
   'save-food'(el, ctx) {
     const name = document.getElementById('nf-name').value.trim();
-    const per100 = Object.fromEntries(NUTRIENTS.map((k) => [k, val('nf-' + k) ?? 0]));
+    const per100 = Object.fromEntries(NUTRIENTS.map((k) => [k, val('nf-' + k) ?? (k === 'sfa' ? null : 0)])); // gesättigte Fette leer = unbekannt
     const barcode = document.getElementById('nf-barcode').value.replace(/\D/g, '') || null;
     const err = document.getElementById('nf-err');
     if (!name || !val('nf-kcal')) { err.textContent = t('food.needNameKcal'); return; }

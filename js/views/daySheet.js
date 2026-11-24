@@ -1,11 +1,15 @@
 // Tagesübersicht: Antippen eines Tages (Woche unter «Heute», Kalender unter «Fortschritt») zeigt,
-// was an dem Tag eingetragen wurde: Essen, Training, Cardio, Apple-Health-Werte, Gewicht.
+// was an dem Tag eingetragen wurde: Essen, Training, Cardio, Apple-Health-Werte, Gewicht – und den Plan des Tages
+// (ändern, ab hier verschieben, Cardio planen; auch für kommende Tage).
 import { esc, num, today, addDays, icon, I } from '../util.js';
 import { t, longDate } from '../i18n.js';
 import { goals, sumEntries, dayEntries, MEALS } from '../nutrition.js';
 import { volume, workingSets } from '../workout.js';
 import { healthWorkoutsBetween } from '../health.js';
 import { energy, healthSourceName } from '../ui.js';
+import * as planEdit from './planEdit.js';
+
+const MAX_AHEAD = 90; // so weit kann man in die Zukunft blättern
 
 let day = null;
 
@@ -19,9 +23,12 @@ function sheet(state) {
   const head = `<div class="row between day-head">
     <button class="icon-btn" data-act="day-step" data-v="-1" aria-label="${esc(t('common.prev'))}">${icon(I.back)}</button>
     <div style="text-align:center"><h2>${esc(longDate(d))}</h2>${isToday ? `<div class="tiny muted">${esc(t('common.today'))}</div>` : ''}</div>
-    ${isToday ? `<button class="icon-btn" data-act="sheet-close" aria-label="${esc(t('common.close'))}">${icon(I.x)}</button>`
+    ${d >= addDays(today(), MAX_AHEAD) ? `<button class="icon-btn" data-act="sheet-close" aria-label="${esc(t('common.close'))}">${icon(I.x)}</button>`
       : `<button class="icon-btn" data-act="day-step" data-v="1" aria-label="${esc(t('common.next'))}">${icon(I.chevron)}</button>`}</div>`;
   const parts = [];
+  const future = d > today();
+  const planCard = planEdit.dayPlanCard(state, d);
+  if (!future && d === today() && planCard) parts.push(planCard);
 
   // Essen
   const entries = dayEntries(state, d);
@@ -70,6 +77,8 @@ function sheet(state) {
   if (bf != null) tiles.push(tile(t('measure.bf'), `${num(bf, 1)} %`));
   if (tiles.length) parts.push(`<section class="card tight"><h3>${esc(t('day.body'))}</h3><div class="grid3">${tiles.join('')}</div></section>`);
 
+  if (future) return `${head}${planCard}`;
+  if (d < today() && planCard) parts.push(planCard);
   if (!parts.length) {
     parts.push(`<div class="empty">${esc(t('day.nothing'))}</div>
       <a class="btn" href="#/food?date=${esc(d)}">${esc(t('day.openFood'))}</a>`);
@@ -80,13 +89,17 @@ function sheet(state) {
 export function open(ctx, date) { day = date; ctx.openSheet(sheet); }
 
 export const actions = {
+  ...planEdit.actions,
   'day-open'(el, ctx) { open(ctx, el.dataset.d); },
   'day-step'(el, ctx) {
     const next = addDays(day, Number(el.dataset.v));
-    if (next > today()) return;
+    if (next > addDays(today(), MAX_AHEAD)) return;
     day = next;
     ctx.refreshSheet();
     const s = document.querySelector('#sheet-root .sheet');
     if (s) s.scrollTop = 0;
   },
 };
+
+export const inputs = { ...planEdit.inputs };
+export const changes = { ...planEdit.changes };
