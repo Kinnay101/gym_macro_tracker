@@ -89,7 +89,10 @@ class MainActivity : AppCompatActivity() {
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime())
             v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
-            insets
+            // Ränder sind hier schon als Abstand berücksichtigt → nicht an die WebView weitergeben.
+            // Sonst rechnet die Web-App (neuere WebView, env(safe-area-inset-bottom)) den Rand ein zweites Mal
+            // und unten entsteht ein grosser leerer Balken (gemeldet auf Galaxy S24+, One UI 9).
+            WindowInsetsCompat.CONSUMED
         }
 
         if (BuildConfig.DEBUG) WebView.setWebContentsDebuggingEnabled(true)
@@ -109,7 +112,9 @@ class MainActivity : AppCompatActivity() {
         }
         web.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest) {
-                val own = isOwnPage(request.origin)
+                // request.origin ist nur die Herkunft ("https://kinnay101.github.io/", ohne Pfad) → nur die Herkunft vergleichen
+                val origin = "${request.origin.scheme}://${request.origin.authority}"
+                val own = origin in allowedOrigins()
                 if (!own || PermissionRequest.RESOURCE_VIDEO_CAPTURE !in request.resources) { request.deny(); return }
                 if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
                     request.grant(arrayOf(PermissionRequest.RESOURCE_VIDEO_CAPTURE))

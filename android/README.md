@@ -1,6 +1,6 @@
 # Android / Health Connect
 
-Stand: 23.11.2026. Web-Seite: `js/healthConnect.js`, `js/views/healthConnectSetup.js`.
+Stand: 24.11.2026 (App 1.1). Web-Seite: `js/healthConnect.js`, `js/views/healthConnectSetup.js`.
 Android-Hülle: `android/app-shell` (Kotlin, WebView + Brücke `GymHC`), im Emulator (Android 17) getestet:
 Rechte-Dialog, Lesen aller Datenarten, Mahlzeiten schreiben.
 
@@ -20,6 +20,14 @@ cd android\app-shell; .\gradlew.bat assembleDebug
   (`keystore.properties` + `gym-macro-release.p12`, nie ins Repo/OneDrive). Fertige APK nach `android/release/` kopieren
   (von Git ignoriert). Für Updates `versionCode` in `app/build.gradle.kts` erhöhen – und immer mit demselben Schlüssel signieren.
 - R8-Optimierung ist aus: Die Vorlage (nur androidx/kotlin optimieren) stürzte beim Start ab (IllegalAccessError).
+- **Version 1.1 (24.11.)** behebt drei Fehler von 1.0 (gemeldet auf Galaxy S24+, One UI 9, im Emulator nachgestellt):
+  Icon war der Android-Roboter → jetzt Hantel aus `icons/icon.svg` (adaptives Icon, Vektor). Grosser leerer Balken unten
+  → Ränder wurden doppelt gerechnet (Abstand in der Hülle + `env(safe-area-inset-*)` der neueren WebView), jetzt gibt die Hülle
+  die Ränder nicht mehr weiter (`WindowInsetsCompat.CONSUMED`). Kamera „keine Berechtigung“ → `onPermissionRequest` verglich die
+  Herkunft mit Pfad (`/gym_macro_tracker/`), die WebView liefert aber nur `https://kinnay101.github.io/` → jetzt nur Herkunft.
+  Im Debug-Test fiel das nicht auf, weil `localhost` ohne Pfadprüfung lief → Kamera immer auch mit dem Release-Build testen.
+- Emulator-Fenster zu gross für den Bildschirm: `window.scale = 0.3` in `%USERPROFILE%\.android\avd\Medium_Phone.avd\emulator-user.ini`.
+  Samsung-ähnlich testen: `adb shell cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.threebutton`.
 
 ## Was ist Health Connect?
 - Googles zentraler Gesundheitsspeicher auf dem Handy (das Gegenstück zu Apple Health). Ab Android 14 im System eingebaut,
