@@ -135,6 +135,10 @@ export async function joinGroup(code) {
   return g;
 }
 
+export async function renameGroup(gid, groupName) {
+  return check(await sync.getClient().rpc('rename_group', { gid, group_name: groupName }));
+}
+
 export async function leaveGroup(gid) {
   check(await sync.getClient().rpc('leave_group', { gid }));
 }
@@ -154,6 +158,8 @@ export function errorKey(e) {
   if (msg.includes('invalid code')) return 'friends.errCode';
   if (msg.includes('group full')) return 'friends.errFull';
   if (msg.includes('too many groups')) return 'friends.errTooMany';
+  if (msg.includes('invalid name')) return 'friends.errGroupName';
+  if (msg.includes('could not find the function') || msg.includes('rename_group')) return 'friends.errSqlMissing';
   if (msg.includes('fetch') || msg.includes('network') || navigator.onLine === false) return 'auth.errNetwork';
   return 'auth.errUnknown';
 }

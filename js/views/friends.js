@@ -3,7 +3,7 @@ import { esc, num, icon, I } from '../util.js';
 import { t, shortDate } from '../i18n.js';
 import * as sync from '../sync.js';
 import * as social from '../social.js';
-import { seg } from '../ui.js';
+import { seg, sheetHead } from '../ui.js';
 
 let data = null; // { groups, members, stats }
 let loading = false;
@@ -52,7 +52,9 @@ export function render(state, ctx) {
     ${`<div class="chips">${groups.map((x) => `<button class="chip" data-act="fr-group" data-v="${esc(x.id)}" aria-pressed="${x.id === g.id}">${esc(x.name)}</button>`).join('')}
       <button class="chip" data-act="fr-show-join">${icon(I.plus, 'icon tag-icon')} ${esc(t('friends.addGroup'))}</button></div>`}
     <section class="card tight">
-      <div class="row between"><div class="grow"><h2 class="ellipsis">${esc(g.name)}</h2><div class="tiny muted">${esc(t('friends.members', { n: members.length }))}</div></div>
+      <div class="row between"><div class="grow" style="min-width:0"><div class="row" style="gap:6px"><h2 class="ellipsis">${esc(g.name)}</h2>
+          <button class="icon-btn" data-act="fr-rename" data-v="${esc(g.id)}" aria-label="${esc(t('friends.rename'))}">${icon(I.edit)}</button></div>
+        <div class="tiny muted">${esc(t('friends.members', { n: members.length }))}</div></div>
         ${loading ? '<span class="spinner"></span>' : `<button class="icon-btn" data-act="fr-reload" aria-label="${esc(t('friends.refresh'))}">${icon('<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>')}</button>`}</div>
       <div class="row between" style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px">
         <div><div class="tiny muted">${esc(t('friends.inviteCode'))}</div><div style="font-family:var(--font-display);font-weight:700;letter-spacing:.06em">${esc(g.invite_code)}</div></div>
@@ -62,6 +64,18 @@ export function render(state, ctx) {
     ${board(state, members)}
     <div class="small muted" style="padding:0 4px">${esc(t('friends.youShare', { list: sharedList(state) }))} <a href="#/body">${esc(t('friends.change'))}</a></div>
     <button class="link danger" data-act="fr-leave" data-v="${esc(g.id)}" style="align-self:flex-start;color:var(--bad)">${esc(t('friends.leave'))}</button>`;
+}
+
+// Gruppe umbenennen (kleines Fenster)
+let renameId = null;
+function renameSheet() {
+  const g = data?.groups.find((x) => x.id === renameId);
+  if (!g) return null;
+  return `${sheetHead(t('friends.rename'))}
+    <label class="field">${esc(t('friends.groupName'))}<input class="input" id="fr-rename-in" maxlength="40" value="${esc(g.name)}" autofocus></label>
+    <div class="tiny muted">${esc(t('friends.renameHint'))}</div>
+    <div class="small" id="fr-rename-err" style="color:var(--bad)"></div>
+    <button class="btn primary block" data-act="fr-rename-save">${esc(t('common.save'))}</button>`;
 }
 
 function card(inner) { return `<section class="card">${inner}</section>`; }
@@ -143,6 +157,23 @@ export const actions = {
     run(ctx, async () => { await social.setDisplayName(v); });
   },
   'fr-reload'(el, ctx) { load(ctx); },
+  'fr-rename'(el, ctx) { renameId = el.dataset.v; ctx.openSheet(renameSheet); },
+  async 'fr-rename-save'(el, ctx) {
+    const name = document.getElementById('fr-rename-in').value.trim();
+    const err = document.getElementById('fr-rename-err');
+    if (!name) { err.textContent = t('friends.errGroupName'); return; }
+    el.disabled = true;
+    try {
+      const g = await social.renameGroup(renameId, name);
+      data.groups = data.groups.map((x) => (x.id === g.id ? { ...x, name: g.name } : x));
+      ctx.closeSheet();
+      ctx.render();
+      ctx.toast(t('friends.renamed'));
+    } catch (e) {
+      el.disabled = false;
+      err.textContent = t(social.errorKey(e));
+    }
+  },
   'fr-group'(el, ctx) { groupId = el.dataset.v; ctx.render(); },
   'fr-cat'(el, ctx) { cat = el.dataset.v; ctx.render(); },
   'fr-lift'(el, ctx) { liftName = el.dataset.v; ctx.render(); },

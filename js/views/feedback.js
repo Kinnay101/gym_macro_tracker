@@ -15,6 +15,10 @@ let kind = 'bug';
 let draft = '';       // aktueller Text im Formular
 let draftAtOpen = ''; // Text beim Öffnen (Vorlage bleibt gleich, sonst springt das Textfeld bei jedem Neuzeichnen)
 let busy = false;
+let filter = 'open'; // Liste: 'open' (Neu + Geplant), ein Status oder 'all'
+
+const FILTERS = ['open', 'new', 'planned', 'done', 'rejected', 'all'];
+const matches = (x, f) => f === 'all' || (f === 'open' ? x.status === 'new' || x.status === 'planned' : x.status === f);
 
 async function load(ctx) {
   const user = sync.getUser();
@@ -86,7 +90,13 @@ function listSheet() {
   if (error) return `${head}<div class="small" style="color:var(--bad)">${esc(t(error))}</div>`;
   if (!items) return `${head}<div class="empty"><span class="spinner"></span></div>`;
   if (!items.length) return `${head}<div class="empty">${esc(t('fb.empty'))}</div>`;
-  return `${head}<div class="stack" style="gap:0">${items.map(entry).join('')}</div>`;
+  // Filter nach Status (mit Anzahl), Standard „Offen“ = Neu + Geplant
+  const chips = `<div class="chips">${FILTERS.map((f) => {
+    const n = items.filter((x) => matches(x, f)).length;
+    return `<button class="chip" data-act="fb-filter" data-v="${f}" aria-pressed="${filter === f}">${esc(t(f === 'open' || f === 'all' ? 'fb.filter.' + f : 'fb.status.' + f))} ${n}</button>`;
+  }).join('')}</div>`;
+  const shown = items.filter((x) => matches(x, filter));
+  return `${head}${chips}${shown.length ? `<div class="stack" style="gap:0">${shown.map(entry).join('')}</div>` : `<div class="empty">${esc(t('fb.filterEmpty'))}</div>`}`;
 }
 
 export const actions = {
@@ -123,6 +133,12 @@ export const actions = {
     load(ctx);
   },
   'fb-reload'(el, ctx) { load(ctx); },
+  'fb-filter'(el, ctx) {
+    filter = el.dataset.v;
+    ctx.refreshSheet();
+    const s = document.querySelector('#sheet-root .sheet');
+    if (s) s.scrollTop = 0;
+  },
   async 'fb-answer'(el, ctx) {
     const id = el.dataset.id;
     const status = document.getElementById('fb-st-' + id)?.value;

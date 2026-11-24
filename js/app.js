@@ -65,10 +65,36 @@ function render() {
   });
   document.querySelector('.app').classList.toggle('immersive', !!current.mod.immersive);
   const scroll = $view.scrollTop;
+  const focus = rememberFocus();
   $view.innerHTML = current.mod.render(state, current.params, ctx);
   $view.scrollTop = scroll;
+  restoreFocus(focus);
   current.mod.mounted?.($view, ctx);
   if (sheetRender) refreshSheet();
+}
+
+// Beim Neuzeichnen das Feld mit der Tastatur behalten (gleiches Feld an gleicher Stelle, Cursor-Position).
+// Sonst verschwindet das Feld kurz und das iPhone klappt die Tastatur zu.
+const FIELDS = 'input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea';
+let renderedView = null; // welche Seite zuletzt gezeichnet wurde (nur auf derselben Seite das Feld behalten)
+let justChanged = null;  // Feld, dessen change-Ereignis gerade verarbeitet wird (Wert kommt dann aus der App)
+function rememberFocus() {
+  const a = document.activeElement;
+  if (renderedView !== current.name || !a || !$view.contains(a) || !a.matches(FIELDS)) return null;
+  const list = [...$view.querySelectorAll(FIELDS)];
+  let sel = null;
+  try { sel = [a.selectionStart, a.selectionEnd]; } catch { /* z. B. type=number */ }
+  return { index: list.indexOf(a), id: a.id, dataIn: a.dataset.in || null, value: a.value, keepValue: a !== justChanged, sel };
+}
+function restoreFocus(f) {
+  renderedView = current.name;
+  if (!f) return;
+  const list = [...$view.querySelectorAll(FIELDS)];
+  const el = (f.id && document.getElementById(f.id)) || list[f.index];
+  if (!el || (el.dataset.in || null) !== f.dataIn) return;
+  if (f.keepValue && el.value !== f.value) el.value = f.value; // noch nicht gespeicherte Eingabe behalten
+  el.focus({ preventScroll: true });
+  try { if (f.sel && f.sel[0] != null) el.setSelectionRange(f.sel[0], f.sel[1]); } catch { /* egal */ }
 }
 
 function route() {
@@ -138,7 +164,8 @@ function handle(kind, e) {
   const fn = table?.[name];
   if (fn) {
     if (kind === 'click') e.preventDefault();
-    fn(el, ctx, e);
+    if (kind === 'change') justChanged = el;
+    try { fn(el, ctx, e); } finally { if (kind === 'change') justChanged = null; }
   }
 }
 document.addEventListener('click', (e) => handle('click', e));
@@ -166,7 +193,8 @@ function updateKeyboard() {
   root.style.setProperty('--kb', open ? h + 'px' : '0px');
   root.classList.toggle('kb-open', open);
   const a = document.activeElement;
-  if (open && a && a.closest?.('.sheet')) requestAnimationFrame(() => a.scrollIntoView({ block: 'nearest' }));
+  // Feld im Fenster oder auf der Seite (z. B. Sätze im Training) über die Tastatur holen
+  if (open && a && a.closest?.('.sheet, .main')) requestAnimationFrame(() => a.scrollIntoView({ block: 'nearest' }));
 }
 window.visualViewport?.addEventListener('resize', updateKeyboard);
 window.visualViewport?.addEventListener('scroll', updateKeyboard);

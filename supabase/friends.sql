@@ -96,6 +96,19 @@ begin
   delete from public.groups g where g.id = gid and not exists (select 1 from public.group_members m where m.group_id = gid);
 end $$;
 
+-- Gruppe umbenennen (jedes Mitglied der Gruppe darf das)
+create or replace function public.rename_group(gid uuid, group_name text) returns public.groups
+language plpgsql security definer set search_path = '' as $$
+declare
+  g public.groups;
+begin
+  if auth.uid() is null then raise exception 'not authenticated'; end if;
+  if not public.is_group_member(gid) then raise exception 'not a member'; end if;
+  if char_length(trim(coalesce(group_name, ''))) not between 1 and 40 then raise exception 'invalid name'; end if;
+  update public.groups set name = trim(group_name) where id = gid returning * into g;
+  return g;
+end $$;
+
 -- Anzeigename in allen eigenen Gruppen ändern
 create or replace function public.set_display_name(member_name text) returns void
 language sql security definer set search_path = '' as $$
@@ -109,10 +122,12 @@ grant select on public.groups, public.group_members to authenticated;
 grant select, insert, update, delete on public.shared_stats to authenticated;
 
 revoke execute on function public.is_group_member(uuid), public.shares_group_with(uuid),
-  public.create_group(text, text), public.join_group(text, text), public.leave_group(uuid), public.set_display_name(text)
+  public.create_group(text, text), public.join_group(text, text), public.leave_group(uuid), public.set_display_name(text),
+  public.rename_group(uuid, text)
   from public, anon;
 grant execute on function public.is_group_member(uuid), public.shares_group_with(uuid),
-  public.create_group(text, text), public.join_group(text, text), public.leave_group(uuid), public.set_display_name(text)
+  public.create_group(text, text), public.join_group(text, text), public.leave_group(uuid), public.set_display_name(text),
+  public.rename_group(uuid, text)
   to authenticated;
 
 -- ---------- Row Level Security ----------

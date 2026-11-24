@@ -156,6 +156,10 @@ async function pull() {
     const localFp = has ? fingerprint(local.get(r.key)) : null;
     const dirty = meta.initialDone && (localFp !== (meta.synced[r.key] ?? null));
     if (dirty) continue; // lokale Änderung gewinnt, wird gleich hochgeladen
+    // Unverändert (z. B. eigene, gerade hochgeladene Daten) → nichts anwenden. Sonst würde die Seite bei jedem
+    // Abgleich neu gezeichnet und am iPhone klappt die Tastatur beim Tippen immer wieder zu.
+    const remoteFp = r.deleted ? null : fingerprint(r.data);
+    if (remoteFp === localFp) { if (localFp == null) delete meta.synced[r.key]; else meta.synced[r.key] = localFp; continue; }
     apply.push(r);
   }
   if (apply.length) {
