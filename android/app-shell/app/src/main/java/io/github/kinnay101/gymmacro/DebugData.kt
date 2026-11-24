@@ -96,7 +96,7 @@ object DebugData {
         val arr = JSONArray()
         r.records.forEach {
             arr.put(JSONObject().put("id", it.metadata.clientRecordId).put("kcal", it.energy?.inKilocalories).put("protein", it.protein?.inGrams)
-                .put("sodium", it.sodium?.inGrams).put("meal", it.mealType).put("name", it.name).put("start", it.startTime.toString()))
+                .put("sodium", it.sodium?.inGrams).put("fat", it.totalFat?.inGrams).put("satFat", it.saturatedFat?.inGrams).put("unsatFat", it.unsaturatedFat?.inGrams).put("meal", it.mealType).put("name", it.name).put("start", it.startTime.toString()))
         }
         return JSONObject().put("records", arr)
     }

@@ -210,6 +210,9 @@ class HealthBridge(private val context: Context) {
     }
 
     // ---------- Mahlzeiten schreiben ----------
+    private fun gramsOrNull(o: JSONObject, key: String): Mass? =
+        if (o.has(key) && !o.isNull(key)) Mass.grams(o.getDouble(key)) else null
+
     suspend fun writeNutrition(params: JSONObject): JSONObject {
         if (HealthPermission.getWritePermission(NutritionRecord::class) !in granted()) throw SecurityException("write_nutrition not granted")
         val zone = ZoneId.systemDefault()
@@ -232,6 +235,9 @@ class HealthBridge(private val context: Context) {
                 dietaryFiber = Mass.grams(o.optDouble("fiberG", 0.0)),
                 sugar = Mass.grams(o.optDouble("sugarG", 0.0)),
                 sodium = Mass.grams(o.optDouble("sodiumG", 0.0)),
+                // Nur wenn die Web-App sie kennt (alle Einträge der Mahlzeit mit Angabe), sonst leer lassen
+                saturatedFat = gramsOrNull(o, "saturatedFatG"),
+                unsaturatedFat = gramsOrNull(o, "unsaturatedFatG"),
                 name = o.optString("name").take(200).ifBlank { null },
                 mealType = when (o.optString("mealType")) {
                     "breakfast" -> MealType.MEAL_TYPE_BREAKFAST

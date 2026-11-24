@@ -1,6 +1,6 @@
 # Android / Health Connect
 
-Stand: 24.11.2026 (App 1.1). Web-Seite: `js/healthConnect.js`, `js/views/healthConnectSetup.js`.
+Stand: 24.11.2026 (App 1.2). Web-Seite: `js/healthConnect.js`, `js/views/healthConnectSetup.js`.
 Android-Hülle: `android/app-shell` (Kotlin, WebView + Brücke `GymHC`), im Emulator (Android 17) getestet:
 Rechte-Dialog, Lesen aller Datenarten, Mahlzeiten schreiben.
 
@@ -26,6 +26,9 @@ cd android\app-shell; .\gradlew.bat assembleDebug
   die Ränder nicht mehr weiter (`WindowInsetsCompat.CONSUMED`). Kamera „keine Berechtigung“ → `onPermissionRequest` verglich die
   Herkunft mit Pfad (`/gym_macro_tracker/`), die WebView liefert aber nur `https://kinnay101.github.io/` → jetzt nur Herkunft.
   Im Debug-Test fiel das nicht auf, weil `localhost` ohne Pfadprüfung lief → Kamera immer auch mit dem Release-Build testen.
+- **Version 1.2 (24.11.):** Mahlzeiten gehen mit gesättigten und ungesättigten Fetten an Health Connect
+  (`saturatedFat`/`unsaturatedFat`, nur wenn die Web-App sie für alle Einträge der Mahlzeit kennt, sonst leer).
+  Im Emulator geprüft (Debug-Build + `debugReadNutrition`), 1.2 als Update über 1.1 installiert.
 - Emulator-Fenster zu gross für den Bildschirm: `window.scale = 0.3` in `%USERPROFILE%\.android\avd\Medium_Phone.avd\emulator-user.ini`.
   Samsung-ähnlich testen: `adb shell cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.threebutton`.
 
