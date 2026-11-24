@@ -482,13 +482,16 @@ export function manageCards(state) {
   const splits = tr.splits.map((sp) => {
     const active = sp.id === tr.activeSplit;
     const seq = sp.days.map((d) => (d.kind === 'train' ? planShort(plans[d.planId]) || '?' : '–') + (d.cardio ? '+C' : '')).join(' · ');
-    return `<div class="item"><button class="item-btn grow" data-act="split-edit" data-id="${esc(sp.id)}">
+    // Nur der Stift öffnet den Editor (Zeile selbst ist nicht antippbar)
+    return `<div class="item"><div class="grow" style="min-width:0">
         <div style="font-weight:600">${esc(splitName(sp))} ${active ? `<span class="tag accent">${esc(t('split.active'))}</span>` : ''}</div>
-        <div class="meta ellipsis">${esc(seq)}</div></button>${icon(I.edit)}</div>`;
+        <div class="meta ellipsis">${esc(seq)}</div></div>
+      <button class="icon-btn" data-act="split-edit" data-id="${esc(sp.id)}" aria-label="${esc(t('split.edit'))}">${icon(I.edit)}</button></div>`;
   }).join('');
-  const planRows = state.plans.map((p) => `<div class="item"><button class="item-btn grow" data-act="plan-edit" data-id="${esc(p.id)}">
+  const planRows = state.plans.map((p) => `<div class="item"><div class="grow" style="min-width:0">
       <div style="font-weight:600">${esc(p.name)} <span class="tag">${esc(planShort(p))}</span></div>
-      <div class="meta">${esc(planMuscles(p).map((m) => t('m.' + m)).join(' · '))} · ${esc(t('training.exCount', { n: p.ex.length }))}</div></button>${icon(I.edit)}</div>`).join('');
+      <div class="meta">${esc(planMuscles(p).map((m) => t('m.' + m)).join(' · '))} · ${esc(t('training.exCount', { n: p.ex.length }))}</div></div>
+      <button class="icon-btn" data-act="plan-edit" data-id="${esc(p.id)}" aria-label="${esc(t('plan.editTitle'))}">${icon(I.edit)}</button></div>`).join('');
   const cw = cardioPlanSummary(state);
   return `<section class="card tight"><div class="card-head"><h3>${esc(t('split.title'))}</h3><button class="link small" data-act="split-new">+ ${esc(t('split.new'))}</button></div>
       <div class="list">${splits}</div></section>

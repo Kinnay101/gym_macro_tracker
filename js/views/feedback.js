@@ -87,16 +87,17 @@ function listSheet() {
   const head = `<div class="row between"><h2>${esc(t(admin ? 'fb.listTitleAll' : 'fb.listTitleMine'))}</h2>
     <div class="row" style="gap:4px">${loading ? '<span class="spinner"></span>' : `<button class="icon-btn" data-act="fb-reload" aria-label="${esc(t('fb.refresh'))}">${icon('<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>')}</button>`}
       <button class="icon-btn" data-act="sheet-close" aria-label="${esc(t('common.close'))}">${icon(I.x)}</button></div></div>`;
-  if (error) return `${head}<div class="small" style="color:var(--bad)">${esc(t(error))}</div>`;
-  if (!items) return `${head}<div class="empty"><span class="spinner"></span></div>`;
-  if (!items.length) return `${head}<div class="empty">${esc(t('fb.empty'))}</div>`;
+  // Fenster immer gleich hoch (CSS über .fb-top), Kopf mit Filtern bleibt beim Scrollen oben
+  if (error) return `<div class="fb-top">${head}</div><div class="small" style="color:var(--bad)">${esc(t(error))}</div>`;
+  if (!items) return `<div class="fb-top">${head}</div><div class="empty"><span class="spinner"></span></div>`;
+  if (!items.length) return `<div class="fb-top">${head}</div><div class="empty">${esc(t('fb.empty'))}</div>`;
   // Filter nach Status (mit Anzahl), Standard „Offen“ = Neu + Geplant
   const chips = `<div class="chips">${FILTERS.map((f) => {
     const n = items.filter((x) => matches(x, f)).length;
     return `<button class="chip" data-act="fb-filter" data-v="${f}" aria-pressed="${filter === f}">${esc(t(f === 'open' || f === 'all' ? 'fb.filter.' + f : 'fb.status.' + f))} ${n}</button>`;
   }).join('')}</div>`;
   const shown = items.filter((x) => matches(x, filter));
-  return `${head}${chips}${shown.length ? `<div class="stack" style="gap:0">${shown.map(entry).join('')}</div>` : `<div class="empty">${esc(t('fb.filterEmpty'))}</div>`}`;
+  return `<div class="fb-top">${head}${chips}</div>${shown.length ? `<div class="stack" style="gap:0">${shown.map(entry).join('')}</div>` : `<div class="empty">${esc(t('fb.filterEmpty'))}</div>`}`;
 }
 
 export const actions = {
