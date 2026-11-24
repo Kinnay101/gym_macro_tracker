@@ -155,6 +155,23 @@ window.visualViewport?.addEventListener('resize', () => {
   if (window.visualViewport.height >= window.innerHeight - 1) window.scrollTo(0, 0);
 });
 
+// iPhone: Die Tastatur legt sich über die Seite (die Seite selbst scrollt nie) → Höhe der Tastatur als --kb setzen,
+// damit Fenster (Sheets) über der Tastatur sitzen, und das gerade bearbeitete Feld im Fenster sichtbar halten.
+function updateKeyboard() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const h = Math.round(window.innerHeight - vv.height - vv.offsetTop);
+  const open = h > 80; // kleinere Differenzen = Adressleiste o. Ä., keine Tastatur
+  const root = document.documentElement;
+  root.style.setProperty('--kb', open ? h + 'px' : '0px');
+  root.classList.toggle('kb-open', open);
+  const a = document.activeElement;
+  if (open && a && a.closest?.('.sheet')) requestAnimationFrame(() => a.scrollIntoView({ block: 'nearest' }));
+}
+window.visualViewport?.addEventListener('resize', updateKeyboard);
+window.visualViewport?.addEventListener('scroll', updateKeyboard);
+document.addEventListener('focusin', () => setTimeout(updateKeyboard, 300));
+
 // iPhone: Nach dem Drehen bleibt die Seite manchmal verschoben/vergrössert → Tipper landen neben den Knöpfen.
 // Darum nach jeder Drehung Scroll-Position und Zoom zurücksetzen.
 const viewportMeta = document.querySelector('meta[name="viewport"]');

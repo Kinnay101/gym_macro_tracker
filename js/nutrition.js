@@ -43,6 +43,52 @@ export function activityLevel(state, now = today()) {
   return { perWeek: round(perWeek, 1), factor, key, source };
 }
 
+/** Defizit (Diät) bzw. Überschuss (Aufbau) in kcal pro Tag – selbst einstellbar, sonst 500 bzw. 300. */
+export const ADJ_DEFAULT = { cut: 500, bulk: 300 };
+export const ADJ_MAX = 1500;
+export function goalAmount(profile, goal = profile.goal) {
+  if (goal !== 'cut' && goal !== 'bulk') return 0;
+  return profile.goalAdj?.[goal] ?? ADJ_DEFAULT[goal];
+}
+export function goalAdjust(profile) {
+  const v = goalAmount(profile);
+  return profile.goal === 'cut' ? -v : v;
+}
+
+/**
+ * Makros anpassen, wenn im Ziel-Fenster ein Wert geändert wird (base = Werte vor dem Ändern):
+ * - kcal: Protein, Kohlenhydrate und Fett im gleichen Verhältnis mitskalieren
+ * - Protein: kcal bleiben, Kohlenhydrate und Fett teilen sich den Rest im bisherigen Verhältnis
+ * - Kohlenhydrate: kcal bleiben, Fett gleicht aus · Fett: kcal bleiben, Kohlenhydrate gleichen aus
+ * Reicht der Rest nicht (Ausgleich wäre unter 0), steigen die kcal stattdessen.
+ */
+export function rebalanceGoals(base, field, value) {
+  const v = Math.max(0, value);
+  const kcalOf = (o) => o.p * 4 + o.c * 4 + o.f * 9;
+  if (field === 'kcal') {
+    const from = kcalOf(base) || 1;
+    const k = v / from;
+    return { kcal: Math.round(v), p: Math.round(base.p * k), c: Math.round(base.c * k), f: Math.round(base.f * k) };
+  }
+  const out = { ...base, [field]: v };
+  const kcal = base.kcal;
+  if (field === 'p') {
+    const rest = kcal - v * 4;
+    const cE = base.c * 4, fE = base.f * 9;
+    const share = cE + fE > 0 ? cE / (cE + fE) : 0.6;
+    out.c = Math.max(0, (rest * share) / 4);
+    out.f = Math.max(0, (rest * (1 - share)) / 9);
+  } else if (field === 'c') {
+    out.f = Math.max(0, (kcal - base.p * 4 - v * 4) / 9);
+  } else if (field === 'f') {
+    out.c = Math.max(0, (kcal - base.p * 4 - v * 9) / 4);
+  }
+  for (const k of ['p', 'c', 'f']) out[k] = Math.round(out[k]);
+  const need = kcalOf(out);
+  out.kcal = need > kcal + 10 ? Math.round(need / 10) * 10 : kcal; // kleine Rundungsdifferenzen ignorieren
+  return out;
+}
+
 /**
  * Tagesziel aus Profil (Mifflin-St-Jeor × Aktivität aus den erfassten Trainings, dann Ziel-Anpassung).
  * Protein 2,3 g pro kg, Fett ca. 28 % der Kalorien, Rest Kohlenhydrate.
@@ -56,7 +102,7 @@ export function calcGoals(state) {
   const bmr = 10 * kg + 6.25 * pr.heightCm - 5 * age + (pr.sex === 'f' ? -161 : 5);
   const act = activityLevel(state);
   const tdee = bmr * act.factor;
-  const adj = { cut: -500, maintain: 0, bulk: 300 }[pr.goal] ?? 0;
+  const adj = goalAdjust(pr);
   const kcal = Math.round((tdee + adj) / 10) * 10;
   const p = Math.round((2.3 * kg) / 5) * 5;
   const f = Math.round((kcal * 0.28) / 9 / 5) * 5;

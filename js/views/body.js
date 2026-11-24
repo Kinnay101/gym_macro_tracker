@@ -1,7 +1,7 @@
 // Körper & Profil: Gewicht, Maße, Ziele, Einstellungen, Daten-Export
 import { esc, num, today, daysBetween, icon, I, parseNum } from '../util.js';
 import { t, shortDate } from '../i18n.js';
-import { calcGoals, goals, currentWeight, activityLevel } from '../nutrition.js';
+import { calcGoals, goals, currentWeight, activityLevel, goalAmount, rebalanceGoals, ADJ_MAX } from '../nutrition.js';
 import { header, seg, lineChart, energy, sheetHead, healthMark } from '../ui.js';
 import * as store from '../store.js';
 import * as sync from '../sync.js';
@@ -43,6 +43,7 @@ export function render(state, params, ctx) {
     <section class="card">
       <h3>${esc(t('body.goals'))}</h3>
       ${seg('goal', [['cut', t('goal.cut')], ['maintain', t('goal.maintain')], ['bulk', t('goal.bulk')]], p.goal)}
+      ${adjField(p)}
       <div class="grid2">
         <label class="field">${esc(t('body.sex'))}<select class="input" data-in="sex"><option value="">–</option><option value="m" ${p.sex === 'm' ? 'selected' : ''}>${esc(t('sex.m'))}</option><option value="f" ${p.sex === 'f' ? 'selected' : ''}>${esc(t('sex.f'))}</option></select></label>
         <label class="field">${esc(t('body.birthYear'))}<input class="input" inputmode="numeric" data-in="birthYear" value="${p.birthYear ?? ''}" placeholder="2004"></label>
@@ -164,15 +165,39 @@ function activityBox(state) {
     <div class="tiny muted">${esc(how)}</div></div>`;
 }
 
+/** Diät: Defizit, Aufbau: Überschuss in kcal pro Tag selbst einstellen. Bei „Halten“ nichts. */
+function adjField(p) {
+  if ((p.goal !== 'cut' && p.goal !== 'bulk') || p.goalOverride) return '';
+  const v = goalAmount(p);
+  return `<label class="field">${esc(t(p.goal === 'cut' ? 'body.adjCut' : 'body.adjBulk'))}
+    <div class="row"><span style="font-weight:600;min-width:1ch">${p.goal === 'cut' ? '−' : '+'}</span><input class="input grow" inputmode="numeric" data-in="goalAdj" value="${v}" aria-label="${esc(t(p.goal === 'cut' ? 'body.adjCut' : 'body.adjBulk'))}"><span class="small muted">kcal</span></div>
+    <span class="tiny muted">${esc(t(p.goal === 'cut' ? 'body.adjCutHint' : 'body.adjBulkHint'))}</span></label>`;
+}
+
 function goalBox(label, v) {
   return `<div class="stack" style="gap:2px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px"><span class="tiny muted">${esc(label)}</span><b>${esc(v)}</b></div>`;
 }
 
+// Ziel-Fenster: aktuelle Werte und Ausgangslage des gerade bearbeiteten Feldes (damit Tippen „3“ → „30“ → „3000“
+// immer vom gleichen Stand aus rechnet und das Verhältnis nicht verloren geht)
+let gCur = null;
+let gBase = null;
+let gField = null;
+
+function splitText(o) {
+  const tot = o.p * 4 + o.c * 4 + o.f * 9 || 1;
+  const pc = (x) => Math.round((x / tot) * 100);
+  return `${t('n.p')} ${pc(o.p * 4)} % · ${t('n.c')} ${pc(o.c * 4)} % · ${t('n.f')} ${pc(o.f * 9)} %`;
+}
+
 function manualSheet(state) {
   const g = goals(state);
+  gCur = { kcal: g.kcal, p: g.p, c: g.c, f: g.f };
+  gBase = null; gField = null;
   return `${sheetHead(t('body.setManual'))}
     <div class="small muted">${esc(t('body.manualHint'))}</div>
-    <div class="grid2">${[['kcal', 'n.kcal'], ['p', 'n.p'], ['c', 'n.c'], ['f', 'n.f']].map(([k, l]) => `<label class="field">${esc(t(l))}${k === 'kcal' ? ' (kcal)' : ' (g)'}<input class="input" inputmode="numeric" id="g-${k}" value="${g[k]}"></label>`).join('')}</div>
+    <div class="grid2">${[['kcal', 'n.kcal'], ['p', 'n.p'], ['c', 'n.c'], ['f', 'n.f']].map(([k, l]) => `<label class="field">${esc(t(l))}${k === 'kcal' ? ' (kcal)' : ' (g)'}<input class="input" inputmode="numeric" id="g-${k}" data-in="goal-field" data-k="${k}" value="${gCur[k]}"></label>`).join('')}</div>
+    <div class="tiny muted" id="g-split">${esc(splitText(gCur))}</div>
     <button class="btn primary block" data-act="save-goals">${esc(t('common.save'))}</button>`;
 }
 
@@ -200,7 +225,8 @@ export const actions = {
   'save-goals'(el, ctx) {
     const v = (k) => parseNum(document.getElementById('g-' + k).value);
     const o = { kcal: v('kcal'), p: v('p'), c: v('c'), f: v('f') };
-    if (Object.values(o).some((x) => x == null)) return;
+    if (Object.values(o).some((x) => x == null || x < 0)) return;
+    for (const k in o) o[k] = Math.round(o[k]);
     ctx.closeSheet();
     ctx.update((s) => { s.profile.goalOverride = o; });
   },
@@ -278,10 +304,32 @@ export const actions = {
 export const inputs = {
   ...feedbackView.inputs,
   'auth-email'(el) { authEmail = el.value; },
+  // Ein Wert im Ziel-Fenster geändert → die anderen passen sich an (nur die anderen Felder werden neu gesetzt)
+  'goal-field'(el) {
+    if (!gCur) return;
+    const k = el.dataset.k;
+    const v = parseNum(el.value);
+    if (gField !== k) { gBase = { ...gCur }; gField = k; }
+    if (v == null) return;
+    gCur = rebalanceGoals(gBase, k, v);
+    for (const f of ['kcal', 'p', 'c', 'f']) {
+      if (f === k) continue;
+      const inp = document.getElementById('g-' + f);
+      if (inp) inp.value = gCur[f];
+    }
+    const split = document.getElementById('g-split');
+    if (split) split.textContent = splitText(gCur);
+  },
 };
 
 export const changes = {
   ...measuresView.changes,
+  goalAdj(el, ctx) {
+    const v = parseNum(el.value);
+    const goal = ctx.state.profile.goal;
+    if (v == null || v < 0 || v > ADJ_MAX) { ctx.toast(t('body.adjInvalid', { max: ADJ_MAX })); ctx.render(); return; }
+    ctx.update((s) => { s.profile.goalAdj = { ...(s.profile.goalAdj || {}), [goal]: Math.round(v) }; });
+  },
   sex(el, ctx) { ctx.update((s) => { s.profile.sex = el.value || null; }); },
   birthYear(el, ctx) { const v = parseNum(el.value); ctx.update((s) => { s.profile.birthYear = v && v > 1900 && v < 2030 ? Math.round(v) : null; }); },
   heightCm(el, ctx) { const v = parseNum(el.value); ctx.update((s) => { s.profile.heightCm = v && v > 100 && v < 250 ? v : null; }); },
