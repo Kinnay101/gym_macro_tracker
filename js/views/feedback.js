@@ -62,7 +62,8 @@ function entry(x) {
   const user = sync.getUser();
   const own = x.user_id === user?.id;
   const meta = [shortDate(localDay(x.created_at)), admin ? (x.author_name || t('fb.anon')) : null, admin && x.app_version ? x.app_version : null].filter(Boolean).join(' · ');
-  const statusTag = `<span class="tag ${x.status === 'done' ? 'accent' : x.status === 'planned' ? 'blue' : ''}">${esc(t('fb.status.' + x.status))}</span>`;
+  // Erledigt grün, Geplant blau, Abgelehnt rot, Neu grau
+  const statusTag = `<span class="tag ${{ done: 'accent', planned: 'blue', rejected: 'red' }[x.status] || ''}">${esc(t('fb.status.' + x.status))}</span>`;
   const answerBox = admin
     ? `<div class="stack" style="gap:6px">
         <select class="input" id="fb-st-${esc(x.id)}" aria-label="Status">${fb.STATUSES.map((s) => `<option value="${s}" ${s === x.status ? 'selected' : ''}>${esc(t('fb.status.' + s))}</option>`).join('')}</select>

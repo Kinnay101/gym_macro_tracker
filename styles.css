@@ -98,6 +98,7 @@ h3 { font-size: 15px; font-weight: 700; }
 .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px; background: var(--card-2); color: var(--muted); border: 1px solid var(--line-2); }
 .tag.accent { color: var(--accent); border-color: rgba(198,244,50,.35); }
 .tag.blue { color: var(--cardio); border-color: rgba(90,169,255,.35); }
+.tag.red { color: var(--bad); border-color: rgba(255,107,129,.35); }
 .tag.pr { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 
 /* Formulare */
