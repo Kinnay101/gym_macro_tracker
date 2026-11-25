@@ -13,6 +13,8 @@ export function energy(state, kcal, withUnit = true) {
 export function healthMark() { return '<span class="hk" title="Apple Health / Health Connect" aria-label="Health">♥︎</span>'; }
 /** Name der Gesundheits-App des Geräts (Android: Health Connect, sonst Apple Health) */
 export function healthSourceName() { return window.GymHC || /Android/i.test(navigator.userAgent) ? 'Health Connect' : 'Apple Health'; }
+/** Quelle von Uhr-Workouts: iPhone „Apple Watch“, Android „Health Connect“ (Galaxy Watch, Fitbit, Garmin …). */
+export function watchSourceName() { return window.GymHC || /Android/i.test(navigator.userAgent) ? 'Health Connect' : 'Apple Watch'; }
 export function energyUnit(state) { return state.profile.energyUnit === 'kj' ? 'kJ' : 'kcal'; }
 
 export function header(title, sub = '', right = '') {

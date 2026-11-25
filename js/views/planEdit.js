@@ -25,6 +25,8 @@ export function dayPlanCard(state, date) {
   const tracked = date >= (state.training.anchor?.date || now); // vor der Umstellung gab es keinen Plan
   const editable = !done && date >= addDays(now, -MAX_BACK); // Ruhetag/krank bis 60 Tage zurück eintragbar
   if (past && !tracked && !done && !editable) return '';
+  // Training an diesem Tag schon gemacht → nichts mehr zu planen (Training und Cardio stehen in der Tagesübersicht)
+  if (done) return '';
 
   const baseName = p.base.kind === 'train' && plans[p.base.planId] ? plans[p.base.planId].name : t('plan.rest');
   const what = p.sick ? `🤒 ${t('plan.sick')}` : p.shifted ? t('plan.pause') : !tracked && past ? '–' : p.kind === 'train' ? plans[p.planId]?.name : t('plan.rest');
@@ -57,7 +59,8 @@ export function dayPlanCard(state, date) {
   }
   if (editable || marked) restBtns += `<button class="link tiny" style="align-self:flex-start" data-act="dp-range" data-d="${esc(date)}">${esc(t('plan.rangeOpen'))}</button>`;
 
-  const cardio = p.cardio.map((c) => `<div class="item">${icon(I.run)}<div class="grow"><div style="font-weight:600">${esc(cardioLabel(c))}</div>
+  // Geplantes Cardio nur für heute und kommende Tage; für vergangene Tage zählt nur, was gemacht wurde
+  const cardio = past ? '' : p.cardio.map((c) => `<div class="item">${icon(I.run)}<div class="grow"><div style="font-weight:600">${esc(cardioLabel(c))}</div>
       <div class="meta">${esc(t('plan.from.' + c.from))}</div></div>
       ${c.from === 'day' ? `<button class="icon-btn" data-act="dp-cardio-del" data-d="${esc(date)}" data-id="${esc(c.id)}" aria-label="${esc(t('common.delete'))}">${icon(I.trash)}</button>` : ''}</div>`).join('');
   const addCardio = past ? '' : `<div class="row" style="gap:8px">

@@ -3,11 +3,12 @@ import { esc, num, today, weekStart, addDays, icon, I, parseNum, uid } from '../
 import { t, weekdayShort, shortDate } from '../i18n.js';
 import { schedule, lastDone, planMuscles, CARDIO_TYPES, splitFor, indexOfPlan, restartAt } from '../plan.js';
 import { startWorkout, volume, workingSets } from '../workout.js';
-import { header, seg, sheetHead } from '../ui.js';
+import { header, seg, sheetHead, watchSourceName } from '../ui.js';
 import { healthWorkoutsBetween, watchStatsFor } from '../health.js';
 import { rhythmName } from './today.js';
 import * as daySheet from './daySheet.js';
 import * as planEdit from './planEdit.js';
+import { calendar, calendarActions } from './progress.js';
 
 export { CARDIO_TYPES };
 
@@ -18,16 +19,12 @@ let detailId = null;
 export function render(state) {
   const key = today();
   const plans = Object.fromEntries(state.plans.map((p) => [p.id, p]));
-  const sched = schedule(state, key, 7);
+  const sched = schedule(state, key, 1);
 
   return `
     ${header(t('nav.training'))}
     ${todayCard(state, sched[0], plans)}
-    <section class="card tight"><div class="card-head"><h3>${esc(t('training.preview'))}</h3><span class="tiny muted">${esc(rhythmName(state))}</span></div><div>
-      ${sched.map((d, i) => `<button type="button" class="preview-day item-btn" data-act="day-open" data-d="${esc(d.date)}"><span class="small" style="${i === 0 ? 'color:var(--accent);font-weight:700' : 'color:var(--muted)'}">${esc(i === 0 ? t('common.today') : weekdayShort(d.date))}</span>
-        <span>${esc(d.kind === 'rest' ? (d.sick ? `🤒 ${t('plan.sick')}` : d.shifted ? t('plan.pause') : t('training.rest')) : plans[d.planId]?.name || '')}${d.cardio.length ? ` <span class="tiny" style="color:var(--cardio)">+ ${esc(d.cardio.map((c) => `${t('cardio.' + c.type)} ${num(c.minutes)} min`).join(', '))}</span>` : ''}</span>
-        <span class="tiny muted">${d.kind === 'done' ? esc(t('training.done')) : d.chosen ? esc(t('training.chosen')) : d.shifted ? '↷' : ''}</span></button>`).join('')}
-    </div><div class="tiny muted">${esc(t('training.flexHint'))}</div></section>
+    ${calendar(state)}
     ${cardioCard(state, key)}
     ${planEdit.manageCards(state)}
     ${historyCard(state, plans)}
@@ -87,7 +84,7 @@ function cardioCard(state, key) {
   const watch = healthWorkoutsBetween(state, from, addDays(from, 6));
   const mins = list.reduce((s, c) => s + (c.minutes || 0), 0) + watch.reduce((s, w) => s + w.minutes, 0);
   const watchRows = watch.map((w) => `<div class="item"><span style="width:22px;text-align:center">⌚</span><div class="grow"><div style="font-weight:600">${esc(t('cardio.' + w.kind))}</div>
-      <div class="meta">${esc(weekdayShort(w.date))} · ${num(w.minutes)} min${w.km ? ` · ${num(w.km, 1)} km` : ''}${w.kcal ? ` · ${num(w.kcal)} kcal` : ''}${w.avgHr ? ` · Ø ${w.avgHr} bpm` : ''} · Apple Watch</div></div></div>`).join('');
+      <div class="meta">${esc(weekdayShort(w.date))} · ${num(w.minutes)} min${w.km ? ` · ${num(w.km, 1)} km` : ''}${w.kcal ? ` · ${num(w.kcal)} kcal` : ''}${w.avgHr ? ` · Ø ${w.avgHr} bpm` : ''} · ${esc(watchSourceName())}</div></div></div>`).join('');
   return `<section class="card tight"><div class="card-head"><h3>${esc(t('cardio.week'))}</h3><span class="small muted">${list.length ? `${num(mins)} min` : ''}</span></div>
     ${list.length || watch.length ? `<div class="list">${watchRows}${list.map((c) => `<div class="item">${icon(I.run)}<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + c.type))}</div>
       <div class="meta">${esc(weekdayShort(c.date))} · ${num(c.minutes)} min${c.km ? ` · ${num(c.km, 1)} km` : ''} · ${esc(c.after ? t('cardio.after') : t('cardio.own'))}</div></div>
@@ -128,7 +125,7 @@ function detailSheet(state) {
   const watch = watchStatsFor(state, w.date);
   return `${sheetHead(plan?.name || t('training.workout'))}
     <div class="small muted">${esc(shortDate(w.date))}${mins ? ` · ${num(mins)} min` : ''} · ${num(volume(w))} kg ${esc(t('training.volume'))}</div>
-    ${watch ? `<div class="small">⌚ Apple Watch: ${num(watch.minutes)} min${watch.kcal ? ` · ${num(watch.kcal)} kcal` : ''}${watch.avgHr ? ` · Ø ${watch.avgHr} bpm` : ''}</div>` : ''}
+    ${watch ? `<div class="small">⌚ ${esc(watchSourceName())}: ${num(watch.minutes)} min${watch.kcal ? ` · ${num(watch.kcal)} kcal` : ''}${watch.avgHr ? ` · Ø ${watch.avgHr} bpm` : ''}</div>` : ''}
     <div class="list">${w.exercises.map((ex) => `<div class="item"><div class="grow"><div style="font-weight:600">${esc(ex.name)}</div>
       <div class="meta">${ex.sets.map((s) => `${s.warmup ? 'W ' : ''}${num(s.kg, 2)}×${num(s.reps)}`).join(' · ')}</div></div><span class="tiny muted">${workingSets(ex).length}</span></div>`).join('')}</div>
     ${w.note ? `<div class="small">${esc(w.note)}</div>` : ''}
@@ -137,6 +134,7 @@ function detailSheet(state) {
 
 export const actions = {
   ...daySheet.actions,
+  ...calendarActions,
   start(el, ctx) {
     if (ctx.state.active) { ctx.go('active'); return; }
     // Aus „Anderes Training“ mit Häkchen: Plan ab heute von diesem Training aus fortsetzen (z. B. Push 1 ausgelassen)

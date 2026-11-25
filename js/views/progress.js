@@ -1,4 +1,4 @@
-// Fortschritt: 1RM-Verlauf, Bestwerte, Sätze pro Muskel, Kalender; Umschalter zu Freunde & Rangliste
+// Fortschritt: 1RM-Verlauf, Bestwerte, Sätze pro Muskel; Umschalter zu Freunde & Rangliste. Der Kalender (calendar) wird von der Trainingsseite angezeigt.
 import { esc, num, today, addDays, parseKey, dayKey, daysBetween, icon, I } from '../util.js';
 import { t, monthName, shortDate, weekdayHeaders } from '../i18n.js';
 import { historyFor, bestFor, setsPerMuscle } from '../workout.js';
@@ -53,8 +53,8 @@ function me(state) {
     </section>
     <section class="card tight"><div class="card-head"><h3>${esc(t('progress.setsPerMuscle'))}</h3><span class="tiny muted">${esc(t('progress.last7'))}</span></div>
       ${MUSCLES.map((m) => `<div class="bar-row"><div class="top"><span>${esc(t('m.' + m))}</span><span class="muted">${num(spm[m] || 0)}</span></div><div class="bar"><i style="width:${((spm[m] || 0) / maxSets) * 100}%;background:var(--accent)"></i></div></div>`).join('')}
-    </section>
-    ${calendar(state)}`;
+    </section>`;
+  // Kalender steht unter Training (calendar() wird dort benutzt)
 }
 
 const MONTHS_AHEAD = 3;
@@ -64,7 +64,7 @@ const MONTHS_AHEAD = 3;
  * (Kürzel des Trainings, Ruhetage blass, geplantes Cardio = Ring). Verpasste Trainings seit Planbeginn sind durchgestrichen.
  * Jeder Tag lässt sich antippen → Tagesübersicht mit Plan (ändern, verschieben, Cardio).
  */
-function calendar(state) {
+export function calendar(state) {
   const nowKey = today();
   const now = parseKey(nowKey);
   const first = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
@@ -111,6 +111,12 @@ function calendar(state) {
   </section>`;
 }
 
+/** Blättern im Kalender – auch von der Trainingsseite benutzt. */
+export const calendarActions = {
+  month(el, ctx) { monthOffset = Math.min(MONTHS_AHEAD, monthOffset + Number(el.dataset.v)); ctx.render(); },
+  'month-today'(el, ctx) { monthOffset = 0; ctx.render(); },
+};
+
 export const actions = {
   ...friendsView.actions,
   ...daySheet.actions,
@@ -119,8 +125,7 @@ export const actions = {
     if (tab === 'friends') friendsView.load(ctx, { quiet: true });
     ctx.render();
   },
-  month(el, ctx) { monthOffset = Math.min(MONTHS_AHEAD, monthOffset + Number(el.dataset.v)); ctx.render(); },
-  'month-today'(el, ctx) { monthOffset = 0; ctx.render(); },
+  ...calendarActions,
 };
 export const inputs = { ...daySheet.inputs };
 export const changes = {

@@ -51,10 +51,18 @@ export function volume(w) {
   return v;
 }
 
+/**
+ * Sätze beim Start: immer 3 Arbeitssätze (Wunsch Nutzer). Gab es die Übung schon, stehen kg und Wiederholungen
+ * der Arbeitssätze vom letzten Mal drin (hatte man weniger als 3, wird der letzte wiederholt). Aufwärmsätze nicht.
+ */
+export const DEFAULT_SETS = 3;
 function prefill(state, name) {
   const last = lastSetsFor(state, name);
-  if (!last) return [blankSet(), blankSet(), blankSet()];
-  return last.sets.map((s) => ({ id: uid(), kg: s.kg, reps: s.reps, warmup: !!s.warmup, done: false }));
+  const work = last ? last.sets.filter((s) => !s.warmup) : [];
+  return Array.from({ length: DEFAULT_SETS }, (_, i) => {
+    const s = work[i] || work[work.length - 1];
+    return blankSet(false, s?.kg ?? null, s?.reps ?? null);
+  });
 }
 export function blankSet(warmup = false, kg = null, reps = null) {
   return { id: uid(), kg, reps, warmup, done: false };

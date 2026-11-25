@@ -3,7 +3,7 @@
 // (ändern, ab hier verschieben, Cardio planen; auch für kommende Tage).
 import { esc, num, today, addDays, icon, I } from '../util.js';
 import { t, longDate } from '../i18n.js';
-import { goals, sumEntries, dayEntries, MEALS } from '../nutrition.js';
+import { goals, sumEntries, dayEntries } from '../nutrition.js';
 import { volume, workingSets } from '../workout.js';
 import { healthWorkoutsBetween } from '../health.js';
 import { energy, healthSourceName } from '../ui.js';
@@ -12,6 +12,7 @@ import * as planEdit from './planEdit.js';
 const MAX_AHEAD = 90; // so weit kann man in die Zukunft blättern
 
 let day = null;
+let openWorkout = null; // aufgeklapptes Training (Übungen und Sätze sichtbar)
 
 const hm = (m) => `${Math.floor(m / 60)}:${String(Math.round(m) % 60).padStart(2, '0')} h`;
 const tile = (label, value, sub = '') => `<div class="stack" style="gap:2px"><span class="tiny muted">${esc(label)}</span><b>${esc(value)}</b><span class="tiny muted">${esc(sub)}</span></div>`;
@@ -35,15 +36,10 @@ function sheet(state) {
   if (entries.length) {
     const tot = sumEntries(entries);
     const g = goals(state);
-    const meals = MEALS.map((m) => {
-      const list = entries.filter((e) => e.meal === m);
-      if (!list.length) return '';
-      return `<div class="item"><div class="grow"><div style="font-weight:600">${esc(t('meal.' + m))}</div><div class="meta">${esc(list.map((e) => e.name).join(', '))}</div></div>
-        <span class="small muted">${energy(state, list.reduce((s, e) => s + e.n.kcal, 0))}</span></div>`;
-    }).join('');
+    // Nur die vier Werte, alle gleich aufgebaut (Wert / Ziel); die einzelnen Mahlzeiten stehen im Tagebuch
     parts.push(`<section class="card tight"><div class="card-head"><h3>${esc(t('nav.food'))}</h3><a class="link" href="#/food?date=${esc(d)}">${esc(t('day.openFood'))}</a></div>
-      <div class="grid3">${tile('kcal', `${energy(state, tot.kcal)}`, `/ ${energy(state, g.kcal)}`)}${tile(t('n.p'), `${num(tot.p)} g`, `/ ${num(g.p)} g`)}${tile(`${t('n.c')} · ${t('n.f')}`, `${num(tot.c)} · ${num(tot.f)} g`)}</div>
-      <div class="list">${meals}</div></section>`);
+      <div class="grid2">${tile(t('n.kcal'), `${energy(state, tot.kcal)}`, `/ ${energy(state, g.kcal)}`)}${tile(t('n.p'), `${num(tot.p)} g`, `/ ${num(g.p)} g`)}
+        ${tile(t('n.c'), `${num(tot.c)} g`, `/ ${num(g.c)} g`)}${tile(t('n.f'), `${num(tot.f)} g`, `/ ${num(g.f)} g`)}</div></section>`);
   }
 
   // Training + Cardio
@@ -51,8 +47,16 @@ function sheet(state) {
   for (const w of state.workouts.filter((x) => x.date === d)) {
     const plan = state.plans.find((p) => p.id === w.planId);
     const sets = w.exercises.reduce((s, ex) => s + workingSets(ex).length, 0);
-    rows.push(`<div class="item">${icon(I.check)}<div class="grow"><div style="font-weight:600">${esc(plan?.name || t('training.workout'))}</div>
-      <div class="meta">${esc(t('training.exCount', { n: w.exercises.length }))} · ${num(sets)} ${esc(t('day.sets'))} · ${num(volume(w))} kg</div></div></div>`);
+    const open = openWorkout === w.id;
+    const mins = w.startedAt && w.finishedAt ? Math.round((new Date(w.finishedAt) - new Date(w.startedAt)) / 60000) : null;
+    // Antippen klappt die Übungen mit allen Sätzen auf (W = Aufwärmsatz)
+    const detail = open ? `<div class="list" style="padding:0 0 4px 30px">${w.exercises.map((ex) => `<div class="item" style="padding:6px 0"><div class="grow">
+        <div class="small" style="font-weight:600">${esc(ex.name)}</div>
+        <div class="meta">${ex.sets.map((s) => `${s.warmup ? 'W ' : ''}${num(s.kg, 2)} kg × ${num(s.reps)}`).join(' · ') || '–'}</div></div>
+        <span class="tiny muted">${workingSets(ex).length}</span></div>`).join('')}
+        ${w.note ? `<div class="small muted" style="padding-top:6px">${esc(w.note)}</div>` : ''}</div>` : '';
+    rows.push(`<button type="button" class="item item-btn" data-act="day-workout" data-id="${esc(w.id)}" aria-expanded="${open}" style="width:100%;text-align:left">${icon(I.check)}<div class="grow"><div style="font-weight:600">${esc(plan?.name || t('training.workout'))}</div>
+      <div class="meta">${esc(t('training.exCount', { n: w.exercises.length }))} · ${num(sets)} ${esc(t('day.sets'))} · ${num(volume(w))} kg${mins ? ` · ${num(mins)} min` : ''}</div></div>${icon(open ? I.down : I.chevron)}</button>${detail}`);
   }
   for (const c of state.cardio.filter((x) => x.date === d)) {
     rows.push(`<div class="item">${icon(I.run)}<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + c.type))}</div><div class="meta">${num(c.minutes)} min${c.km ? ` · ${num(c.km, 1)} km` : ''}</div></div></div>`);
@@ -90,7 +94,8 @@ export function open(ctx, date) { day = date; ctx.openSheet(sheet); }
 
 export const actions = {
   ...planEdit.actions,
-  'day-open'(el, ctx) { open(ctx, el.dataset.d); },
+  'day-open'(el, ctx) { openWorkout = null; open(ctx, el.dataset.d); },
+  'day-workout'(el, ctx) { openWorkout = openWorkout === el.dataset.id ? null : el.dataset.id; ctx.refreshSheet(); },
   'day-today'(el, ctx) {
     day = today();
     ctx.refreshSheet();
