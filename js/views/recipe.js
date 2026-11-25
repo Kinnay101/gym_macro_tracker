@@ -103,9 +103,9 @@ export const actions = {
     p.set('pick', 'recipe-' + ctx.params.id);
     ctx.go(`food/add?${p}`);
   },
-  'r-delete'(el, ctx) {
+  async 'r-delete'(el, ctx) {
     const r = recipeOf(ctx.state, ctx.params);
-    if (!r || !confirm(t('recipe.deleteConfirm', { name: r.name || t('recipe.title') }))) return;
+    if (!r || !(await ctx.confirm(t('recipe.deleteConfirm', { name: r.name || t('recipe.title') }), t('common.delete')))) return;
     ctx.update((s) => { s.recipes = s.recipes.filter((x) => x.id !== r.id); });
     ctx.go(backPath(ctx.params));
     ctx.toast(t('recipe.deleted'), () => ctx.update((s) => { s.recipes.push(r); }));

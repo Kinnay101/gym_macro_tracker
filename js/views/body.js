@@ -308,17 +308,17 @@ export const actions = {
   },
   'sync-now'(el, ctx) { authMsg = null; sync.syncNow().catch(() => {}); },
   async 'sign-out'(el, ctx) {
-    if (!confirm(t('auth.signOutConfirm'))) return;
+    if (!(await ctx.confirm(t('auth.signOutConfirm'), t('auth.signOut')))) return;
     try {
       await sync.signOut();
       authMsg = null;
       ctx.toast(t('auth.signedOut'));
     } catch {
-      if (confirm(t('auth.signOutForce'))) { await sync.signOut({ force: true }); ctx.toast(t('auth.signedOut')); }
+      if (await ctx.confirm(t('auth.signOutForce'), t('auth.signOut'))) { await sync.signOut({ force: true }); ctx.toast(t('auth.signedOut')); }
     }
   },
-  reset(el, ctx) {
-    if (!confirm(t(sync.getUser() ? 'settings.resetConfirmAccount' : 'settings.resetConfirm'))) return;
+  async reset(el, ctx) {
+    if (!(await ctx.confirm(t(sync.getUser() ? 'settings.resetConfirmAccount' : 'settings.resetConfirm'), t('settings.reset')))) return;
     store.resetAll();
     ctx.toast(t('settings.resetDone'));
   },

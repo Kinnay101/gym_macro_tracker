@@ -1,4 +1,5 @@
-// Aktives Training: Sätze eintragen und abhaken, Varianten tauschen, überspringen, Aufwärmsätze, PRs, Cardio anhängen
+// Aktives Training: Sätze eintragen (Wiederholungen eingeben = Satz gemacht), Varianten tauschen, überspringen,
+// Übungen verschieben (nur für dieses Training), Aufwärmsätze, PRs, Cardio anhängen
 import { esc, num, icon, I, parseNum, e1rm } from '../util.js';
 import { t } from '../i18n.js';
 import { current, blankSet, lastSetsFor, bestFor, finishWorkout, workingSets } from '../workout.js';
@@ -21,7 +22,7 @@ export function render(state) {
     <header class="head"><div class="row grow"><a class="icon-btn" href="#/training" aria-label="${esc(t('common.back'))}">${icon(I.back)}</a>
       <div class="grow"><div class="tiny muted timer" id="timer">${elapsed(a.startedAt)}</div><h1 class="ellipsis" style="font-size:24px">${esc(plan?.name || '')}</h1></div></div>
       <button class="btn primary" data-act="finish">${esc(t('active.finish'))}</button></header>
-    ${a.exercises.map((ex, i) => exCard(state, ex, i)).join('')}
+    ${a.exercises.map((ex, i) => exCard(state, ex, i, a.exercises.length)).join('')}
     ${cardioCard(a)}
     <label class="field">${esc(t('active.note'))}<textarea class="input" style="min-height:70px;padding:10px 12px" data-in="note">${esc(a.note || '')}</textarea></label>
     <button class="btn primary block" data-act="finish">${esc(t('active.finish'))}</button>
@@ -35,13 +36,20 @@ function elapsed(iso) {
   return h ? `${h}:${p(m)}:${p(sec)}` : `${p(m)}:${p(sec)}`;
 }
 
-function exCard(state, ex, i) {
+// ↑/↓: Reihenfolge nur für dieses Training (z. B. Maschine besetzt); gespeichert wird, wie es gemacht wurde
+function moveBtns(i, count) {
+  return `<div class="row" style="gap:2px">
+    <button class="icon-btn sm" data-act="ex-move" data-ex="${i}" data-v="-1" ${i === 0 ? 'disabled' : ''} aria-label="${esc(t('active.moveUp'))}">${icon(I.up)}</button>
+    <button class="icon-btn sm" data-act="ex-move" data-ex="${i}" data-v="1" ${i === count - 1 ? 'disabled' : ''} aria-label="${esc(t('active.moveDown'))}">${icon(I.down)}</button></div>`;
+}
+
+function exCard(state, ex, i, count) {
   const c = current(ex);
   const last = lastSetsFor(state, c.name);
   const best = bestFor(state, c.name);
   if (ex.skipped) {
     return `<section class="card tight ex-card skipped"><div class="row between"><div class="grow"><h3 class="ellipsis">${esc(c.name)}</h3><div class="meta small muted">${esc(ex.optional ? t('training.optional') : t('active.skipped'))}</div></div>
-      <button class="btn sm" data-act="skip" data-ex="${i}">${esc(t('active.doIt'))}</button></div></section>`;
+      ${moveBtns(i, count)}<button class="btn sm" data-act="skip" data-ex="${i}">${esc(t('active.doIt'))}</button></div></section>`;
   }
   let workNo = 0;
   const lastWork = last ? last.sets : [];
@@ -62,6 +70,7 @@ function exCard(state, ex, i) {
       <div class="tiny muted" style="margin-top:2px">${best ? esc(t('active.best', { v: num(best.e1rm, 1) })) : esc(t('active.firstTime'))}</div></div>
       <div class="row" style="gap:6px">
         ${ex.variant ? `<button class="icon-btn" data-act="swap" data-ex="${i}" aria-label="${esc(t('active.swap', { name: ex.useVar ? ex.name : ex.variant.name }))}" title="${esc(ex.useVar ? ex.name : ex.variant.name)}">${icon(I.swap)}</button>` : ''}
+        ${moveBtns(i, count)}
         <button class="icon-btn" data-act="skip" data-ex="${i}" aria-label="${esc(t('active.skip'))}" title="${esc(t('active.skip'))}">${icon(I.x)}</button>
       </div></div>
     ${ex.useVar ? `<div class="tiny"><span class="tag accent">${esc(t('training.variant'))}</span> ${esc(t('active.insteadOf', { name: ex.name }))}</div>` : ''}
@@ -124,14 +133,24 @@ export const actions = {
     withEx(ctx, +el.dataset.ex, (ex) => {
       const s = setsOf(ex).find((x) => x.id === el.dataset.set);
       if (!s) return;
-      // Leere Felder beim Abhaken mit dem Vorwert füllen
+      // Abhaken ohne eingetippte Werte = „gleich wie letztes Mal“: leere Felder mit dem Satz vom letzten Mal füllen
       if (!s.done && (s.kg == null || !s.reps)) {
         const row = el.closest('.set-row');
         const kg = parseNum(row.querySelector('[data-in="kg"]').value);
         const reps = parseNum(row.querySelector('[data-in="reps"]').value);
-        s.kg = kg ?? s.kg; s.reps = reps ?? s.reps;
+        const prev = prevSetFor(ctx.state, ex, s);
+        s.kg = kg ?? s.kg ?? prev?.kg ?? null;
+        s.reps = reps ?? s.reps ?? prev?.reps ?? null;
       }
       s.done = !s.done;
+    });
+  },
+  'ex-move'(el, ctx) {
+    const i = +el.dataset.ex; const j = i + Number(el.dataset.v);
+    ctx.update((s) => {
+      const list = s.active?.exercises;
+      if (!list || j < 0 || j >= list.length) return;
+      [list[i], list[j]] = [list[j], list[i]];
     });
   },
   swap(el, ctx) { withEx(ctx, +el.dataset.ex, (ex) => { ex.useVar = !ex.useVar; }); },
@@ -188,8 +207,8 @@ export const actions = {
     ctx.go('training');
     ctx.toast(prs ? t('active.savedPr', { n: prs }) : t('active.saved'));
   },
-  discard(el, ctx) {
-    if (!confirm(t('active.discardConfirm'))) return;
+  async discard(el, ctx) {
+    if (!(await ctx.confirm(t('active.discardConfirm'), t('active.discard')))) return;
     ctx.closeSheet();
     ctx.update((s) => { s.active = null; }, { silent: true });
     ctx.go('training');
@@ -206,8 +225,28 @@ export const inputs = {
 
 function patchSet(ctx, el, field) {
   // Still speichern: kein Neuzeichnen, damit die Tastatur offen bleibt
+  let done = null;
   withEx(ctx, +el.dataset.ex, (ex) => {
     const s = setsOf(ex).find((x) => x.id === el.dataset.set);
-    if (s) s[field] = parseNum(el.value);
+    if (!s) return;
+    s[field] = parseNum(el.value);
+    // Wiederholungen eingetragen = Satz gemacht; gelöscht = wieder offen
+    if (field === 'reps') { s.done = s.reps > 0; done = s.done; }
   }, { silent: true });
+  if (done != null) {
+    const row = el.closest('.set-row');
+    row?.classList.toggle('done', done);
+    row?.querySelector('.check')?.setAttribute('aria-pressed', String(done));
+  }
+}
+
+/** Satz vom letzten Mal an derselben Stelle (Aufwärmsatz ↔ Aufwärmsatz, n-ter Arbeitssatz ↔ n-ter). */
+function prevSetFor(state, ex, s) {
+  const c = current(ex);
+  const last = lastSetsFor(state, c.name);
+  if (!last) return null;
+  if (s.warmup) return last.sets.find((x) => x.warmup) || null;
+  const n = c.sets.filter((x) => !x.warmup).indexOf(s);
+  const work = last.sets.filter((x) => !x.warmup);
+  return work[n] || work[work.length - 1] || null;
 }

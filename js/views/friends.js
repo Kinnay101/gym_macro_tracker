@@ -207,8 +207,8 @@ export const actions = {
       ctx.toast(t('friends.copied'));
     } catch { /* abgebrochen */ }
   },
-  'fr-leave'(el, ctx) {
-    if (!confirm(t('friends.leaveConfirm'))) return;
+  async 'fr-leave'(el, ctx) {
+    if (!(await ctx.confirm(t('friends.leaveConfirm'), t('friends.leave')))) return;
     run(ctx, async () => {
       await social.leaveGroup(el.dataset.v);
       data = await social.loadGroups();

@@ -154,7 +154,7 @@ export const actions = {
     }
   },
   async 'fb-del'(el, ctx) {
-    if (!confirm(t('fb.deleteConfirm'))) return;
+    if (!(await ctx.confirm(t('fb.deleteConfirm'), t('common.delete')))) return;
     const id = el.dataset.id;
     try {
       await fb.remove(id);

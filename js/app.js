@@ -51,6 +51,7 @@ const ctx = {
   closeSheet,
   refreshSheet,
   toast,
+  confirm: confirmDialog,
 };
 
 function render() {
@@ -108,7 +109,11 @@ function route() {
 
 // ---- Bottom-Sheet ----
 let sheetHtml = null;
-function openSheet(renderFn) {
+let sheetGuard = null; // () => true, wenn das Fenster geschlossen werden darf (Nutzer tippt ✕ oder daneben)
+let sheetModal = false; // true: Tippen daneben schliesst nicht (Editoren: nur ✕ oder Speichern)
+function openSheet(renderFn, opts = {}) {
+  sheetGuard = opts.guard || null;
+  sheetModal = !!opts.modal;
   sheetRender = renderFn;
   sheetHtml = null;
   $sheetRoot.innerHTML = '';
@@ -130,9 +135,42 @@ function refreshSheet() {
   if (old) $sheetRoot.querySelector('.sheet').scrollTop = scroll;
 }
 function closeSheet() {
+  sheetGuard = null;
+  sheetModal = false;
   sheetRender = null;
   sheetHtml = null;
   $sheetRoot.innerHTML = '';
+}
+
+// ---- Bestätigen (eigenes Fenster statt window.confirm: das wird in manchen Umgebungen unterdrückt
+// und liefert dann still „Nein“ – z. B. passierte bei „Training verwerfen“ nichts) ----
+function confirmDialog(message, okLabel = t('common.ok')) {
+  return new Promise((resolve) => {
+    const bg = document.createElement('div');
+    bg.className = 'confirm-bg';
+    bg.innerHTML = '<div class="confirm" role="alertdialog" aria-modal="true"><div class="confirm-text"></div>'
+      + '<div class="grid2"><button type="button" class="btn" data-c="0"></button><button type="button" class="btn danger-fill" data-c="1"></button></div></div>';
+    bg.querySelector('.confirm-text').textContent = message;
+    bg.querySelector('[data-c="0"]').textContent = t('common.cancel');
+    bg.querySelector('[data-c="1"]').textContent = okLabel;
+    const done = (v) => { bg.remove(); document.removeEventListener('keydown', onKey, true); resolve(v); };
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); done(false); } };
+    bg.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const b = e.target.closest('[data-c]');
+      if (b) done(b.dataset.c === '1'); else if (e.target === bg) done(false);
+    });
+    document.addEventListener('keydown', onKey, true);
+    document.body.append(bg);
+    bg.querySelector('[data-c="1"]').focus();
+  });
+}
+
+/** Fenster schliessen, wenn die Sperre es erlaubt (Sperre darf auch ein Promise liefern, z. B. Nachfrage). */
+async function closeSheetGuarded() {
+  const g = sheetGuard;
+  if (g && !(await g())) return;
+  closeSheet();
 }
 
 // ---- Hinweis unten (mit optionalem "Rückgängig") ----
@@ -158,8 +196,8 @@ function handle(kind, e) {
   const el = e.target.closest(kind === 'click' ? '[data-act]' : '[data-in]');
   if (!el) return;
   const name = kind === 'click' ? el.dataset.act : el.dataset.in;
-  if (name === 'sheet-bg') { if (e.target === el) closeSheet(); return; }
-  if (name === 'sheet-close') { closeSheet(); return; }
+  if (name === 'sheet-bg') { if (e.target === el && !sheetModal) closeSheetGuarded(); return; }
+  if (name === 'sheet-close') { closeSheetGuarded(); return; }
   const table = kind === 'click' ? current.mod.actions : (kind === 'input' ? current.mod.inputs : current.mod.changes);
   const fn = table?.[name];
   if (fn) {
@@ -234,7 +272,7 @@ window.addEventListener('orientationchange', onRotate);
 window.addEventListener('resize', onRotate);
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && sheetRender) closeSheet();
+  if (e.key === 'Escape' && sheetRender) closeSheetGuarded();
 });
 
 store.onChange(render);

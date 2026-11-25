@@ -113,7 +113,7 @@ export const actions = {
   ...shortcutGuide.actions,
   ...hcSetup.actions,
   async 'hs-connect'(el, ctx) {
-    if (status.row && !confirm(t('hs.newKeyConfirm'))) return;
+    if (status.row && !(await ctx.confirm(t('hs.newKeyConfirm')))) return;
     try {
       newToken = await health.createToken();
       await loadStatus(ctx);
@@ -128,7 +128,7 @@ export const actions = {
     try { await navigator.clipboard.writeText(el.dataset.v); ctx.toast(t('hs.copied')); } catch { ctx.toast(t('hs.copyFail')); }
   },
   async 'hs-disconnect'(el, ctx) {
-    if (!confirm(t('hs.disconnectConfirm'))) return;
+    if (!(await ctx.confirm(t('hs.disconnectConfirm')))) return;
     try { await health.disconnect(); newToken = null; await loadStatus(ctx); } catch { ctx.toast(t('hs.error')); }
   },
 };

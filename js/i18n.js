@@ -4,7 +4,7 @@ import { parseKey } from './util.js';
 const de = {
   'nav.today': 'Heute', 'nav.food': 'Ernährung', 'nav.training': 'Training', 'nav.progress': 'Fortschritt', 'nav.body': 'Körper',
   'app.rotate': 'Bitte Handy aufrecht halten',
-  'common.today': 'Heute', 'common.toToday': '↺ Zu heute', 'common.undo': 'Rückgängig', 'common.close': 'Schliessen', 'common.back': 'Zurück', 'common.save': 'Speichern',
+  'common.today': 'Heute', 'active.moveUp': 'Übung nach oben', 'active.moveDown': 'Übung nach unten', 'common.discardChanges': 'Ungespeicherte Änderungen verwerfen?', 'common.toToday': '↺ Zu heute', 'common.undo': 'Rückgängig', 'common.close': 'Schliessen', 'common.back': 'Zurück', 'common.save': 'Speichern',
   'common.delete': 'Löschen', 'common.remove': 'Entfernen', 'common.done': 'Fertig', 'common.date': 'Datum',
   'common.prevDay': 'Vorheriger Tag', 'common.nextDay': 'Nächster Tag', 'common.prev': 'Zurück', 'common.next': 'Weiter',
 
@@ -13,7 +13,7 @@ const de = {
   'meal.breakfast': 'Frühstück', 'meal.lunch': 'Mittagessen', 'meal.dinner': 'Abendessen', 'meal.snacks': 'Snacks',
   'm.chest': 'Brust', 'm.back': 'Rücken', 'm.shoulders': 'Schultern', 'm.triceps': 'Trizeps', 'm.biceps': 'Bizeps', 'm.forearms': 'Unterarme', 'm.legs': 'Beine', 'm.core': 'Core',
   'src.own': 'Eigenes', 'src.blv': 'Grundnahrungsmittel', 'src.blvBrand': 'Schweizer Produkt', 'src.off': 'Markenprodukt',
-  'common.ok': 'OK',
+  'common.ok': 'OK', 'common.cancel': 'Abbrechen', 'common.discard': 'Verwerfen',
   'food.inDatabase': 'Grundnahrungsmittel & Eigenes', 'food.noLocal': 'Keine Treffer in der Schweizer Nährwertdatenbank.',
   'food.onlineTitle': 'Markenprodukte (Open Food Facts)', 'food.searchOnline': '«{q}» online suchen', 'food.searchOnlineHint': 'Oder Enter drücken. Braucht Internet.',
   'food.searchingOnline': 'Suche läuft …', 'food.onlineError': 'Keine Internetverbindung.', 'food.onlineRate': 'Die Online-Suche von Open Food Facts antwortet gerade nicht (Server überlastet). In einer Minute nochmals versuchen – oder Barcode scannen, das klappt meist trotzdem.',
@@ -230,7 +230,7 @@ const de = {
 const en = {
   'nav.today': 'Today', 'nav.food': 'Nutrition', 'nav.training': 'Training', 'nav.progress': 'Progress', 'nav.body': 'Body',
   'app.rotate': 'Please hold your phone upright',
-  'common.today': 'Today', 'common.toToday': '↺ Back to today', 'common.undo': 'Undo', 'common.close': 'Close', 'common.back': 'Back', 'common.save': 'Save',
+  'common.today': 'Today', 'active.moveUp': 'Move exercise up', 'active.moveDown': 'Move exercise down', 'common.discardChanges': 'Discard unsaved changes?', 'common.toToday': '↺ Back to today', 'common.undo': 'Undo', 'common.close': 'Close', 'common.back': 'Back', 'common.save': 'Save',
   'common.delete': 'Delete', 'common.remove': 'Remove', 'common.done': 'Done', 'common.date': 'Date',
   'common.prevDay': 'Previous day', 'common.nextDay': 'Next day', 'common.prev': 'Previous', 'common.next': 'Next',
 
@@ -239,7 +239,7 @@ const en = {
   'meal.breakfast': 'Breakfast', 'meal.lunch': 'Lunch', 'meal.dinner': 'Dinner', 'meal.snacks': 'Snacks',
   'm.chest': 'Chest', 'm.back': 'Back', 'm.shoulders': 'Shoulders', 'm.triceps': 'Triceps', 'm.biceps': 'Biceps', 'm.forearms': 'Forearms', 'm.legs': 'Legs', 'm.core': 'Core',
   'src.own': 'Custom', 'src.blv': 'Basic food', 'src.blvBrand': 'Swiss product', 'src.off': 'Branded product',
-  'common.ok': 'OK',
+  'common.ok': 'OK', 'common.cancel': 'Cancel', 'common.discard': 'Discard',
   'food.inDatabase': 'Basic foods & custom', 'food.noLocal': 'No matches in the Swiss food composition database.',
   'food.onlineTitle': 'Branded products (Open Food Facts)', 'food.searchOnline': 'Search "{q}" online', 'food.searchOnlineHint': 'Or press Enter. Needs internet.',
   'food.searchingOnline': 'Searching …', 'food.onlineError': 'No internet connection.', 'food.onlineRate': 'The Open Food Facts search is not responding right now (server busy). Try again in a minute – or scan the barcode, which usually still works.',
