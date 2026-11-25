@@ -70,3 +70,34 @@ export function lineChart(points, { height = 160, unit = '' } = {}) {
     <text x="${W - pad.r}" y="${H - 4}" text-anchor="end">${esc(points[points.length - 1].label)}</text>
   </svg>`;
 }
+
+// Umschalter (.seg): markiertes Feld als gleitender Hintergrund. Die Seite wird beim Umschalten neu gezeichnet →
+// vorher Position merken, danach vom alten zum neuen Feld gleiten lassen.
+const segKey = (s) => [...s.querySelectorAll('button')].map((b) => b.dataset.act + '=' + b.dataset.v).join('|');
+export function segRects(root) {
+  const m = new Map();
+  root.querySelectorAll('.seg').forEach((s) => {
+    const b = s.querySelector('button[aria-pressed="true"]');
+    if (b) m.set(segKey(s), { x: b.offsetLeft, y: b.offsetTop, w: b.offsetWidth, h: b.offsetHeight });
+  });
+  return m;
+}
+export function placeSegs(root, prev) {
+  root.querySelectorAll('.seg').forEach((s) => {
+    const b = s.querySelector('button[aria-pressed="true"]');
+    let ind = s.querySelector(':scope > .seg-ind');
+    if (!b || !b.offsetWidth) { ind?.remove(); s.classList.remove('ind-on'); return; }
+    if (!ind) { ind = document.createElement('i'); ind.className = 'seg-ind'; ind.setAttribute('aria-hidden', 'true'); s.prepend(ind); }
+    s.classList.add('ind-on');
+    const to = { x: b.offsetLeft, y: b.offsetTop, w: b.offsetWidth, h: b.offsetHeight };
+    const from = prev?.get(segKey(s));
+    const set = (r) => { ind.style.transform = `translate(${r.x}px, ${r.y}px)`; ind.style.width = r.w + 'px'; ind.style.height = r.h + 'px'; };
+    ind.style.transition = 'none';
+    set(from || to);
+    if (from && (from.x !== to.x || from.y !== to.y || from.w !== to.w)) {
+      void ind.offsetWidth; // Startposition übernehmen, dann gleiten
+      ind.style.transition = '';
+      set(to);
+    }
+  });
+}

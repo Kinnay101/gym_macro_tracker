@@ -112,7 +112,7 @@ function importSheet(state) {
     : `<div class="small" style="color:var(--bad)">${esc(t('measure.importNone'))}</div>`) : '';
   return `${sheetHead(t('measure.import'))}
     <div class="small muted">${esc(t('measure.importHint'))}</div>
-    <textarea class="input" id="m-import-text" style="min-height:180px;padding:10px 12px;font-size:14px" placeholder="06.07.2025&#10;Status: End of Cut&#10;Weight: 64.2kg&#10;Bodyfat: 9.5%&#10;Bizep right 31cm&#10;…">${esc(importText)}</textarea>
+    <textarea class="input" id="m-import-text" style="min-height:180px;padding:10px 12px" placeholder="06.07.2025&#10;Status: End of Cut&#10;Weight: 64.2kg&#10;Bodyfat: 9.5%&#10;Bizep right 31cm&#10;…">${esc(importText)}</textarea>
     <button class="btn block" data-act="m-import-check">${esc(t('measure.importCheck'))}</button>
     ${preview}`;
 }

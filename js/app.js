@@ -8,8 +8,11 @@ import * as trainingView from './views/training.js';
 import * as activeView from './views/active.js';
 import * as progressView from './views/progress.js';
 import * as bodyView from './views/body.js';
+import * as profileView from './views/profile.js';
 import * as recipeView from './views/recipe.js';
 import * as sync from './sync.js';
+import { THEMES } from './theme.js';
+import { segRects, placeSegs } from './ui.js';
 import './health.js'; // verarbeitet Apple-Health-Daten nach jedem Sync
 
 const ROUTES = {
@@ -20,6 +23,7 @@ const ROUTES = {
   active: activeView,
   progress: progressView,
   body: bodyView,
+  profile: profileView,
   recipe: recipeView,
 };
 const TAB_OF = { 'food/add': 'food', active: 'training', recipe: 'food' };
@@ -58,6 +62,8 @@ function render() {
   const state = store.get();
   setLang(state.profile.lang);
   document.documentElement.lang = state.profile.lang;
+  applyTheme(state.profile.theme);
+  updateTextZoom();
   document.querySelectorAll('#nav [data-t], #rotate [data-t]').forEach((el) => { el.textContent = t(el.dataset.t); });
   const tab = TAB_OF[current.name] || current.name;
   $nav.querySelectorAll('a').forEach((a) => {
@@ -67,12 +73,33 @@ function render() {
   document.querySelector('.app').classList.toggle('immersive', !!current.mod.immersive);
   const scroll = $view.scrollTop;
   const focus = rememberFocus();
+  const segs = segRects($view);
   $view.innerHTML = current.mod.render(state, current.params, ctx);
   $view.scrollTop = scroll;
+  placeSegs($view, segs);
   restoreFocus(focus);
   current.mod.mounted?.($view, ctx);
   if (sheetRender) refreshSheet();
 }
+
+const themeMeta = document.querySelector('meta[name="theme-color"]');
+// Schriftvergrösserung des Systems als --tz (1 = normal, 1.3 = 130 %). Android vergrössert nur die Schrift, nicht die
+// Längen → Elemente mit fester Grösse (Kalorienring) wachsen über --tz mit. Am iPhone kommt der Wert aus Dynamic Type.
+function updateTextZoom() {
+  const fs = parseFloat(getComputedStyle(document.documentElement).fontSize) || 17;
+  const tz = Math.max(1, Math.min(2, fs / 17)).toFixed(3);
+  if (document.documentElement.style.getPropertyValue('--tz') !== tz) document.documentElement.style.setProperty('--tz', tz);
+}
+function applyTheme(theme) {
+  const th = THEMES.includes(theme) ? theme : THEMES[0];
+  if (document.documentElement.dataset.theme === th) return;
+  document.documentElement.dataset.theme = th;
+  // Farbe der Statusleiste / Browserleiste passend zum Hintergrund
+  requestAnimationFrame(() => themeMeta?.setAttribute('content', getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()));
+}
+
+// Grösse geändert (Drehen, Schrift) → Hintergrund ohne Animation neu setzen
+window.addEventListener('resize', () => { placeSegs($view); placeSegs($sheetRoot); });
 
 // Beim Neuzeichnen das Feld mit der Tastatur behalten (gleiches Feld an gleicher Stelle, Cursor-Position).
 // Sonst verschwindet das Feld kurz und das iPhone klappt die Tastatur zu.
@@ -129,10 +156,12 @@ function refreshSheet() {
   if (html === sheetHtml) return;
   const old = $sheetRoot.querySelector('.sheet');
   const scroll = old ? old.scrollTop : 0;
+  const segs = segRects($sheetRoot);
   sheetHtml = html;
   $sheetRoot.innerHTML = `<div class="sheet-bg" data-act="sheet-bg"><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div></div>`;
   // Gleiches Fenster neu gezeichnet → Scrollposition behalten
   if (old) $sheetRoot.querySelector('.sheet').scrollTop = scroll;
+  placeSegs($sheetRoot, segs);
 }
 function closeSheet() {
   sheetGuard = null;
@@ -144,12 +173,12 @@ function closeSheet() {
 
 // ---- Bestätigen (eigenes Fenster statt window.confirm: das wird in manchen Umgebungen unterdrückt
 // und liefert dann still „Nein“ – z. B. passierte bei „Training verwerfen“ nichts) ----
-function confirmDialog(message, okLabel = t('common.ok')) {
+function confirmDialog(message, okLabel = t('common.ok'), { destructive = true } = {}) {
   return new Promise((resolve) => {
     const bg = document.createElement('div');
     bg.className = 'confirm-bg';
     bg.innerHTML = '<div class="confirm" role="alertdialog" aria-modal="true"><div class="confirm-text"></div>'
-      + '<div class="grid2"><button type="button" class="btn" data-c="0"></button><button type="button" class="btn danger-fill" data-c="1"></button></div></div>';
+      + '<div class="grid2"><button type="button" class="btn" data-c="0"></button><button type="button" class="btn ' + (destructive ? 'danger-fill' : 'primary') + '" data-c="1"></button></div></div>';
     bg.querySelector('.confirm-text').textContent = message;
     bg.querySelector('[data-c="0"]').textContent = t('common.cancel');
     bg.querySelector('[data-c="1"]').textContent = okLabel;
@@ -162,7 +191,7 @@ function confirmDialog(message, okLabel = t('common.ok')) {
     });
     document.addEventListener('keydown', onKey, true);
     document.body.append(bg);
-    bg.querySelector('[data-c="1"]').focus();
+    bg.querySelector('[data-c="0"]').focus();
   });
 }
 
@@ -220,23 +249,32 @@ window.visualViewport?.addEventListener('resize', () => {
   if (window.visualViewport.height >= window.innerHeight - 1) window.scrollTo(0, 0);
 });
 
-// iPhone: Die Tastatur legt sich über die Seite (die Seite selbst scrollt nie) → Höhe der Tastatur als --kb setzen,
-// damit Fenster (Sheets) über der Tastatur sitzen, und das gerade bearbeitete Feld im Fenster sichtbar halten.
+// Tastatur erkennen, damit Fenster (Sheets) über der Tastatur sitzen, die Leiste unten verschwindet und das gerade
+// bearbeitete Feld sichtbar bleibt. Zwei Fälle:
+// - iPhone: Die Tastatur legt sich über die Seite (die Seite selbst scrollt nie) → verdeckte Höhe als --kb.
+// - Android-App: Die ganze Seite wird kleiner geschoben (nichts verdeckt, --kb = 0) → erkennbar daran, dass die
+//   Seite beim Tippen deutlich niedriger ist als ohne Tastatur.
+const TYPING = 'input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=button]):not([type=range]), textarea';
+let fullHeight = window.innerHeight; // Höhe ohne Tastatur
 function updateKeyboard() {
   const vv = window.visualViewport;
-  if (!vv) return;
-  const h = Math.round(window.innerHeight - vv.height - vv.offsetTop);
-  const open = h > 80; // kleinere Differenzen = Adressleiste o. Ä., keine Tastatur
-  const root = document.documentElement;
-  root.style.setProperty('--kb', open ? h + 'px' : '0px');
-  root.classList.toggle('kb-open', open);
   const a = document.activeElement;
+  const typing = !!a?.matches?.(TYPING);
+  if (!typing || window.innerHeight > fullHeight) fullHeight = window.innerHeight;
+  const h = vv ? Math.round(window.innerHeight - vv.height - vv.offsetTop) : 0;
+  const shrunk = typing && fullHeight - window.innerHeight > 150; // Android: Seite wurde für die Tastatur verkleinert
+  const open = h > 80 || shrunk; // kleinere Differenzen = Adressleiste o. Ä., keine Tastatur
+  const root = document.documentElement;
+  root.style.setProperty('--kb', h > 80 ? h + 'px' : '0px');
+  root.classList.toggle('kb-open', open);
   // Feld im Fenster oder auf der Seite (z. B. Sätze im Training) über die Tastatur holen
   if (open && a && a.closest?.('.sheet, .main')) requestAnimationFrame(() => a.scrollIntoView({ block: 'nearest' }));
 }
 window.visualViewport?.addEventListener('resize', updateKeyboard);
 window.visualViewport?.addEventListener('scroll', updateKeyboard);
+window.addEventListener('resize', updateKeyboard);
 document.addEventListener('focusin', () => setTimeout(updateKeyboard, 300));
+document.addEventListener('focusout', () => setTimeout(updateKeyboard, 300));
 
 // iPhone: Nach dem Drehen bleibt die Seite manchmal verschoben/vergrössert → Tipper landen neben den Knöpfen.
 // Darum nach jeder Drehung Scroll-Position und Zoom zurücksetzen.
@@ -275,21 +313,55 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && sheetRender) closeSheetGuarded();
 });
 
+// Fenster nach unten wegwischen (wie am iPhone). Nur wenn das Fenster ganz oben ist; Editoren fragen über die Sperre nach.
+let drag = null;
+$sheetRoot.addEventListener('touchstart', (e) => {
+  const sh = e.target.closest('.sheet');
+  if (!sh || e.touches.length !== 1 || sh.scrollTop > 0 || e.target.closest('input, textarea, select, .fat-bar')) { drag = null; return; }
+  drag = { sh, y0: e.touches[0].clientY, t0: Date.now(), dy: 0 };
+}, { passive: true });
+$sheetRoot.addEventListener('touchmove', (e) => {
+  if (!drag) return;
+  const dy = e.touches[0].clientY - drag.y0;
+  if (dy <= 0 || drag.sh.scrollTop > 0) { if (drag.dy) drag.sh.style.transform = ''; drag.dy = 0; return; }
+  drag.dy = dy;
+  drag.sh.classList.add('dragging');
+  drag.sh.style.transform = `translateY(${dy}px)`;
+  e.preventDefault();
+}, { passive: false });
+$sheetRoot.addEventListener('touchend', async () => {
+  if (!drag) return;
+  const { sh, dy, t0 } = drag;
+  drag = null;
+  sh.classList.remove('dragging');
+  if (!dy) return;
+  const fast = dy > 40 && dy / Math.max(1, Date.now() - t0) > 0.6;
+  sh.classList.add('settle');
+  if (dy > 120 || fast) {
+    sh.style.transform = 'translateY(100%)';
+    const g = sheetGuard;
+    if (g && !(await g())) { sh.style.transform = ''; return; }
+    setTimeout(closeSheet, 150);
+  } else {
+    sh.style.transform = '';
+  }
+});
+
 store.onChange(render);
 window.addEventListener('hashchange', route);
 route();
 
-// Konto & Sync: Anzeige im Körper-Tab aktuell halten, nach Passwort-Link neues Passwort abfragen
+// Konto & Sync: Anzeige im Profil aktuell halten, nach Passwort-Link neues Passwort abfragen
 let recoveryShown = false;
 sync.onStatus((st) => {
-  if (current.name === 'body') {
+  if (current.name === 'profile') {
     const el = document.getElementById('account');
     // Nicht neu zeichnen, während jemand im Login-Formular tippt
     if (!(el && el.contains(document.activeElement) && document.activeElement.tagName === 'INPUT')) render();
   }
   if (st.recovery && !recoveryShown) {
     recoveryShown = true;
-    go('body');
+    go('profile');
     setTimeout(() => openSheet(bodyView.recoverySheet), 50);
   }
 });

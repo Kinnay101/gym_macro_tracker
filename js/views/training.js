@@ -17,17 +17,24 @@ export { CARDIO_TYPES };
 let continueOther = true; // „Anderes Training“: Plan ab heute von diesem Training aus fortsetzen
 let detailId = null;
 
-export function render(state) {
+// Oben „Übersicht | Plan“: täglich Gebrauchtes (Vorschlag, Kalender, Cardio, Verlauf) getrennt von selten Bearbeitetem
+// (Splits, Cardio-Plan, Trainings)
+const tabOf = (params) => (params?.tab === 'plan' ? 'plan' : 'overview');
+
+export function render(state, params) {
   const key = today();
   const plans = Object.fromEntries(state.plans.map((p) => [p.id, p]));
+  const tabs = seg('training-tab', [['overview', t('training.tabOverview')], ['plan', t('training.tabPlan')]], tabOf(params));
+  if (tabOf(params) === 'plan') {
+    return `${header(t('nav.training'))}${tabs}${planEdit.manageCards(state)}`;
+  }
   const sched = schedule(state, key, 1);
-
   return `
     ${header(t('nav.training'))}
+    ${tabs}
     ${todayCard(state, sched[0], plans)}
     ${calendar(state)}
     ${cardioCard(state, key)}
-    ${planEdit.manageCards(state)}
     ${historyCard(state, plans)}
   `;
 }
@@ -126,6 +133,7 @@ function detailSheet(state) {
 export const actions = {
   ...daySheet.actions,
   ...calendarActions,
+  'training-tab'(el, ctx) { ctx.go(el.dataset.v === 'plan' ? 'training?tab=plan' : 'training'); },
   start(el, ctx) {
     if (ctx.state.active) { ctx.go('active'); return; }
     // Aus „Anderes Training“ mit Häkchen: Plan ab heute von diesem Training aus fortsetzen (z. B. Push 1 ausgelassen)

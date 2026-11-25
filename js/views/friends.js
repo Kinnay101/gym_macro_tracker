@@ -33,7 +33,7 @@ export async function load(ctx, { quiet = false } = {}) {
 export function render(state, ctx) {
   if (!sync.isConfigured() || !sync.getUser()) {
     return card(`<div class="row">${icon(I.users)}<h2>${esc(t('friends.title'))}</h2></div>
-      <div class="small muted">${esc(t('friends.needAccount'))}</div><a class="btn primary" href="#/body">${esc(t('friends.toAccount'))}</a>`);
+      <div class="small muted">${esc(t('friends.needAccount'))}</div><a class="btn primary" href="#/profile">${esc(t('friends.toAccount'))}</a>`);
   }
   const name = state.profile.displayName;
   if (!name) {
@@ -62,7 +62,7 @@ export function render(state, ctx) {
     </section>
     ${seg('fr-cat', social.CATEGORIES.map((c) => [c, t('friends.cat.' + c)]), cat)}
     ${board(state, members)}
-    <div class="small muted" style="padding:0 4px">${esc(t('friends.youShare', { list: sharedList(state) }))} <a href="#/body">${esc(t('friends.change'))}</a></div>
+    <div class="small muted" style="padding:0 4px">${esc(t('friends.youShare', { list: sharedList(state) }))} <a href="#/profile">${esc(t('friends.change'))}</a></div>
     <button class="link danger" data-act="fr-leave" data-v="${esc(g.id)}" style="align-self:flex-start;color:var(--bad)">${esc(t('friends.leave'))}</button>`;
 }
 

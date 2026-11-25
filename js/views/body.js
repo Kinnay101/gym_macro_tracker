@@ -1,4 +1,5 @@
-// Körper & Profil: Gewicht, Maße, Ziele, Einstellungen, Daten-Export
+// Körper: Gewicht, Masse, Ziele. Profil (eigene Seite #/profile, Personen-Symbol oben): Darstellung, Konto & Sync,
+// Teilen, Health, Daten, Feedback, Version – beide Seiten teilen sich die Aktionen hier.
 import { esc, num, today, daysBetween, icon, I, parseNum } from '../util.js';
 import { t, shortDate } from '../i18n.js';
 import { calcGoals, goals, currentWeight, activityLevel, goalAmount, rebalanceGoals, lockedFields, GOAL_FIELDS, ADJ_MAX, extraGoalDefaults } from '../nutrition.js';
@@ -11,6 +12,7 @@ import * as healthSetup from './healthSetup.js';
 import * as feedbackView from './feedback.js';
 import { rhythmName } from './today.js';
 import * as version from '../version.js';
+import { THEMES } from '../theme.js';
 
 
 export function render(state, params, ctx) {
@@ -29,7 +31,7 @@ export function render(state, params, ctx) {
   ].sort((a, b) => a.date.localeCompare(b.date));
   const bf = bfList[bfList.length - 1];
 
-  return `${header(t('nav.body'))}
+  return `${header(t('nav.body'), '', profileBtn())}
     <section class="card">
       <div class="card-head"><div><div class="tiny muted">${esc(t('body.weight'))}</div><div class="big">${kg ? num(kg, 1) + ' kg' : '–'}</div></div>
         ${bf ? `<div style="text-align:right"><div class="tiny muted">${esc(t('measure.bf'))}</div><div class="big">${num(bf.v, 1)} %</div><div class="tiny muted">${bf.health ? healthMark() + ' ' : ''}${esc(shortDate(bf.date))}</div></div>` : ''}</div>
@@ -48,8 +50,8 @@ export function render(state, params, ctx) {
       ${adjField(p)}
       <div class="grid2">
         <label class="field">${esc(t('body.sex'))}<select class="input" data-in="sex"><option value="">–</option><option value="m" ${p.sex === 'm' ? 'selected' : ''}>${esc(t('sex.m'))}</option><option value="f" ${p.sex === 'f' ? 'selected' : ''}>${esc(t('sex.f'))}</option></select></label>
-        <label class="field">${esc(t('body.birthYear'))}<input class="input" inputmode="numeric" data-in="birthYear" value="${p.birthYear ?? ''}" placeholder="2004"></label>
-        <label class="field">${esc(t('body.height'))}<input class="input" inputmode="numeric" data-in="heightCm" value="${p.heightCm ?? ''}" placeholder="180"></label>
+        <label class="field">${esc(t('body.birthYear'))}<input class="input" inputmode="numeric" data-in="birthYear" value="${p.birthYear ?? ''}" placeholder="${esc(t('common.eg', { v: 2004 }))}"></label>
+        <label class="field">${esc(t('body.height'))}<input class="input" inputmode="numeric" data-in="heightCm" value="${p.heightCm ?? ''}" placeholder="${esc(t('common.eg', { v: 180 }))}"></label>
       </div>
       ${activityBox(state)}
       ${calc ? `<div class="small muted">${esc(t('body.calcInfo', { bmr: num(calc.bmr), tdee: num(calc.tdee) }))}</div>` : `<div class="small muted">${esc(t('body.needData'))}</div>`}
@@ -61,10 +63,23 @@ export function render(state, params, ctx) {
         : ''}
       <button class="btn sm ghost" data-act="manual-goals">${esc(t('body.setManual'))}</button>
       ${extraGoalsBox(p, g)}
-    </section>
+    </section>`;
+}
+
+/** Personen-Symbol oben rechts → Profil & Einstellungen. */
+export function profileBtn() {
+  return `<a class="head-btn" href="#/profile" aria-label="${esc(t('profile.title'))}">${icon(I.user)}</a>`;
+}
+
+/** Profil & Einstellungen. */
+export function renderProfile(state, params, ctx) {
+  const p = state.profile;
+  return `<header class="head"><div class="row" style="gap:12px"><button class="icon-btn" data-act="go-back" aria-label="${esc(t('common.back'))}">${icon(I.back)}</button><h1>${esc(t('profile.title'))}</h1></div></header>
 
     <section class="card">
       <h3>${esc(t('settings.title'))}</h3>
+      <div class="field">${esc(t('theme.title'))}${seg('theme', THEMES.map((x) => [x, t('theme.' + x)]), THEMES.includes(p.theme) ? p.theme : THEMES[0])}
+        <span class="tiny muted">${esc(t('theme.hint'))}</span></div>
       <div class="field">${esc(t('settings.lang'))}${seg('lang', [['de', 'Deutsch'], ['en', 'English']], p.lang)}</div>
       <div class="field">${esc(t('settings.energy'))}${seg('energy', [['kcal', 'kcal'], ['kj', 'kJ']], p.energyUnit)}</div>
     </section>
@@ -190,7 +205,7 @@ function extraGoalsBox(p, g) {
   const own = p.goalExtra || {};
   const rows = [['fiber', 'n.fiber', 'body.min'], ['sugar', 'n.sugar', 'body.max'], ['salt', 'n.salt', 'body.max'], ['sfa', 'n.sfa', 'body.max']];
   return `<div class="stack" style="gap:8px"><div class="small" style="font-weight:600">${esc(t('body.moreGoals'))}</div>
-    <div class="grid2">${rows.map(([k, l, mm]) => `<label class="field">${esc(t(l))} · ${esc(t(mm))} (g)<input class="input" inputmode="decimal" data-in="goal-extra" data-k="${k}" value="${own[k] ?? ''}" placeholder="${num(def[k], k === 'salt' ? 1 : 0)}"></label>`).join('')}</div>
+    <div class="grid2">${rows.map(([k, l, mm]) => `<label class="field">${esc(t(l))} · ${esc(t(mm))} (g)<input class="input" inputmode="decimal" data-in="goal-extra" data-k="${k}" value="${own[k] ?? ''}" placeholder="${esc(t('common.std', { v: num(def[k], k === 'salt' ? 1 : 0) }))}"></label>`).join('')}</div>
     <div class="tiny muted">${esc(t('body.moreGoalsHint'))}</div></div>`;
 }
 
@@ -213,10 +228,13 @@ function splitText(o) {
   return `${t('n.p')} ${pc(o.p * 4)} % · ${t('n.c')} ${pc(o.c * 4)} % · ${t('n.f')} ${pc(o.f * 9)} %`;
 }
 
-function manualSheet(state) {
+function startManual(state) {
   const g = goals(state);
   gCur = { kcal: g.kcal, p: g.p, c: g.c, f: g.f };
   gBase = null; gField = null; gOrder = ['kcal']; gLocked = ['kcal'];
+}
+function manualSheet() {
+  if (!gCur) return null;
   return `${sheetHead(t('body.setManual'))}
     <div class="small muted">${esc(t('body.manualHint'))}</div>
     <div class="grid2">${[['kcal', 'n.kcal'], ['p', 'n.p'], ['c', 'n.c'], ['f', 'n.f']].map(([k, l]) => `<label class="field"><span>${esc(t(l))}${k === 'kcal' ? ' (kcal)' : ' (g)'} <span class="tiny" id="g-tag-${k}" style="color:var(--accent)" hidden>${esc(t('body.computed'))}</span></span><input class="input" inputmode="numeric" id="g-${k}" data-in="goal-field" data-k="${k}" value="${gCur[k]}"></label>`).join('')}</div>
@@ -244,7 +262,9 @@ export const actions = {
   goal(el, ctx) { ctx.update((s) => { s.profile.goal = el.dataset.v; }); },
   lang(el, ctx) { ctx.update((s) => { s.profile.lang = el.dataset.v; }); },
   energy(el, ctx) { ctx.update((s) => { s.profile.energyUnit = el.dataset.v; }); },
-  'manual-goals'(el, ctx) { ctx.openSheet(manualSheet); },
+  'manual-goals'(el, ctx) { startManual(ctx.state); ctx.openSheet(manualSheet); },
+  'go-back'(el, ctx) { if (history.length > 1) history.back(); else ctx.go('today'); },
+  theme(el, ctx) { ctx.update((s) => { s.profile.theme = el.dataset.v; }); },
   'save-goals'(el, ctx) {
     const v = (k) => parseNum(document.getElementById('g-' + k).value);
     const o = { kcal: v('kcal'), p: v('p'), c: v('c'), f: v('f') };
@@ -308,7 +328,7 @@ export const actions = {
   },
   'sync-now'(el, ctx) { authMsg = null; sync.syncNow().catch(() => {}); },
   async 'sign-out'(el, ctx) {
-    if (!(await ctx.confirm(t('auth.signOutConfirm'), t('auth.signOut')))) return;
+    if (!(await ctx.confirm(t('auth.signOutConfirm'), t('auth.signOut'), { destructive: false }))) return;
     try {
       await sync.signOut();
       authMsg = null;

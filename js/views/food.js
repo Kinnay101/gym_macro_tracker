@@ -107,8 +107,10 @@ let rbQuery = '';
 
 function renderRecipes(state, ctx) {
   if (rbTab === 'discover' && browser.discover.status === 'idle') setTimeout(() => browser.load(() => refreshRecipeList(ctx)), 0);
+  // Unterzeile wie im Tagebuch (Datum) → Kopf gleich hoch, der Umschalter springt beim Wechseln nicht
+  const n = (state.recipes || []).length;
   return `
-    ${header(t('nav.food'))}
+    ${header(t('nav.food'), n === 0 ? t('food.recipesSub0') : n === 1 ? t('food.recipesSub1') : t('food.recipesSubN', { n }))}
     ${tabs({ tab: 'recipes' })}
     <button class="btn primary block" data-act="rb-new">${icon(I.plus)} ${esc(t('recipe.create'))}</button>
     ${seg('rb-tab', [['mine', t('recipe.mine')], ['discover', t('recipe.discover')]], rbTab)}

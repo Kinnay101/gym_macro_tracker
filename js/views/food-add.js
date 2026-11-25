@@ -1,14 +1,14 @@
 // Lebensmittel hinzufügen: Suche (eigene, Rezepte, Schweizer Nährwertdatenbank, Open Food Facts), Barcode, eigenes anlegen, Portion.
 // Mit ?recipe=<id> fügt die Seite Zutaten zu einem Rezept hinzu statt ins Tagebuch.
 import { esc, num, today, uid, icon, I, parseNum, addDays } from '../util.js';
-import { t } from '../i18n.js';
+import { t, shortDate } from '../i18n.js';
 import { MEALS, forGrams, NUTRIENTS } from '../nutrition.js';
 import { foodName, loadBlv, blvLoaded, searchLocal, searchOff, lookupBarcode, validBarcode } from '../foods.js';
 import { openScanner } from '../scanner.js';
 import { recipeFood, portionsLabel } from '../recipes.js';
 import * as browser from './recipeBrowser.js';
 import * as sync from '../sync.js';
-import { energy, sheetHead, seg } from '../ui.js';
+import { energy, sheetHead, seg, segRects, placeSegs } from '../ui.js';
 
 let query = '';
 let online = { q: '', status: 'idle', list: [] }; // Open-Food-Facts-Suche
@@ -119,8 +119,9 @@ export function render(state, params) {
   const back = inRecipe ? `#/recipe?${new URLSearchParams({ ...Object.fromEntries(backParams(params)), id: params.recipe })}` : `#/food?date=${dateOf(params)}`;
   return `
     <header class="head"><div class="row"><a class="icon-btn" href="${back}" aria-label="${esc(t('common.back'))}">${icon(I.back)}</a>
-      <div><h1>${esc(inRecipe ? t('recipe.addItem') : t('food.add'))}</h1>${inRecipe ? `<div class="sub">${esc(recipe?.name || t('recipe.title'))}</div>` : ''}</div></div></header>
-    ${inRecipe ? '' : `<div class="chips">${MEALS.map((m) => `<button class="chip" data-act="meal" data-v="${m}" aria-pressed="${m === meal}">${esc(t('meal.' + m))}</button>`).join('')}</div>`}
+      <div><h1>${esc(inRecipe ? t('recipe.addItem') : t('food.add'))}</h1>${inRecipe ? `<div class="sub">${esc(recipe?.name || t('recipe.title'))}</div>`
+        : dateOf(params) !== today() ? `<div class="sub">${esc(t('food.forDate', { date: shortDate(dateOf(params)) }))}</div>` : ''}</div></div></header>
+    ${inRecipe ? '' : seg('meal', MEALS.map((m) => [m, t('meal.' + m)]), meal)}
     <div class="search">${icon(I.search)}<input class="input" id="food-q" type="search" enterkeyhint="search" data-in="q" value="${esc(query)}" placeholder="${esc(t('food.searchPh'))}" autocomplete="off"></div>
     <div class="grid2">
       <button class="btn" data-act="barcode">${icon(I.barcode)} ${esc(t('food.barcode'))}</button>
@@ -151,7 +152,10 @@ export function mounted(root, ctx) {
 
 function refreshResults(ctx) {
   const el = document.getElementById('results');
-  if (el) el.innerHTML = resultsHtml(ctx.state);
+  if (!el) return;
+  const segs = segRects(el);
+  el.innerHTML = resultsHtml(ctx.state);
+  placeSegs(el, segs);
 }
 
 // ---- Portion wählen ----
@@ -197,7 +201,7 @@ function newFoodSheet() {
       <label class="field">${esc(t('food.barcodeOpt'))}<input class="input" id="nf-barcode" inputmode="numeric" value="${esc(pre.barcode || '')}"></label></div>
     <div class="small muted">${esc(t('food.valuesPer100'))}</div>
     <div class="grid2">${FIELDS.map(([k, l]) => `<label class="field">${esc(t(l))}${k === 'kcal' ? ' (kcal)' : ' (g)'}<input class="input" inputmode="decimal" id="nf-${k}"></label>`).join('')}
-      <label class="field">${esc(t('food.portion'))}<input class="input" inputmode="decimal" id="nf-portion" placeholder="100"></label></div>
+      <label class="field">${esc(t('food.portion'))}<input class="input" inputmode="decimal" id="nf-portion" placeholder="${esc(t('common.std', { v: 100 }))}"></label></div>
     <div class="small" id="nf-err" style="color:var(--bad)"></div>
     <button class="btn primary block" data-act="save-food">${esc(t('common.save'))}</button>`;
 }

@@ -1,6 +1,6 @@
 // Fortschritt: 1RM-Verlauf, Bestwerte, Sätze pro Muskel; Umschalter zu Freunde & Rangliste. Der Kalender (calendar) wird von der Trainingsseite angezeigt.
 import { esc, num, today, addDays, parseKey, dayKey, daysBetween, icon, I } from '../util.js';
-import { t, monthName, shortDate, weekdayHeaders } from '../i18n.js';
+import { t, monthName, shortDate, weekdayHeaders, longDate, weekdayShort } from '../i18n.js';
 import { historyFor, bestFor, setsPerMuscle } from '../workout.js';
 import { MUSCLES, dayPlan, planShort } from '../plan.js';
 import { header, seg, lineChart } from '../ui.js';
@@ -28,7 +28,9 @@ function me(state) {
   const names = exerciseNames(state);
   // Standard: die Übung mit den meisten Trainings (dann gibt es am ehesten eine Kurve)
   if (!names.includes(exName)) {
-    exName = [...names].sort((a, b) => historyFor(state, b).length - historyFor(state, a).length)[0] || null;
+    // bei Gleichstand die zuletzt trainierte
+    const info = Object.fromEntries(names.map((n) => { const h = historyFor(state, n); return [n, { n: h.length, last: h[h.length - 1]?.date || '' }]; }));
+    exName = [...names].sort((a, b) => info[b].n - info[a].n || info[b].last.localeCompare(info[a].last))[0] || null;
   }
   const hist = exName ? historyFor(state, exName) : [];
   const pts = hist.map((h) => ({ x: daysBetween(hist[0].date, h.date), y: h.e1rm, label: shortDate(h.date) }));
@@ -64,50 +66,76 @@ const MONTHS_AHEAD = 3;
  * (Kürzel des Trainings, Ruhetage blass, geplantes Cardio = Ring). Verpasste Trainings seit Planbeginn sind durchgestrichen.
  * Jeder Tag lässt sich antippen → Tagesübersicht mit Plan (ändern, verschieben, Cardio).
  */
+// Gemeinsame Daten für Kalender-Kacheln (Monat unter Training, Woche auf Heute)
+function calEnv(state) {
+  const nowKey = today();
+  return {
+    nowKey,
+    plans: Object.fromEntries(state.plans.map((p) => [p.id, p])),
+    strength: new Map(state.workouts.map((w) => [w.date, w])),
+    cardio: new Set([...state.cardio.map((c) => c.date), ...healthWorkoutsBetween(state, '0000', '9999').filter((w) => w.kind !== 'strength').map((w) => w.date)]),
+    planStart: state.training?.anchor?.date || nowKey,
+  };
+}
+
+/** Eine Kalender-Kachel: Tag, Kürzel (P1 …), Zustand (erledigt, geplant, verpasst, Ruhetag, krank, heute), Cardio-Punkt. */
+function calCell(state, k, env) {
+  const { nowKey, plans, strength, cardio, planStart } = env;
+  const w = strength.get(k);
+  const p = state.training ? dayPlan(state, k) : null;
+  let cls = 'c';
+  let label = '';
+  let planned = false;
+  if (w) { cls += ' k'; label = planShort(plans[w.planId]); }
+  else if (p?.sick) { cls += ' sick'; label = '🤒'; }
+  else if (p && (k >= nowKey || k >= planStart)) {
+    if (p.shifted) { cls += ' rest'; label = '↷'; }
+    else if (p.kind === 'train') { cls += k < nowKey ? ' miss' : ' plan'; label = planShort(plans[p.planId]); planned = k >= nowKey; }
+    else cls += ' rest';
+  }
+  if (k === nowKey) cls += ' today';
+  const dot = cardio.has(k) ? '<i class="dot"></i>' : p && k >= nowKey && p.cardio.length ? '<i class="dot plan"></i>' : '';
+  const html = `<button type="button" class="${cls}" data-act="day-open" data-d="${k}" aria-label="${esc(longDate(k))}${label && label !== '🤒' ? ' · ' + esc(label) : ''}"><span>${parseKey(k).getDate()}</span>${label ? `<small>${esc(label)}</small>` : ''}${dot}</button>`;
+  return { html, trained: !!w, planned };
+}
+
+/** Diese Woche als Kalender-Zeile (Heute): gleiche Kacheln wie der Monatskalender. */
+export function weekRow(state, startKey) {
+  const env = calEnv(state);
+  const keys = Array.from({ length: 7 }, (_, i) => addDays(startKey, i));
+  return `<div class="cal week-cal">${keys.map((k) => `<span class="h${k === env.nowKey ? ' now' : ''}">${esc(weekdayShort(k))}</span>`).join('')}${keys.map((k) => calCell(state, k, env).html).join('')}</div>`;
+}
+
 export function calendar(state) {
   const nowKey = today();
   const now = parseKey(nowKey);
   const first = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
   const daysIn = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
   const lead = (first.getDay() + 6) % 7;
-  const plans = Object.fromEntries(state.plans.map((p) => [p.id, p]));
-  const strength = new Map(state.workouts.map((w) => [w.date, w]));
-  const cardio = new Set([...state.cardio.map((c) => c.date), ...healthWorkoutsBetween(state, '0000', '9999').filter((w) => w.kind !== 'strength').map((w) => w.date)]);
-  const planStart = state.training?.anchor?.date || nowKey;
+  const env = calEnv(state);
   let count = 0;
   let planned = 0;
   const cells = [];
   for (let i = 0; i < lead; i++) cells.push('<span></span>');
   for (let d = 1; d <= daysIn; d++) {
     const k = dayKey(new Date(first.getFullYear(), first.getMonth(), d));
-    const w = strength.get(k);
-    const p = state.training ? dayPlan(state, k) : null;
-    let cls = 'c';
-    let label = '';
-    if (w) { count++; cls += ' k'; label = planShort(plans[w.planId]); }
-    else if (p?.sick) { cls += ' sick'; label = '🤒'; }
-    else if (p && (k >= nowKey || k >= planStart)) {
-      if (p.shifted) { cls += ' rest'; label = '↷'; }
-      else if (p.kind === 'train') { cls += k < nowKey ? ' miss' : ' plan'; label = planShort(plans[p.planId]); if (k >= nowKey) planned++; }
-      else cls += ' rest';
-    }
-    if (k === nowKey) cls += ' today';
-    const dot = cardio.has(k) ? '<i class="dot"></i>' : p && k >= nowKey && p.cardio.length ? '<i class="dot plan"></i>' : '';
-    cells.push(`<button type="button" class="${cls}" data-act="day-open" data-d="${k}"><span>${d}</span>${label ? `<small>${esc(label)}</small>` : ''}${dot}</button>`);
+    const c = calCell(state, k, env);
+    if (c.trained) count++;
+    if (c.planned) planned++;
+    cells.push(c.html);
   }
   // Immer 6 Wochenzeilen → der Kalender ist jeden Monat gleich hoch, die Pfeile springen beim Blättern nicht
   while (cells.length < 42) cells.push('<span class="c pad" aria-hidden="true"></span>');
   const sub = [count || monthOffset <= 0 ? t('progress.trainings', { n: count }) : '', planned ? t('progress.planned', { n: planned }) : ''].filter(Boolean).join(' · ');
   return `<section class="card tight">
     <div class="card-head"><button class="icon-btn" data-act="month" data-v="-1" aria-label="${esc(t('common.prev'))}">${icon(I.back)}</button>
-      <div style="text-align:center"><h3>${esc(monthName(first))}</h3><div class="tiny muted" style="height:16px;line-height:16px;white-space:nowrap">${esc(sub)}${monthOffset !== 0 ? `${sub ? ' · ' : ''}<button type="button" class="link tiny" data-act="month-today">${esc(t('common.toToday'))}</button>` : ''}</div></div>
+      <div style="text-align:center"><h3>${esc(monthName(first))}</h3><div class="tiny muted" style="height:1.4em;line-height:1.4em;white-space:nowrap">${esc(sub)}${monthOffset !== 0 ? `${sub ? ' · ' : ''}<button type="button" class="link tiny" data-act="month-today">${esc(t('common.toToday'))}</button>` : ''}</div></div>
       <button class="icon-btn" data-act="month" data-v="1" ${monthOffset >= MONTHS_AHEAD ? 'disabled style="opacity:.35"' : ''} aria-label="${esc(t('common.next'))}">${icon(I.chevron)}</button></div>
     <div class="cal">${weekdayHeaders().map((h) => `<span class="h">${esc(h)}</span>`).join('')}${cells.join('')}</div>
     <div class="cal-legend tiny muted">
       <span><i class="lg k"></i>${esc(t('progress.strength'))}</span><span><i class="lg plan"></i>${esc(t('progress.legendPlan'))}</span>
       <span><i class="lg miss"></i>${esc(t('progress.legendMissed'))}</span><span><i class="lgdot"></i>${esc(t('progress.cardio'))}</span><span><i class="lgdot plan"></i>${esc(t('progress.legendCardioPlan'))}</span><span><i class="lg sick"></i>${esc(t('progress.legendSick'))}</span>
     </div>
-    <div class="tiny muted">${esc(t('progress.calHint'))}</div>
   </section>`;
 }
 

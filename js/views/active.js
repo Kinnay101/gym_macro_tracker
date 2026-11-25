@@ -14,13 +14,13 @@ let menu = null; // { ex, set } für das Satz-Menü
 export function render(state) {
   const a = state.active;
   if (!a) {
-    return `<header class="head"><div class="row"><a class="icon-btn" href="#/training">${icon(I.back)}</a><h1>${esc(t('active.none'))}</h1></div></header>
+    return `<header class="head"><div class="row"><a class="icon-btn" href="#/training" aria-label="${esc(t('common.back'))}">${icon(I.back)}</a><h1>${esc(t('active.none'))}</h1></div></header>
       <a class="btn primary" href="#/training">${esc(t('nav.training'))}</a>`;
   }
   const plan = state.plans.find((p) => p.id === a.planId);
   return `
     <header class="head"><div class="row grow"><a class="icon-btn" href="#/training" aria-label="${esc(t('common.back'))}">${icon(I.back)}</a>
-      <div class="grow"><div class="tiny muted timer" id="timer">${elapsed(a.startedAt)}</div><h1 class="ellipsis" style="font-size:24px">${esc(plan?.name || '')}</h1></div></div>
+      <div class="grow"><div class="tiny muted timer" id="timer">${elapsed(a.startedAt)}</div><h1 class="ellipsis" style="font-size:1.412rem">${esc(plan?.name || '')}</h1></div></div>
       <button class="btn primary" data-act="finish">${esc(t('active.finish'))}</button></header>
     ${a.exercises.map((ex, i) => exCard(state, ex, i, a.exercises.length)).join('')}
     ${cardioCard(a)}

@@ -26,7 +26,7 @@ export function render(state, params) {
   const r = recipeOf(state, params);
   const back = '#/' + backPath(params);
   if (!r) {
-    return `<header class="head"><div class="row"><a class="icon-btn" href="${back}">${icon(I.back)}</a><h1>${esc(t('recipe.title'))}</h1></div></header>
+    return `<header class="head"><div class="row"><a class="icon-btn" href="${back}" aria-label="${esc(t('common.back'))}">${icon(I.back)}</a><h1>${esc(t('recipe.title'))}</h1></div></header>
       <div class="empty">${esc(t('recipe.notFound'))}</div>`;
   }
   const tot = recipeTotals(r);

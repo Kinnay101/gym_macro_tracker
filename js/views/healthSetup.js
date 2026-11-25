@@ -43,13 +43,13 @@ export function card(state, ctx) {
 
 // ---------- Anleitung ----------
 const copyRow = (label, value, id) => `<div class="stack" style="gap:4px"><span class="tiny muted">${esc(label)}</span>
-  <div class="row"><code class="grow ellipsis" style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px" id="${id}">${esc(value)}</code>
+  <div class="row"><code class="grow ellipsis" style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:.706rem" id="${id}">${esc(value)}</code>
   <button class="btn sm" data-act="hs-copy" data-v="${esc(value)}">${esc(t('hs.copy'))}</button></div></div>`;
 
 function step(n, title, body) {
   return `<div class="stack" style="gap:4px;padding:10px 0;border-top:1px solid var(--line)"><b>${n}. ${esc(title)}</b><div class="small" style="line-height:1.5">${body}</div></div>`;
 }
-const code = (s) => `<code style="background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:1px 5px;font-size:12px">${esc(s)}</code>`;
+const code = (s) => `<code style="background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:1px 5px;font-size:.706rem">${esc(s)}</code>`;
 
 // Namen in der Kurzbefehle-App: immer Deutsch / Englisch (das iPhone kann anders eingestellt sein als die App)
 const A = (de, en) => `<b>${esc(de)}</b> <span class="muted">/ ${esc(en)}</span>`;
@@ -113,7 +113,7 @@ export const actions = {
   ...shortcutGuide.actions,
   ...hcSetup.actions,
   async 'hs-connect'(el, ctx) {
-    if (status.row && !(await ctx.confirm(t('hs.newKeyConfirm')))) return;
+    if (status.row && !(await ctx.confirm(t('hs.newKeyConfirm'), t('hs.newKey')))) return;
     try {
       newToken = await health.createToken();
       await loadStatus(ctx);
@@ -128,7 +128,7 @@ export const actions = {
     try { await navigator.clipboard.writeText(el.dataset.v); ctx.toast(t('hs.copied')); } catch { ctx.toast(t('hs.copyFail')); }
   },
   async 'hs-disconnect'(el, ctx) {
-    if (!(await ctx.confirm(t('hs.disconnectConfirm')))) return;
+    if (!(await ctx.confirm(t('hs.disconnectConfirm'), t('hs.disconnect')))) return;
     try { await health.disconnect(); newToken = null; await loadStatus(ctx); } catch { ctx.toast(t('hs.error')); }
   },
 };

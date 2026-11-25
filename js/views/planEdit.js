@@ -64,7 +64,7 @@ export function dayPlanCard(state, date) {
   const cardio = past ? '' : plannedCardioList(state, date, { withDelete: true });
   const addCardio = past ? '' : `<div class="row" style="gap:8px">
       <select class="input grow" id="dp-ctype">${CARDIO_TYPES.map((c) => opt(c, t('cardio.' + c), c === 'run')).join('')}</select>
-      <input class="input" id="dp-cmin" inputmode="numeric" placeholder="30" style="width:64px" value="30" aria-label="min"><span class="small muted">min</span>
+      <input class="input" id="dp-cmin" inputmode="numeric" style="width:64px" value="30" aria-label="min"><span class="small muted">min</span>
       <button class="btn sm" data-act="dp-cardio-add" data-d="${esc(date)}">${icon(I.plus)}</button></div>`;
 
   // Plan ab hier fortsetzen mit Tag X des Splits (z. B. Push 1 ausgelassen → ab heute Pull 1, danach normal weiter)
@@ -183,7 +183,7 @@ function planSheet(state) {
     </div>`).join('');
   return `${sheetHead(d.isNew ? t('plan.newTitle') : t('plan.editTitle'))}
     <div class="grid2"><label class="field">${esc(t('plan.name'))}<input class="input" data-in="pe-name" value="${esc(p.name)}" maxlength="40"></label>
-      <label class="field">${esc(t('plan.short'))}<input class="input" data-in="pe-short" value="${esc(p.short ?? '')}" maxlength="4" placeholder="${esc(planShort({ ...p, short: null, name: p.name || '?' }))}"></label></div>
+      <label class="field">${esc(t('plan.short'))}<input class="input" data-in="pe-short" value="${esc(p.short ?? '')}" maxlength="4" placeholder="${esc(t('common.std', { v: planShort({ ...p, short: null, name: p.name || '?' }) }))}"></label></div>
     <div class="small" style="font-weight:600">${esc(t('plan.exercises'))} · ${esc(t('training.exCount', { n: p.ex.length }))}</div>
     <datalist id="ex-names">${names.map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
     <div class="stack" style="gap:0">${rows || `<div class="small muted">${esc(t('plan.noEx'))}</div>`}</div>

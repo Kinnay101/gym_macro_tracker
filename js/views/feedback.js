@@ -71,7 +71,7 @@ function entry(x) {
   const answerBox = admin
     ? `<div class="stack" style="gap:6px">
         <select class="input" id="fb-st-${esc(x.id)}" aria-label="Status">${fb.STATUSES.map((s) => `<option value="${s}" ${s === x.status ? 'selected' : ''}>${esc(t('fb.status.' + s))}</option>`).join('')}</select>
-        <textarea class="input" id="fb-re-${esc(x.id)}" maxlength="1000" style="min-height:60px;padding:8px 12px;font-size:14px" placeholder="${esc(t('fb.replyPh'))}">${esc(x.reply || '')}</textarea>
+        <textarea class="input" id="fb-re-${esc(x.id)}" maxlength="1000" style="min-height:60px;padding:8px 12px" placeholder="${esc(t('fb.replyPh'))}">${esc(x.reply || '')}</textarea>
         <button class="btn sm" data-act="fb-answer" data-id="${esc(x.id)}">${esc(t('common.save'))}</button></div>`
     : (x.reply ? `<div class="small" style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px"><b>${esc(t('fb.reply'))}:</b> ${esc(x.reply)}</div>` : '');
   return `<div class="stack" style="gap:8px;padding:12px 0;border-top:1px solid var(--line)">
