@@ -17,8 +17,9 @@ export function healthSourceName() { return window.GymHC || /Android/i.test(navi
 export function watchSourceName() { return window.GymHC || /Android/i.test(navigator.userAgent) ? 'Health Connect' : 'Apple Watch'; }
 export function energyUnit(state) { return state.profile.energyUnit === 'kj' ? 'kJ' : 'kcal'; }
 
-export function header(title, sub = '', right = '') {
-  return `<header class="head"><div class="stack" style="gap:2px">${sub ? `<span class="sub">${esc(sub)}</span>` : ''}<h1>${esc(title)}</h1></div>${right}</header>`;
+/** Seitenkopf. `subExtra` = fertiges HTML hinter der Unterzeile (z. B. Link „Zu heute“). */
+export function header(title, sub = '', right = '', subExtra = '') {
+  return `<header class="head"><div class="stack" style="gap:2px">${sub ? `<span class="sub">${esc(sub)}${subExtra}</span>` : ''}<h1>${esc(title)}</h1></div>${right}</header>`;
 }
 
 export function ring(value, max, centerVal, centerLbl, act = '') {

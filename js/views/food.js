@@ -1,6 +1,6 @@
 // Ernährung: Tab "Tagebuch" (ein Tag, nach Mahlzeiten, mit Bearbeiten/Löschen) und Tab "Rezepte" (eigene + Entdecken)
 import { esc, num, today, addDays, icon, I, parseNum, uid } from '../util.js';
-import { t, longDate } from '../i18n.js';
+import { t, longDate, shortDate } from '../i18n.js';
 import { goals, sumEntries, dayEntries, MEALS, forGrams } from '../nutrition.js';
 import { header, bar, energy, sheetHead, seg } from '../ui.js';
 import { portionsLabel, recipeFood } from '../recipes.js';
@@ -42,7 +42,8 @@ export function render(state, params, ctx) {
   }).join('');
 
   return `
-    ${header(t('nav.food'), isToday ? longDate(key) + ' · ' + t('common.today') : longDate(key), nav)}
+    ${header(t('nav.food'), isToday ? longDate(key) + ' · ' + t('common.today') : shortDate(key), nav, // kurzes Datum, damit „Zu heute“ in eine Zeile passt
+      isToday ? '' : ` · <a class="link tiny" href="#/food">${esc(t('common.toToday'))}</a>`)}
     ${tabs(params)}
     <section class="card">
       <div class="row between"><div><div class="tiny muted">${esc(t('food.eaten'))}</div><div class="big">${energy(state, tot.kcal)}</div></div>
