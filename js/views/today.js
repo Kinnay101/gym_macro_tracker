@@ -8,6 +8,7 @@ import { healthWorkoutsBetween, isIOS, runShortcut } from '../health.js';
 import * as hc from '../healthConnect.js';
 import { header, ring, bar, energy, energyUnit, healthSourceName } from '../ui.js';
 import * as daySheet from './daySheet.js';
+import * as cardioEdit from './cardioEdit.js';
 
 let showEaten = false;
 
@@ -52,7 +53,7 @@ function trainingCard(state, key) {
   if (d.kind === 'done') {
     return `<section class="card"><div class="tiny muted">${esc(t('today.doneToday'))}</div><div class="row between"><h2>${esc(plans[d.planId]?.name || t('training.workout'))}</h2>${icon(I.check)}</div></section>`;
   }
-  const cardioLine = d.cardio?.length ? `<div class="small" style="color:var(--cardio)">${icon(I.run)} ${esc(d.cardio.map((c) => `${t('cardio.' + c.type)} ${num(c.minutes)} min`).join(' · '))}</div>` : '';
+  const cardioLine = cardioEdit.cardioLine(state, key);
   if (d.kind === 'rest') {
     return `<section class="card"><div class="tiny muted">${esc(t('today.suggested'))} · ${esc(rhythmName(state))}</div><h2>${esc(d.sick ? `🤒 ${t('plan.sick')}` : d.shifted ? t('plan.pause') : t('training.rest'))}</h2>
       <div class="small muted">${esc(d.sick ? t('today.sickHint') : d.shifted ? t('plan.shiftedHint') : t('today.restHint'))}</div>${cardioLine}<a class="link" href="#/training">${esc(t('today.toTraining'))}</a></section>`;

@@ -9,10 +9,11 @@ import { rhythmName } from './today.js';
 import * as daySheet from './daySheet.js';
 import * as planEdit from './planEdit.js';
 import { calendar, calendarActions } from './progress.js';
+import * as cardioEdit from './cardioEdit.js';
+import { cardioSessions, cardioMinutes } from '../cardio.js';
 
 export { CARDIO_TYPES };
 
-let cardioDraft = null;
 let continueOther = true; // „Anderes Training“: Plan ab heute von diesem Training aus fortsetzen
 let detailId = null;
 
@@ -52,7 +53,7 @@ function todayCard(state, d, plans) {
       ? `<h2>${esc(d.sick ? `🤒 ${t('plan.sick')}` : d.shifted ? t('plan.pause') : t('training.rest'))}</h2><div class="small muted">${esc(d.sick ? t('today.sickHint') : d.shifted ? t('plan.shiftedHint') : t('training.restHint'))}</div>`
       : `<div class="card-head"><div class="grow"><h2>${esc(p.name)}</h2><div class="small muted">${esc(planMuscles(p).map((m) => t('m.' + m)).join(' · '))}</div></div>
          <button class="btn primary" data-act="start" data-plan="${esc(p.id)}">${esc(t('training.start'))}</button></div>`}
-    ${d.cardio.length ? `<div class="small" style="color:var(--cardio)">${icon(I.run)} ${esc(d.cardio.map((c) => `${t('cardio.' + c.type)} ${num(c.minutes)} min`).join(' · '))}</div>` : ''}
+    ${cardioEdit.cardioLine(state, d.date)}
     <div class="grid2"><button class="btn" data-act="other">${esc(t('training.another'))}</button>${restBtn}</div>
   </section>`;
 }
@@ -78,31 +79,21 @@ function otherSheet(state) {
       <button class="btn sm primary" data-act="start" data-from="other" data-plan="${esc(p.id)}">${esc(t('training.start'))}</button></div>`).join('')}</div>`;
 }
 
+/** Cardio der Woche: Uhr und von Hand zusammengeführt (dieselbe Einheit nur einmal, Uhr-Werte gelten; js/cardio.js). */
 function cardioCard(state, key) {
   const from = weekStart(key);
-  const list = state.cardio.filter((c) => c.date >= from && c.date <= addDays(from, 6)).sort((a, b) => a.date.localeCompare(b.date));
-  const watch = healthWorkoutsBetween(state, from, addDays(from, 6));
-  const mins = list.reduce((s, c) => s + (c.minutes || 0), 0) + watch.reduce((s, w) => s + w.minutes, 0);
-  const watchRows = watch.map((w) => `<div class="item"><span style="width:22px;text-align:center">⌚</span><div class="grow"><div style="font-weight:600">${esc(t('cardio.' + w.kind))}</div>
-      <div class="meta">${esc(weekdayShort(w.date))} · ${num(w.minutes)} min${w.km ? ` · ${num(w.km, 1)} km` : ''}${w.kcal ? ` · ${num(w.kcal)} kcal` : ''}${w.avgHr ? ` · Ø ${w.avgHr} bpm` : ''} · ${esc(watchSourceName())}</div></div></div>`).join('');
-  return `<section class="card tight"><div class="card-head"><h3>${esc(t('cardio.week'))}</h3><span class="small muted">${list.length ? `${num(mins)} min` : ''}</span></div>
-    ${list.length || watch.length ? `<div class="list">${watchRows}${list.map((c) => `<div class="item">${icon(I.run)}<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + c.type))}</div>
-      <div class="meta">${esc(weekdayShort(c.date))} · ${num(c.minutes)} min${c.km ? ` · ${num(c.km, 1)} km` : ''} · ${esc(c.after ? t('cardio.after') : t('cardio.own'))}</div></div>
-      <button class="icon-btn" data-act="del-cardio" data-id="${esc(c.id)}" aria-label="${esc(t('common.delete'))}">${icon(I.trash)}</button></div>`).join('')}</div>` : `<div class="small muted">${esc(t('cardio.none'))}</div>`}
+  const sessions = cardioSessions(state, from, addDays(from, 6));
+  const mins = cardioMinutes(sessions);
+  const del = (c) => `<button class="icon-btn" data-act="del-cardio" data-id="${esc(c.id)}" aria-label="${esc(t('common.delete'))}">${icon(I.trash)}</button>`;
+  const rows = sessions.map((c) => (c.source === 'watch'
+    ? `<div class="item"><span style="width:22px;text-align:center">⌚</span><div class="grow"><div style="font-weight:600">${esc(t('cardio.' + c.type))}</div>
+        <div class="meta">${esc(weekdayShort(c.date))} · ${num(c.minutes)} min${c.km ? ` · ${num(c.km, 1)} km` : ''}${c.kcal ? ` · ${num(c.kcal)} kcal` : ''}${c.avgHr ? ` · Ø ${c.avgHr} bpm` : ''} · ${esc(watchSourceName())}</div>
+        ${c.manual ? `<div class="tiny muted">${esc(t('cardio.alsoManual'))}</div>` : ''}</div>${c.manual ? del(c.manual) : ''}</div>`
+    : `<div class="item">${icon(I.run)}<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + c.type))}</div>
+        <div class="meta">${esc(weekdayShort(c.date))} · ${num(c.minutes)} min${c.km ? ` · ${num(c.km, 1)} km` : ''} · ${esc(c.after ? t('cardio.after') : t('cardio.own'))}</div></div>${del(c)}</div>`)).join('');
+  return `<section class="card tight"><div class="card-head"><h3>${esc(t('cardio.week'))}</h3><span class="small muted">${sessions.length ? `${num(mins)} min` : ''}</span></div>
+    ${rows ? `<div class="list">${rows}</div>` : `<div class="small muted">${esc(t('cardio.none'))}</div>`}
     <button class="btn sm ghost" data-act="add-cardio">${icon(I.plus)} ${esc(t('cardio.add'))}</button></section>`;
-}
-
-export function cardioSheet() {
-  const d = cardioDraft;
-  if (!d) return null;
-  return `${sheetHead(t('cardio.add'))}
-    <div class="chips">${CARDIO_TYPES.map((c) => `<button class="chip" data-act="cardio-type" data-v="${c}" aria-pressed="${d.type === c}">${esc(t('cardio.' + c))}</button>`).join('')}</div>
-    <div class="grid2"><label class="field">${esc(t('cardio.minutes'))}<input class="input" inputmode="numeric" id="c-min" value="${esc(d.minutes ?? '')}" autofocus></label>
-    <label class="field">${esc(t('cardio.km'))}<input class="input" inputmode="decimal" id="c-km" value="${esc(d.km ?? '')}"></label></div>
-    <label class="field">${esc(t('common.date'))}<input class="input" type="date" id="c-date" value="${esc(d.date)}" max="${today()}"></label>
-    ${seg('cardio-after', [['after', t('cardio.after')], ['own', t('cardio.own')]], d.after ? 'after' : 'own')}
-    <div class="small" id="c-err" style="color:var(--bad)"></div>
-    <button class="btn primary block" data-act="save-cardio">${esc(t('common.save'))}</button>`;
 }
 
 function historyCard(state, plans) {
@@ -156,29 +147,6 @@ export const actions = {
   },
   'rest-today'(el, ctx) { ctx.openSheet(restTodaySheet); },
   other(el, ctx) { ctx.openSheet(otherSheet); },
-  'add-cardio'(el, ctx) {
-    cardioDraft = { type: 'run', minutes: null, km: null, date: today(), after: ctx.state.workouts.some((w) => w.date === today()) };
-    ctx.openSheet(cardioSheet);
-  },
-  'cardio-type'(el, ctx) { keepCardioInputs(); cardioDraft.type = el.dataset.v; ctx.refreshSheet(); },
-  'cardio-after'(el, ctx) { keepCardioInputs(); cardioDraft.after = el.dataset.v === 'after'; ctx.refreshSheet(); },
-  'save-cardio'(el, ctx) {
-    keepCardioInputs();
-    const d = cardioDraft;
-    if (!d.minutes) { document.getElementById('c-err').textContent = t('cardio.needMinutes'); return; }
-    const entry = { id: uid(), date: d.date || today(), type: d.type, minutes: d.minutes, km: d.km, after: d.after };
-    cardioDraft = null;
-    ctx.closeSheet();
-    ctx.update((s) => { s.cardio.push(entry); });
-    ctx.toast(t('cardio.saved'));
-  },
-  'del-cardio'(el, ctx) {
-    const idx = ctx.state.cardio.findIndex((c) => c.id === el.dataset.id);
-    if (idx < 0) return;
-    const removed = ctx.state.cardio[idx];
-    ctx.update((s) => { s.cardio.splice(idx, 1); });
-    ctx.toast(t('cardio.deleted'), () => ctx.update((s) => { s.cardio.splice(idx, 0, removed); }));
-  },
   detail(el, ctx) { detailId = el.dataset.id; ctx.openSheet(detailSheet); },
   'del-workout'(el, ctx) {
     const idx = ctx.state.workouts.findIndex((w) => w.id === detailId);
@@ -189,14 +157,6 @@ export const actions = {
     ctx.toast(t('training.workoutDeleted'), () => ctx.update((s) => { s.workouts.splice(idx, 0, removed); }));
   },
 };
-
-function keepCardioInputs() {
-  if (!cardioDraft) return;
-  const m = document.getElementById('c-min'); const k = document.getElementById('c-km'); const d = document.getElementById('c-date');
-  if (m) cardioDraft.minutes = parseNum(m.value);
-  if (k) cardioDraft.km = parseNum(k.value);
-  if (d && d.value) cardioDraft.date = d.value;
-}
 
 export const inputs = { ...daySheet.inputs };
 export const changes = { ...daySheet.changes, 'other-continue'(el) { continueOther = el.checked; } };

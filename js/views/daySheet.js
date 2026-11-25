@@ -1,13 +1,15 @@
 // Tagesübersicht: Antippen eines Tages (Woche unter «Heute», Kalender unter «Fortschritt») zeigt,
 // was an dem Tag eingetragen wurde: Essen, Training, Cardio, Apple-Health-Werte, Gewicht – und den Plan des Tages
 // (ändern, ab hier verschieben, Cardio planen; auch für kommende Tage).
-import { esc, num, today, addDays, icon, I } from '../util.js';
+import { esc, num, today, addDays, icon, I, parseNum } from '../util.js';
 import { t, longDate } from '../i18n.js';
 import { goals, sumEntries, dayEntries } from '../nutrition.js';
 import { volume, workingSets } from '../workout.js';
 import { healthWorkoutsBetween } from '../health.js';
 import { energy, healthSourceName } from '../ui.js';
 import * as planEdit from './planEdit.js';
+import * as cardioEdit from './cardioEdit.js';
+import { cardioSessions } from '../cardio.js';
 
 const MAX_AHEAD = 90; // so weit kann man in die Zukunft blättern
 
@@ -58,13 +60,20 @@ function sheet(state) {
     rows.push(`<button type="button" class="item item-btn" data-act="day-workout" data-id="${esc(w.id)}" aria-expanded="${open}" style="width:100%;text-align:left">${icon(I.check)}<div class="grow"><div style="font-weight:600">${esc(plan?.name || t('training.workout'))}</div>
       <div class="meta">${esc(t('training.exCount', { n: w.exercises.length }))} · ${num(sets)} ${esc(t('day.sets'))} · ${num(volume(w))} kg${mins ? ` · ${num(mins)} min` : ''}</div></div>${icon(open ? I.down : I.chevron)}</button>${detail}`);
   }
-  for (const c of state.cardio.filter((x) => x.date === d)) {
-    rows.push(`<div class="item">${icon(I.run)}<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + c.type))}</div><div class="meta">${num(c.minutes)} min${c.km ? ` · ${num(c.km, 1)} km` : ''}</div></div></div>`);
+  // Cardio: Uhr und von Hand zusammengeführt (dieselbe Einheit nur einmal, Uhr-Werte gelten; js/cardio.js)
+  for (const c of cardioSessions(state, d, d)) {
+    rows.push(`<div class="item">${c.source === 'watch' ? '⌚' : icon(I.run)}<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + c.type))}</div><div class="meta">${num(c.minutes)} min${c.km ? ` · ${num(c.km, 1)} km` : ''}${c.kcal ? ` · ${energy(state, c.kcal)}` : ''}${c.avgHr ? ` · Ø ${c.avgHr} bpm` : ''}</div></div></div>`);
   }
-  for (const w of healthWorkoutsBetween(state, d, d)) {
+  // Krafttraining nur von der Uhr (ohne Training in der App an diesem Tag)
+  for (const w of healthWorkoutsBetween(state, d, d).filter((x) => x.kind === 'strength')) {
     rows.push(`<div class="item">⌚<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + w.kind))}</div><div class="meta">${num(w.minutes)} min${w.kcal ? ` · ${energy(state, w.kcal)}` : ''}</div></div></div>`);
   }
   if (rows.length) parts.push(`<section class="card tight"><h3>${esc(t('nav.training'))}</h3><div class="list">${rows.join('')}</div></section>`);
+  // Vergangene Tage: geplantes Cardio, das noch offen ist (iPhone: „✓ Erledigt“, Android: kommt von der Uhr)
+  if (d < today()) {
+    const open = cardioEdit.plannedCardioList(state, d, { onlyOpen: true });
+    if (open) parts.push(`<section class="card tight"><h3>${esc(t('cardio.plannedTitle'))}</h3><div class="list">${open}</div></section>`);
+  }
 
   // Apple Health + Körper
   const h = state.healthDays?.[d] || {};
@@ -94,6 +103,13 @@ export function open(ctx, date) { day = date; ctx.openSheet(sheet); }
 
 export const actions = {
   ...planEdit.actions,
+  ...cardioEdit.actions,
+  // Geplantes Cardio erledigt → Cardio-Fenster mit Art, Dauer und Datum vorausgefüllt; danach zurück zur Tagesübersicht
+  'cardio-done'(el, ctx) {
+    const { d, type, min } = el.dataset;
+    const fromSheet = !!el.closest('#sheet-root');
+    cardioEdit.openCardio(ctx, { date: d, type, minutes: parseNum(min) || null }, fromSheet ? () => open(ctx, d) : null);
+  },
   'day-open'(el, ctx) { openWorkout = null; open(ctx, el.dataset.d); },
   'day-workout'(el, ctx) { openWorkout = openWorkout === el.dataset.id ? null : el.dataset.id; ctx.refreshSheet(); },
   'day-today'(el, ctx) {

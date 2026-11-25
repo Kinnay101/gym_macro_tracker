@@ -5,6 +5,7 @@ import { t, weekdayShort } from '../i18n.js';
 import { dayPlan, activeSplit, cyclePos, planShort, newPlan, newSplit, planMuscles, MUSCLES, CARDIO_TYPES, splitById, restartAt, removeRestart, markDay, unmarkDay, markRange } from '../plan.js';
 import { sheetHead, seg } from '../ui.js';
 import { splitName } from './today.js';
+import { plannedCardioList } from './cardioEdit.js';
 
 const MONDAY = '2026-11-23'; // irgendein Montag – für Wochentagsnamen
 const MAX_BACK = 60; // so weit zurück lassen sich Ruhetage/Kranktage nachtragen
@@ -60,9 +61,7 @@ export function dayPlanCard(state, date) {
   if (editable || marked) restBtns += `<button class="link tiny" style="align-self:flex-start" data-act="dp-range" data-d="${esc(date)}">${esc(t('plan.rangeOpen'))}</button>`;
 
   // Geplantes Cardio nur für heute und kommende Tage; für vergangene Tage zählt nur, was gemacht wurde
-  const cardio = past ? '' : p.cardio.map((c) => `<div class="item">${icon(I.run)}<div class="grow"><div style="font-weight:600">${esc(cardioLabel(c))}</div>
-      <div class="meta">${esc(t('plan.from.' + c.from))}</div></div>
-      ${c.from === 'day' ? `<button class="icon-btn" data-act="dp-cardio-del" data-d="${esc(date)}" data-id="${esc(c.id)}" aria-label="${esc(t('common.delete'))}">${icon(I.trash)}</button>` : ''}</div>`).join('');
+  const cardio = past ? '' : plannedCardioList(state, date, { withDelete: true });
   const addCardio = past ? '' : `<div class="row" style="gap:8px">
       <select class="input grow" id="dp-ctype">${CARDIO_TYPES.map((c) => opt(c, t('cardio.' + c), c === 'run')).join('')}</select>
       <input class="input" id="dp-cmin" inputmode="numeric" placeholder="min" style="width:70px" value="30">

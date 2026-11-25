@@ -66,7 +66,7 @@ const de = {
   'training.history': 'Verlauf', 'training.noHistory': 'Noch keine Trainings. Starte dein erstes oben.', 'training.workout': 'Training', 'training.volume': 'Volumen',
   'training.deleteWorkout': 'Training löschen', 'training.workoutDeleted': 'Training gelöscht',
 
-  'cardio.week': 'Cardio diese Woche', 'cardio.none': 'Noch kein Cardio diese Woche.', 'cardio.add': 'Cardio eintragen', 'cardio.minutes': 'Minuten', 'cardio.km': 'Distanz in km (optional)',
+  'cardio.alsoManual': 'auch von Hand eingetragen – zählt nur einmal', 'cardio.done': 'Erledigt', 'cardio.autoFromWatch': 'kommt automatisch von der Uhr', 'cardio.enterManually': 'von Hand eintragen', 'cardio.plannedWas': 'geplant {min} min', 'cardio.manual': 'von Hand', 'cardio.plannedTitle': 'Geplantes Cardio', 'cardio.week': 'Cardio diese Woche', 'cardio.none': 'Noch kein Cardio diese Woche.', 'cardio.add': 'Cardio eintragen', 'cardio.minutes': 'Minuten', 'cardio.km': 'Distanz in km (optional)',
   'cardio.after': 'Nach dem Training', 'cardio.own': 'Eigene Einheit', 'cardio.needMinutes': 'Bitte Minuten eintragen.', 'cardio.saved': 'Cardio gespeichert', 'cardio.deleted': 'Cardio gelöscht',
   'cardio.run': 'Laufen', 'cardio.treadmill': 'Laufband', 'cardio.bike': 'Velo', 'cardio.crosstrainer': 'Crosstrainer', 'cardio.rowing': 'Rudern', 'cardio.stairs': 'Treppe', 'cardio.swim': 'Schwimmen', 'cardio.other': 'Anderes',
 
@@ -292,7 +292,7 @@ const en = {
   'training.history': 'History', 'training.noHistory': 'No workouts yet. Start your first one above.', 'training.workout': 'Workout', 'training.volume': 'volume',
   'training.deleteWorkout': 'Delete workout', 'training.workoutDeleted': 'Workout deleted',
 
-  'cardio.week': 'Cardio this week', 'cardio.none': 'No cardio this week yet.', 'cardio.add': 'Log cardio', 'cardio.minutes': 'Minutes', 'cardio.km': 'Distance in km (optional)',
+  'cardio.alsoManual': 'also entered manually – counts once', 'cardio.done': 'Done', 'cardio.autoFromWatch': 'comes automatically from your watch', 'cardio.enterManually': 'enter manually', 'cardio.plannedWas': 'planned {min} min', 'cardio.manual': 'manual', 'cardio.plannedTitle': 'Planned cardio', 'cardio.week': 'Cardio this week', 'cardio.none': 'No cardio this week yet.', 'cardio.add': 'Log cardio', 'cardio.minutes': 'Minutes', 'cardio.km': 'Distance in km (optional)',
   'cardio.after': 'After workout', 'cardio.own': 'Separate session', 'cardio.needMinutes': 'Please enter minutes.', 'cardio.saved': 'Cardio saved', 'cardio.deleted': 'Cardio deleted',
   'cardio.run': 'Running', 'cardio.treadmill': 'Treadmill', 'cardio.bike': 'Cycling', 'cardio.crosstrainer': 'Cross trainer', 'cardio.rowing': 'Rowing', 'cardio.stairs': 'Stairs', 'cardio.swim': 'Swimming', 'cardio.other': 'Other',
 

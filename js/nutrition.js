@@ -1,6 +1,7 @@
 // Ernährung: Tagesziele berechnen, Summen bilden, Grundnahrungsmittel.
 import { round, today, addDays, daysBetween } from './util.js';
 import { plannedPerWeek } from './plan.js';
+import { cardioSessions } from './cardio.js';
 
 export const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'];
 export const NUTRIENTS = ['kcal', 'p', 'c', 'f', 'fiber', 'sugar', 'salt', 'sfa']; // sfa = gesättigte Fettsäuren (kann null sein)
@@ -19,12 +20,11 @@ const LEVELS = [[1, 1.2, 'sedentary'], [3, 1.375, 'light'], [5.5, 1.55, 'moderat
  * der letzten 4 Wochen. Mit weniger als 2 Wochen Verlauf: Schätzung aus dem aktiven Split (Trainingstage + geplantes Cardio pro Woche).
  */
 export function activityLevel(state, now = today()) {
-  // Apple-Watch-Workouts zählen mit: Krafttraining als Trainingstag, alles andere als Cardio-Minuten.
-  // Doppelt erfasst (gleicher Tag schon als Cardio in der App) wird nicht doppelt gezählt.
+  // Uhr-Workouts zählen mit: Krafttraining als Trainingstag, Cardio aus der zusammengeführten Liste
+  // (dieselbe Einheit von Uhr und von Hand nur einmal, siehe js/cardio.js).
   const watch = Object.values(state.healthWorkouts || {});
-  const manualCardioDays = new Set(state.cardio.map((c) => c.date));
   const strengthDays = [...state.workouts.map((w) => w.date), ...watch.filter((w) => w.kind === 'strength').map((w) => w.date)];
-  const cardioList = [...state.cardio, ...watch.filter((w) => w.kind !== 'strength' && !manualCardioDays.has(w.date))];
+  const cardioList = cardioSessions(state, '0000-00-00', now);
   const all = [...strengthDays, ...cardioList.map((c) => c.date)].filter((d) => d <= now).sort();
   let perWeek;
   let source;
