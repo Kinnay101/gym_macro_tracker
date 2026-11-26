@@ -1,7 +1,7 @@
 // Service Worker: macht die App offline-fähig.
 // "Netzwerk zuerst": Änderungen kommen sofort an, ohne Internet greift der Zwischenspeicher.
 // Bei Änderungen am App-Code APP_CACHE hochzählen.
-const APP_CACHE = 'gym-v94';
+const APP_CACHE = 'gym-v95';
 const SHELL = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
   'js/app.js', 'js/store.js', 'js/i18n.js', 'js/util.js', 'js/ui.js', 'js/plan.js', 'js/nutrition.js', 'js/workout.js',
@@ -13,7 +13,8 @@ const SHELL = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(APP_CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // cache: 'reload' → frisch vom Server, nicht aus dem Browser-Zwischenspeicher (sonst landen alte Dateien im neuen Cache)
+  e.waitUntil(caches.open(APP_CACHE).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
@@ -35,8 +36,7 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     fetch(e.request, { cache: 'no-cache' })
       .then((res) => {
-        const copy = res.clone();
-        caches.open(APP_CACHE).then((c) => c.put(e.request, copy));
+        if (res.ok) { const copy = res.clone(); caches.open(APP_CACHE).then((c) => c.put(e.request, copy)).catch(() => {}); }
         return res;
       })
       .catch(() => caches.match(e.request, { ignoreSearch: true })),

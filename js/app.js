@@ -394,6 +394,7 @@ function onHashChange() {
 store.onChange(render);
 window.addEventListener('hashchange', onHashChange);
 route();
+window.__gmtReady = true; // Start geklappt (js/boot.js lädt sonst einmal neu)
 
 // Konto & Sync: Anzeige im Profil aktuell halten, nach Passwort-Link neues Passwort abfragen
 let recoveryShown = false;

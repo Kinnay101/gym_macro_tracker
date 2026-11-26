@@ -16,3 +16,37 @@
   var color = document.querySelector('meta[name="theme-color"]');
   if (color) color.setAttribute('content', BG[theme]);
 })();
+
+// Start abgebrochen? (direkt nach einem Update kann der Browser alte und neue Dateien mischen → ein Modul fehlt,
+// die App startet nicht, nur die Leiste unten bleibt.) Dann einmal Zwischenspeicher leeren und neu laden –
+// höchstens einmal pro Minute, sonst Hinweis mit Knopf. app.js setzt window.__gmtReady nach dem ersten Zeichnen.
+(function () {
+  var KEY = 'gmt-recover-at';
+  var done = false;
+  function recent() { try { return Date.now() - Number(sessionStorage.getItem(KEY) || 0) < 60000; } catch (e) { return false; } }
+  function showHint() {
+    var v = document.getElementById('view');
+    if (!v) return;
+    var de = (navigator.language || 'de').slice(0, 2) !== 'en';
+    v.innerHTML = '<div class="boot-msg">' + (de ? 'Die App wurde gerade aktualisiert und konnte nicht ganz laden.' : 'The app was just updated and could not load completely.')
+      + '<button class="btn primary" id="boot-reload">' + (de ? 'Neu laden' : 'Reload') + '</button></div>';
+    document.getElementById('boot-reload').onclick = function () { recover(true); };
+  }
+  function recover(force) {
+    if ((done && !force) || window.__gmtReady) return; // Knopf „Neu laden“ geht immer
+    done = true;
+    if (!force && recent()) { showHint(); return; }
+    try { sessionStorage.setItem(KEY, String(Date.now())); } catch (e) { /* egal */ }
+    var clear = window.caches ? caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }) : Promise.resolve();
+    clear.catch(function () {}).then(function () { location.reload(); });
+  }
+  // Modul fehlt / passt nicht (z. B. „does not provide an export named …“, „Importing binding name … is not found“)
+  window.addEventListener('error', function (e) {
+    var t = e && e.target;
+    var scriptFailed = t && t.tagName === 'SCRIPT';
+    var msg = String((e && e.message) || '');
+    if (scriptFailed || /export named|binding name|module script|dynamically imported/i.test(msg)) setTimeout(function () { recover(false); }, 0);
+  }, true);
+  // Sicherheitsnetz: nach 12 s noch nicht gestartet (nur wenn sichtbar)
+  setTimeout(function () { if (!window.__gmtReady && document.visibilityState === 'visible') recover(false); }, 12000);
+})();
