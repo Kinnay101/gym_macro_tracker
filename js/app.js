@@ -117,28 +117,40 @@ function applyTheme(theme) {
 // Grösse geändert (Drehen, Schrift) → Hintergrund ohne Animation neu setzen
 window.addEventListener('resize', () => { placeSegs($view); placeSegs($sheetRoot); });
 
-// Beim Neuzeichnen das Feld mit der Tastatur behalten (gleiches Feld an gleicher Stelle, Cursor-Position).
-// Sonst verschwindet das Feld kurz und das iPhone klappt die Tastatur zu.
+// Beim Neuzeichnen (Seite oder offenes Fenster) das Feld mit der Tastatur behalten, inkl. Cursor und noch nicht
+// gespeicherter Eingabe. Sonst verschwindet das Feld kurz und das iPhone klappt die Tastatur zu.
+// Erkannt wird das Feld an einem festen Schlüssel aus seinen Merkmalen (z. B. „Wdh · Übung 4 · Satz abc“), nicht an
+// seiner Position – sonst landet der Cursor im falschen Feld, wenn darüber ein Feld dazukommt oder wegfällt.
 const FIELDS = 'input:not([type=checkbox]):not([type=radio]):not([type=file]), textarea';
+const KEY_ATTRS = ['id', 'name', 'data-in', 'data-f', 'data-i', 'data-ex', 'data-set', 'data-id', 'data-d', 'data-u'];
+const fieldKey = (el) => KEY_ATTRS.map((a) => el.getAttribute(a) ?? '').join('|');
+const ANONYMOUS = KEY_ATTRS.map(() => '').join('|');
 let renderedView = null; // welche Seite zuletzt gezeichnet wurde (nur auf derselben Seite das Feld behalten)
 let justChanged = null;  // Feld, dessen change-Ereignis gerade verarbeitet wird (Wert kommt dann aus der App)
-function rememberFocus() {
+function rememberFocusIn(root) {
   const a = document.activeElement;
-  if (renderedView !== current.name || !a || !$view.contains(a) || !a.matches(FIELDS)) return null;
-  const list = [...$view.querySelectorAll(FIELDS)];
+  if (!a || !root.contains(a) || !a.matches(FIELDS)) return null;
+  const key = fieldKey(a);
+  const same = [...root.querySelectorAll(FIELDS)].filter((x) => fieldKey(x) === key);
   let sel = null;
   try { sel = [a.selectionStart, a.selectionEnd]; } catch { /* z. B. type=number */ }
-  return { index: list.indexOf(a), id: a.id, dataIn: a.dataset.in || null, value: a.value, keepValue: a !== justChanged, sel };
+  return { key, nth: same.indexOf(a), count: same.length, value: a.value, keepValue: a !== justChanged, sel };
 }
-function restoreFocus(f) {
-  renderedView = current.name;
+function restoreFocusIn(root, f) {
   if (!f) return;
-  const list = [...$view.querySelectorAll(FIELDS)];
-  const el = (f.id && document.getElementById(f.id)) || list[f.index];
-  if (!el || (el.dataset.in || null) !== f.dataIn) return;
+  const same = [...root.querySelectorAll(FIELDS)].filter((x) => fieldKey(x) === f.key);
+  // Gleicher Schlüssel mehrfach (oder Feld ohne Merkmale): nur, wenn es gleich viele sind – sonst lieber kein Feld
+  // als das falsche
+  const el = same.length === 1 && f.key !== ANONYMOUS ? same[0] : same.length === f.count ? same[f.nth] : null;
+  if (!el) return;
   if (f.keepValue && el.value !== f.value) el.value = f.value; // noch nicht gespeicherte Eingabe behalten
   el.focus({ preventScroll: true });
   try { if (f.sel && f.sel[0] != null) el.setSelectionRange(f.sel[0], f.sel[1]); } catch { /* egal */ }
+}
+function rememberFocus() { return renderedView === current.name ? rememberFocusIn($view) : null; }
+function restoreFocus(f) {
+  renderedView = current.name;
+  restoreFocusIn($view, f);
 }
 
 function route() {
@@ -175,11 +187,13 @@ function refreshSheet() {
   const old = $sheetRoot.querySelector('.sheet');
   const scroll = old ? old.scrollTop : 0;
   const segs = segRects($sheetRoot);
+  const focus = old ? rememberFocusIn($sheetRoot) : null;
   sheetHtml = html;
   $sheetRoot.innerHTML = `<div class="sheet-bg" data-act="sheet-bg"><div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div></div>`;
-  // Gleiches Fenster neu gezeichnet → Scrollposition behalten
+  // Gleiches Fenster neu gezeichnet → Scrollposition und Feld mit der Tastatur behalten
   if (old) $sheetRoot.querySelector('.sheet').scrollTop = scroll;
   placeSegs($sheetRoot, segs);
+  restoreFocusIn($sheetRoot, focus);
 }
 function closeSheet() {
   sheetGuard = null;
