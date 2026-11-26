@@ -3,7 +3,7 @@ import { esc, num, today, weekStart, addDays, icon, I, parseNum, uid } from '../
 import { t, weekdayShort, shortDate } from '../i18n.js';
 import { schedule, lastDone, planMuscles, CARDIO_TYPES, splitFor, indexOfPlan, restartAt, removeRestart, markDay } from '../plan.js';
 import { startWorkout, volume, workingSets, setText } from '../workout.js';
-import { header, seg, sheetHead, watchSourceName } from '../ui.js';
+import { header, seg, sheetHead, watchSourceName, energy, cardioIcon } from '../ui.js';
 import { healthWorkoutsBetween, watchStatsFor } from '../health.js';
 import { rhythmName } from './today.js';
 import * as daySheet from './daySheet.js';
@@ -96,9 +96,9 @@ function cardioCard(state, key) {
   const del = (c) => `<button class="icon-btn" data-act="del-cardio" data-id="${esc(c.id)}" aria-label="${esc(t('common.delete'))}">${icon(I.trash)}</button>`;
   const rows = sessions.map((c) => (c.source === 'watch'
     ? `<div class="item"><span style="width:22px;text-align:center">⌚</span><div class="grow"><div style="font-weight:600">${esc(t('cardio.' + c.type))}</div>
-        <div class="meta">${esc(weekdayShort(c.date))} · ${num(c.minutes)} min${c.km ? ` · ${num(c.km, 1)} km` : ''}${c.kcal ? ` · ${num(c.kcal)} kcal` : ''}${c.avgHr ? ` · Ø ${c.avgHr} bpm` : ''} · ${esc(watchSourceName())}</div>
+        <div class="meta">${esc(weekdayShort(c.date))} · ${num(c.minutes)} min${c.km ? ` · ${num(c.km, 1)} km` : ''}${c.kcal ? ` · ${energy(state, c.kcal)}` : ''}${c.avgHr ? ` · Ø ${c.avgHr} bpm` : ''} · ${esc(watchSourceName())}</div>
         ${c.manual ? `<div class="tiny muted">${esc(t('cardio.alsoManual'))}</div>` : ''}</div>${c.manual ? del(c.manual) : ''}</div>`
-    : `<div class="item">${icon(I.run)}<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + c.type))}</div>
+    : `<div class="item">${cardioIcon(c.type)}<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + c.type))}</div>
         <div class="meta">${esc(weekdayShort(c.date))} · ${num(c.minutes)} min${c.km ? ` · ${num(c.km, 1)} km` : ''} · ${esc(c.after ? t('cardio.after') : t('cardio.own'))}</div></div>${del(c)}</div>`)).join('');
   return `<section class="card tight"><div class="card-head"><h3>${esc(t('cardio.week'))}</h3><span class="small muted">${sessions.length ? `${num(mins)} min` : ''}</span></div>
     ${rows ? `<div class="list">${rows}</div>` : `<div class="small muted">${esc(t('cardio.none'))}</div>`}
@@ -113,7 +113,7 @@ function historyCard(state, plans) {
   const rows = items.map((it) => it.kind === 'w'
     ? `<div class="item"><button class="item-btn grow" data-act="detail" data-id="${esc(it.w.id)}"><div style="font-weight:600">${esc(plans[it.w.planId]?.name || t('training.workout'))}</div>
         <div class="meta">${esc(shortDate(it.date))} · ${esc(t('training.exCount', { n: it.w.exercises.length }))} · ${num(volume(it.w))} kg</div></button>${icon(I.chevron)}</div>`
-    : `<div class="item">${icon(I.run)}<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + it.c.type))}</div><div class="meta">${esc(shortDate(it.date))} · ${num(it.c.minutes)} min</div></div></div>`).join('');
+    : `<div class="item">${cardioIcon(it.c.type)}<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + it.c.type))}</div><div class="meta">${esc(shortDate(it.date))} · ${num(it.c.minutes)} min</div></div></div>`).join('');
   return `<section class="card tight"><h3>${esc(t('training.history'))}</h3>${rows ? `<div class="list">${rows}</div>` : `<div class="small muted">${esc(t('training.noHistory'))}</div>`}</section>`;
 }
 
@@ -125,7 +125,7 @@ function detailSheet(state) {
   const watch = watchStatsFor(state, w.date);
   return `${sheetHead(plan?.name || t('training.workout'))}
     <div class="small muted">${esc(shortDate(w.date))}${mins ? ` · ${num(mins)} min` : ''} · ${num(volume(w))} kg ${esc(t('training.volume'))}</div>
-    ${watch ? `<div class="small">⌚ ${esc(watchSourceName())}: ${num(watch.minutes)} min${watch.kcal ? ` · ${num(watch.kcal)} kcal` : ''}${watch.avgHr ? ` · Ø ${watch.avgHr} bpm` : ''}</div>` : ''}
+    ${watch ? `<div class="small">⌚ ${esc(watchSourceName())}: ${num(watch.minutes)} min${watch.kcal ? ` · ${energy(state, watch.kcal)}` : ''}${watch.avgHr ? ` · Ø ${watch.avgHr} bpm` : ''}</div>` : ''}
     <div class="list">${w.exercises.map((ex) => `<div class="item"><div class="grow"><div style="font-weight:600">${esc(ex.name)}${ex.uni ? ` <span class="tag accent">${esc(t('active.uniShort'))}</span>` : ''}</div>
       <div class="meta">${ex.sets.map((s) => setText(s, { unit: '', x: '×' })).join(' · ')}</div></div><span class="tiny muted">${workingSets(ex).length}</span></div>`).join('')}</div>
     ${w.note ? `<div class="small">${esc(w.note)}</div>` : ''}
@@ -184,9 +184,11 @@ export const actions = {
     const idx = ctx.state.workouts.findIndex((w) => w.id === detailId);
     if (idx < 0) return;
     const removed = ctx.state.workouts[idx];
+    // Cardio, das an dieses Training angehängt wurde, gehört dazu (K15)
+    const cardio = ctx.state.cardio.filter((c) => c.workoutId === removed.id);
     ctx.closeSheet();
-    ctx.update((s) => { s.workouts.splice(idx, 1); });
-    ctx.toast(t('training.workoutDeleted'), () => ctx.update((s) => { s.workouts.splice(idx, 0, removed); }));
+    ctx.update((s) => { s.workouts.splice(idx, 1); s.cardio = s.cardio.filter((c) => c.workoutId !== removed.id); });
+    ctx.toast(t('training.workoutDeleted'), () => ctx.update((s) => { s.workouts.splice(idx, 0, removed); s.cardio.push(...cardio); }));
   },
 };
 

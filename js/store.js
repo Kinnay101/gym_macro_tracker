@@ -19,11 +19,8 @@ function blankRaw() {
       sex: null, // 'm' | 'f'
       birthYear: null,
       heightCm: null,
-      activity: 1.55,
       goal: 'maintain', // 'cut' | 'maintain' | 'bulk'
       goalOverride: null, // { kcal, p, c, f } wenn manuell gesetzt
-      rhythm: 'full', // 'full' | 'light'
-      rhythmNames: { full: null, light: null }, // null = Standardname
       displayName: null, // Name, den Freunde sehen
       share: { strength: true, consistency: true, volume: true, prs: true }, // was Freunde sehen dürfen
     },
@@ -68,6 +65,8 @@ function migrate(d) {
   if (!Array.isArray(out.plans) || !out.plans.length) out.plans = b.plans;
   // Vor den Splits: Rhythmus „Volle Woche“/„Locker“ → Split, beginnt heute beim bisherigen Vorschlag
   ensureTraining(out);
+  // Felder aus der Zeit vor den Splits bzw. vor der Aktivität aus den Trainings – nach der Umstellung unbenutzt (Prüfbericht B8)
+  for (const k of ['activity', 'rhythm', 'rhythmNames']) delete out.profile[k];
   // Alte Masse (vor 22.11.): 'arm' hiess jetzt 'biceps'
   out.measures = (out.measures || []).map((m) => {
     if (m.arm == null) return m;

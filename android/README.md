@@ -1,6 +1,6 @@
 # Android / Health Connect
 
-Stand: 26.11.2026 (App 1.5). Web-Seite: `js/healthConnect.js`, `js/views/healthConnectSetup.js`.
+Stand: 26.11.2026 (App 1.6). Web-Seite: `js/healthConnect.js`, `js/views/healthConnectSetup.js`.
 Android-Hülle: `android/app-shell` (Kotlin, WebView + Brücke `GymHC`), im Emulator (Android 17) getestet:
 Rechte-Dialog, Lesen aller Datenarten, Mahlzeiten schreiben.
 
@@ -10,7 +10,9 @@ $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 cd android\app-shell; .\gradlew.bat assembleDebug
 ```
 - Ausgabe liegt **nicht** in OneDrive, sondern unter `%LOCALAPPDATA%\gmt-android-build\app\outputs\apk\` (siehe `build.gradle.kts`).
-- Emulator: `%LOCALAPPDATA%\Android\Sdk\emulator\emulator.exe -avd Medium_Phone_API_37.0`
+- Emulator: `%LOCALAPPDATA%\Android\Sdk\emulator\emulator.exe -avd Medium_Phone_API_37.0 -dns-server 8.8.8.8,1.1.1.1`
+  (ohne `-dns-server` verliert der Emulator manchmal die Namensauflösung → „ERR_NAME_NOT_RESOLVED“, obwohl IPs gehen).
+  Offline testen: `adb shell cmd connectivity airplane-mode enable` (App muss vorher einmal online geladen haben).
 - Installieren + lokale Vorschau statt Online-Version (nur Debug-Build):
   `adb reverse tcp:8010 tcp:8010`, `adb install -r app-debug.apk`,
   `adb shell am start -S -n io.github.kinnay101.gymmacro/.MainActivity --es url "http://localhost:8010/#/body"`
@@ -41,6 +43,12 @@ cd android\app-shell; .\gradlew.bat assembleDebug
   Seite zurück bzw. App verlassen. Vorher verwarf Zurück Editor-Änderungen ohne Nachfrage (Prüfbericht AA2).
   Web-Seite fängt dasselbe auch ohne 1.5 ab (Hash-Wechsel ohne App-Auslöser → wieder vor + schliessen), nur auf der
   ersten Seite ohne Verlauf beendete Zurück dort die App.
+- **Version 1.6 (26.11.):** Datenschutz-Seite für Health Connect mit Kopf („‹ Zurück“, Titel), Abstand zu den Systemleisten,
+  aktuellen Texten (Profil → Health Connect, gesättigte/ungesättigte Fette) und Kreide-Farben. Sie war nie nur Englisch –
+  der Emulator ist auf Englisch eingestellt (values-de gilt auf deutschen Handys).
+  Ausserdem (vor dem Verteilen noch in 1.6 aufgenommen): kcal und km pro Workout nur aus Einträgen, die ganz im Workout liegen
+  (±1 Min., pro Quelle summiert, grösste Quelle zählt) – vorher verteilte `aggregate` Tages-/Stundenwerte anteilig
+  („35-min-Lauf 0.1 km · 4 kcal“). Testdaten (`DebugData`) enthalten dafür Lauf-Werte. Icon in Kreide-Farben (#121110 / #FF7A3D).
 - Emulator-Fenster zu gross für den Bildschirm: `window.scale = 0.3` in `%USERPROFILE%\.android\avd\Medium_Phone.avd\emulator-user.ini`.
   Samsung-ähnlich testen: `adb shell cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.threebutton`.
 

@@ -18,7 +18,7 @@ let pickedGrams = 100;
 let scan = null; // { status: 'loading' | 'notfound' | 'error', code, name }
 let newFoodPrefill = {};
 
-const dateOf = (p) => p.date || today();
+const dateOf = (p) => (/^\d{4}-\d{2}-\d{2}$/.test(p.date || '') ? p.date : today()); // nur echtes Datum aus der Adresse
 const recipeMode = (p) => !!p.recipe; // Zutaten für ein Rezept auswählen
 function backParams(p) { const q = new URLSearchParams(); if (p.meal) q.set('meal', p.meal); if (p.date) q.set('date', p.date); if (p.from) q.set('from', p.from); return q; }
 const mealOf = (p) => (MEALS.includes(p.meal) ? p.meal : defaultMeal());
@@ -110,6 +110,9 @@ function resultsHtml(state) {
   return `${localHtml}<section class="card tight"><h3>${esc(t('food.onlineTitle'))}</h3>${onlineHtml}
     <button class="link" data-act="new-food" style="align-self:flex-start">${esc(t('food.createOwn'))}</button></section>`;
 }
+
+/** Seite neu geöffnet (von einer anderen Seite): alte Suche nicht stehen lassen. */
+export function enter() { query = ''; online = { q: '', status: 'idle', list: [] }; }
 
 export function render(state, params) {
   mode = params;

@@ -62,6 +62,9 @@ object DebugData {
                 metadata = meta("strength"),
                 exerciseType = ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING, title = "Push Day",
             ),
+            // Werte, die die Uhr während des Laufs schreibt (liegen ganz im Training)
+            ActiveCaloriesBurnedRecord(at(y, 7, 31).toInstant(), off(at(y, 7, 31)), at(y, 8, 4).toInstant(), off(at(y, 8, 4)), Energy.kilocalories(318.0), meta("run-kcal")),
+            DistanceRecord(at(y, 7, 31).toInstant(), off(at(y, 7, 31)), at(y, 8, 4).toInstant(), off(at(y, 8, 4)), Length.kilometers(5.6), meta("run-km")),
             ExerciseSessionRecord(
                 startTime = at(y, 7, 30).toInstant(), startZoneOffset = off(at(y, 7, 30)),
                 endTime = at(y, 8, 5).toInstant(), endZoneOffset = off(at(y, 8, 5)),

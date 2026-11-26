@@ -3,7 +3,7 @@
 import { esc, num, today, parseNum, uid, icon, I } from '../util.js';
 import { t } from '../i18n.js';
 import { CARDIO_TYPES } from '../plan.js';
-import { seg, sheetHead, watchSourceName } from '../ui.js';
+import { seg, sheetHead, watchSourceName, cardioIcon } from '../ui.js';
 import { cardioDay, isAndroid, cardioError } from '../cardio.js';
 
 let draft = null;   // { type, minutes, km, date, after }
@@ -54,11 +54,16 @@ export function plannedCardioList(state, date, { onlyOpen = false, withDelete = 
       return `<div class="item"><span style="width:22px;text-align:center;color:var(--accent)">${icon(I.check)}</span><div class="grow"><div style="font-weight:600">${esc(t('cardio.' + s.type))} · ${num(s.minutes)} min</div>
         <div class="meta">${esc(t('cardio.plannedWas', { min: num(p.minutes) }))} · ${esc(s.source === 'watch' ? watchSourceName() : t('cardio.manual'))}</div></div></div>`;
     }
+    // Vergangener Tag: nicht mehr „offen“, sondern verpasst – wie beim Krafttraining (Prüfbericht B5)
+    if (date < today()) {
+      return `<div class="item"><span style="opacity:.5">${cardioIcon(p.type)}</span><div class="grow"><div style="font-weight:600">${esc(t('cardio.' + p.type))} · ${num(p.minutes)} min</div>
+        <div class="meta">${esc(t('cardio.missed'))} · ${doneBtn(date, p, 'link tiny', t('cardio.didAnyway'))}</div></div></div>`;
+    }
     const android = isAndroid();
     const hint = canDo && android ? `<div class="tiny muted">${esc(t('cardio.autoFromWatch'))} · ${doneBtn(date, p, 'link tiny', t('cardio.enterManually'))}</div>` : '';
     const btn = canDo && !android ? doneBtn(date, p) : '';
     const del = withDelete && p.from === 'day' ? `<button class="icon-btn" data-act="dp-cardio-del" data-d="${esc(date)}" data-id="${esc(p.id)}" aria-label="${esc(t('common.delete'))}">${icon(I.trash)}</button>` : '';
-    return `<div class="item">${icon(I.run)}<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + p.type))} · ${num(p.minutes)} min</div>
+    return `<div class="item">${cardioIcon(p.type)}<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + p.type))} · ${num(p.minutes)} min</div>
       <div class="meta">${esc(t('plan.from.' + p.from))}</div>${hint}</div>${btn}${del}</div>`;
   }).join('');
 }

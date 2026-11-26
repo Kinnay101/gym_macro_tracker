@@ -3,7 +3,8 @@
 import { esc, num, today, daysBetween, icon, I, parseNum } from '../util.js';
 import { t, shortDate } from '../i18n.js';
 import { calcGoals, goals, currentWeight, activityLevel, goalAmount, rebalanceGoals, lockedFields, GOAL_FIELDS, ADJ_MAX, extraGoalDefaults } from '../nutrition.js';
-import { header, seg, lineChart, energy, sheetHead, healthMark } from '../ui.js';
+import { header, seg, lineChart, energy, energyUnit, sheetHead, healthMark } from '../ui.js';
+import { kcalToKj } from '../nutrition.js';
 import * as store from '../store.js';
 import * as sync from '../sync.js';
 import * as social from '../social.js';
@@ -48,14 +49,14 @@ export function render(state, params, ctx) {
     <section class="card">
       <h3>${esc(t('body.goals'))}</h3>
       ${seg('goal', [['cut', t('goal.cut')], ['maintain', t('goal.maintain')], ['bulk', t('goal.bulk')]], p.goal)}
-      ${adjField(p)}
+      ${adjField(state)}
       <div class="grid2">
         <label class="field">${esc(t('body.sex'))}<select class="input" data-in="sex"><option value="">–</option><option value="m" ${p.sex === 'm' ? 'selected' : ''}>${esc(t('sex.m'))}</option><option value="f" ${p.sex === 'f' ? 'selected' : ''}>${esc(t('sex.f'))}</option></select></label>
         <label class="field">${esc(t('body.birthYear'))}<input class="input" inputmode="numeric" data-in="birthYear" value="${p.birthYear ?? ''}" placeholder="${esc(t('common.eg', { v: 2004 }))}"></label>
         <label class="field">${esc(t('body.height'))}<input class="input" inputmode="numeric" data-in="heightCm" value="${p.heightCm ?? ''}" placeholder="${esc(t('common.eg', { v: 180 }))}"></label>
       </div>
       ${activityBox(state)}
-      ${calc ? `<div class="small muted">${esc(t('body.calcInfo', { bmr: num(calc.bmr), tdee: num(calc.tdee) }))}</div>` : `<div class="small muted">${esc(t('body.needData'))}</div>`}
+      ${calc ? `<div class="small muted">${esc(t('body.calcInfo', { bmr: energy(state, calc.bmr), tdee: energy(state, calc.tdee) }))}</div>` : `<div class="small muted">${esc(t('body.needData'))}</div>`}
       <div class="grid2">
         ${goalBox(t('n.kcal'), energy(state, g.kcal))}${goalBox(t('n.p'), num(g.p) + ' g')}${goalBox(t('n.c'), num(g.c) + ' g')}${goalBox(t('n.f'), num(g.f) + ' g')}
       </div>
@@ -191,12 +192,17 @@ function activityBox(state) {
 }
 
 /** Diät: Defizit, Aufbau: Überschuss in kcal pro Tag selbst einstellen. Bei „Halten“ nichts. */
-function adjField(p) {
+function adjField(state) {
+  const p = state.profile;
   if ((p.goal !== 'cut' && p.goal !== 'bulk') || p.goalOverride) return '';
   const v = goalAmount(p);
+  const shown = p.energyUnit === 'kj' ? Math.round(kcalToKj(v)) : v; // Eingabe in der gewählten Einheit, gespeichert in kcal
+  const hint = p.goal === 'cut'
+    ? t('body.adjCutHint', { lo: energy(state, 300, false), hi: energy(state, 700), mid: energy(state, 500) })
+    : t('body.adjBulkHint', { lo: energy(state, 200, false), hi: energy(state, 400) });
   return `<label class="field">${esc(t(p.goal === 'cut' ? 'body.adjCut' : 'body.adjBulk'))}
-    <div class="row"><span style="font-weight:600;min-width:1ch">${p.goal === 'cut' ? '−' : '+'}</span><input class="input grow" inputmode="numeric" data-in="goalAdj" value="${v}" aria-label="${esc(t(p.goal === 'cut' ? 'body.adjCut' : 'body.adjBulk'))}"><span class="small muted">kcal</span></div>
-    <span class="tiny muted">${esc(t(p.goal === 'cut' ? 'body.adjCutHint' : 'body.adjBulkHint'))}</span></label>`;
+    <div class="row"><span style="font-weight:600;min-width:1ch">${p.goal === 'cut' ? '−' : '+'}</span><input class="input grow" inputmode="numeric" data-in="goalAdj" value="${shown}" aria-label="${esc(t(p.goal === 'cut' ? 'body.adjCut' : 'body.adjBulk'))}"><span class="small muted">${energyUnit(state)}</span></div>
+    <span class="tiny muted">${esc(hint)}</span></label>`;
 }
 
 /** Ballaststoffe (min.), Zucker, Salz, gesättigte Fette (max.) – leer = Standard. */
@@ -228,17 +234,45 @@ function splitText(o) {
   return `${t('n.p')} ${pc(o.p * 4)} % · ${t('n.c')} ${pc(o.c * 4)} % · ${t('n.f')} ${pc(o.f * 9)} %`;
 }
 
+let gStart = null; // Werte beim Öffnen → Schliessen ohne Speichern fragt nur nach, wenn sich etwas geändert hat
+let gRaised = false; // kcal wurden erhöht, weil die Makros mehr brauchen (Prüfbericht B2)
+
 function startManual(state) {
   const g = goals(state);
   gCur = { kcal: g.kcal, p: g.p, c: g.c, f: g.f };
-  gBase = null; gField = null; gOrder = ['kcal']; gLocked = ['kcal'];
+  gStart = JSON.stringify(gCur);
+  gBase = null; gField = null; gOrder = ['kcal']; gLocked = ['kcal']; gRaised = false;
 }
+
+/** Hinweise im Ziel-Fenster: kcal still erhöht, sehr wenig Fett (unter 0.5 g pro kg bzw. 30 g ohne Gewicht). */
+function goalWarnText() {
+  if (!gCur) return '';
+  const out = [];
+  if (gRaised) out.push(t('body.kcalRaised', { v: energy(store.get(), gCur.kcal) }));
+  const kg = currentWeight(store.get());
+  const min = kg ? Math.round(kg * 0.5) : 30;
+  if (gCur.f < min) out.push(t('body.fatLow', { min }));
+  return out.join(' ');
+}
+function showGoalWarn() {
+  const el = document.getElementById('g-warn');
+  if (!el) return;
+  const txt = goalWarnText();
+  el.textContent = txt;
+  el.hidden = !txt;
+}
+// Energie im Ziel-Fenster in der gewählten Einheit anzeigen/eingeben (intern immer kcal)
+const isKj = () => store.get().profile.energyUnit === 'kj';
+const toUnit = (kcal) => (isKj() ? Math.round(kcalToKj(kcal)) : kcal);
+const fromUnit = (v) => (v != null && isKj() ? Math.round(v / 4.184) : v);
+
 function manualSheet() {
   if (!gCur) return null;
   return `${sheetHead(t('body.setManual'))}
     <div class="small muted">${esc(t('body.manualHint'))}</div>
-    <div class="grid2">${[['kcal', 'n.kcal'], ['p', 'n.p'], ['c', 'n.c'], ['f', 'n.f']].map(([k, l]) => `<label class="field"><span>${esc(t(l))}${k === 'kcal' ? ' (kcal)' : ' (g)'} <span class="tiny" id="g-tag-${k}" style="color:var(--accent)" hidden>${esc(t('body.computed'))}</span></span><input class="input" inputmode="numeric" id="g-${k}" data-in="goal-field" data-k="${k}" value="${gCur[k]}"></label>`).join('')}</div>
+    <div class="grid2">${[['kcal', 'n.kcal'], ['p', 'n.p'], ['c', 'n.c'], ['f', 'n.f']].map(([k, l]) => `<label class="field"><span>${esc(t(l))}${k === 'kcal' ? ` (${energyUnit(store.get())})` : ' (g)'} <span class="tiny" id="g-tag-${k}" style="color:var(--accent)" hidden>${esc(t('body.computed'))}</span></span><input class="input" inputmode="numeric" id="g-${k}" data-in="goal-field" data-k="${k}" value="${k === 'kcal' ? toUnit(gCur.kcal) : gCur[k]}"></label>`).join('')}</div>
     <div class="tiny muted" id="g-split">${esc(splitText(gCur))}</div>
+    <div class="hint small" id="g-warn" role="status"${goalWarnText() ? '' : ' hidden'}>${esc(goalWarnText())}</div>
     <button class="btn primary block" data-act="save-goals">${esc(t('common.save'))}</button>`;
 }
 
@@ -262,14 +296,19 @@ export const actions = {
   goal(el, ctx) { ctx.update((s) => { s.profile.goal = el.dataset.v; }); },
   lang(el, ctx) { ctx.update((s) => { s.profile.lang = el.dataset.v; }); },
   energy(el, ctx) { ctx.update((s) => { s.profile.energyUnit = el.dataset.v; }); },
-  'manual-goals'(el, ctx) { startManual(ctx.state); ctx.openSheet(manualSheet); },
+  'manual-goals'(el, ctx) {
+    startManual(ctx.state);
+    // Schliessen ohne Speichern verwirft Eingaben → wie in den Editoren nachfragen (Prüfbericht B3)
+    ctx.openSheet(manualSheet, { modal: true, guard: () => !gCur || JSON.stringify(gCur) === gStart || ctx.confirm(t('common.discardChanges'), t('common.discard')) });
+  },
   'go-back'(el, ctx) { if (history.length > 1) history.back(); else ctx.go('today'); },
   theme(el, ctx) { ctx.update((s) => { s.profile.theme = el.dataset.v; }); },
   'save-goals'(el, ctx) {
     const v = (k) => parseNum(document.getElementById('g-' + k).value);
-    const o = { kcal: v('kcal'), p: v('p'), c: v('c'), f: v('f') };
+    const o = { kcal: fromUnit(v('kcal')), p: v('p'), c: v('c'), f: v('f') };
     if (Object.values(o).some((x) => x == null || x < 0)) return;
     for (const k in o) o[k] = Math.round(o[k]);
+    gStart = JSON.stringify(gCur); // gespeichert → Schliessen fragt nicht mehr nach
     ctx.closeSheet();
     ctx.update((s) => { s.profile.goalOverride = o; });
   },
@@ -362,7 +401,7 @@ export const inputs = {
   'goal-field'(el) {
     if (!gCur) return;
     const k = el.dataset.k;
-    const v = parseNum(el.value);
+    const v = k === 'kcal' ? fromUnit(parseNum(el.value)) : parseNum(el.value);
     if (gField !== k) {
       // neues Feld angefangen → Stand merken, Feld ans Ende der Reihenfolge, die letzten drei bleiben stehen
       gBase = { ...gCur }; gField = k;
@@ -372,15 +411,17 @@ export const inputs = {
     if (v == null) return;
     const { values, computed } = rebalanceGoals(gBase, gLocked, k, v);
     gCur = values;
+    gRaised = computed.includes('kcal') && (gLocked.includes('kcal') || k === 'kcal');
     for (const f of GOAL_FIELDS) {
       const tag = document.getElementById('g-tag-' + f);
       if (tag) tag.hidden = !computed.includes(f);
       if (f === k) continue;
       const inp = document.getElementById('g-' + f);
-      if (inp) inp.value = gCur[f];
+      if (inp) inp.value = f === 'kcal' ? toUnit(gCur.kcal) : gCur[f];
     }
     const split = document.getElementById('g-split');
     if (split) split.textContent = splitText(gCur);
+    showGoalWarn();
   },
 };
 
@@ -398,9 +439,11 @@ export const changes = {
     });
   },
   goalAdj(el, ctx) {
-    const v = parseNum(el.value);
+    const raw = parseNum(el.value);
+    const v = raw != null && ctx.state.profile.energyUnit === 'kj' ? raw / 4.184 : raw; // kJ-Eingabe → kcal speichern
     const goal = ctx.state.profile.goal;
-    if (v == null || v < 0 || v > ADJ_MAX) { ctx.toast(t('body.adjInvalid', { max: ADJ_MAX })); ctx.render(); return; }
+    // mindestens 1 kcal: 0 wäre „Halten“ (Prüfbericht B4)
+    if (v == null || v < 1 || v > ADJ_MAX) { ctx.toast(t('body.adjInvalid', { min: energy(ctx.state, 1, false), max: energy(ctx.state, ADJ_MAX) })); ctx.render(); return; }
     ctx.update((s) => { s.profile.goalAdj = { ...(s.profile.goalAdj || {}), [goal]: Math.round(v) }; });
   },
   sex(el, ctx) { ctx.update((s) => { s.profile.sex = el.value || null; }); },

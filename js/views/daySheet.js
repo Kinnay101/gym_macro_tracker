@@ -6,7 +6,7 @@ import { t, longDate } from '../i18n.js';
 import { goals, sumEntries, dayEntries } from '../nutrition.js';
 import { volume, workingSets, setText } from '../workout.js';
 import { healthWorkoutsBetween } from '../health.js';
-import { energy, healthSourceName } from '../ui.js';
+import { energy, healthSourceName, cardioIcon } from '../ui.js';
 import * as planEdit from './planEdit.js';
 import * as cardioEdit from './cardioEdit.js';
 import { cardioSessions } from '../cardio.js';
@@ -23,11 +23,13 @@ function sheet(state) {
   if (!day) return null;
   const d = day;
   const isToday = d === today();
-  const head = `<div class="row between day-head">
-    <button class="icon-btn" data-act="day-step" data-v="-1" aria-label="${esc(t('common.prev'))}">${icon(I.back)}</button>
+  // Kopf: ‹ | Datum | › ✕ (drei Spalten, Datum bleibt in der Mitte)
+  const head = `<div class="day-head day-head-grid">
+    <div><button class="icon-btn" data-act="day-step" data-v="-1" aria-label="${esc(t('common.prev'))}">${icon(I.back)}</button></div>
     <div style="text-align:center"><h2>${esc(longDate(d))}</h2>${isToday ? `<div class="tiny" style="color:var(--accent);font-weight:700">${esc(t('common.today'))}</div>` : `<button type="button" class="link tiny" data-act="day-today">${esc(t('common.toToday'))}</button>`}</div>
-    ${d >= addDays(today(), MAX_AHEAD) ? `<button class="icon-btn" data-act="sheet-close" aria-label="${esc(t('common.close'))}">${icon(I.x)}</button>`
-      : `<button class="icon-btn" data-act="day-step" data-v="1" aria-label="${esc(t('common.next'))}">${icon(I.chevron)}</button>`}</div>`;
+    <div class="row" style="gap:6px;justify-content:flex-end">${d >= addDays(today(), MAX_AHEAD) ? ''
+      : `<button class="icon-btn" data-act="day-step" data-v="1" aria-label="${esc(t('common.next'))}">${icon(I.chevron)}</button>`}
+      <button class="icon-btn" data-act="sheet-close" aria-label="${esc(t('common.close'))}">${icon(I.x)}</button></div></div>`;
   const parts = [];
   const future = d > today();
   const planCard = planEdit.dayPlanCard(state, d);
@@ -62,14 +64,14 @@ function sheet(state) {
   }
   // Cardio: Uhr und von Hand zusammengeführt (dieselbe Einheit nur einmal, Uhr-Werte gelten; js/cardio.js)
   for (const c of cardioSessions(state, d, d)) {
-    rows.push(`<div class="item">${c.source === 'watch' ? '⌚' : icon(I.run)}<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + c.type))}</div><div class="meta">${num(c.minutes)} min${c.km ? ` · ${num(c.km, 1)} km` : ''}${c.kcal ? ` · ${energy(state, c.kcal)}` : ''}${c.avgHr ? ` · Ø ${c.avgHr} bpm` : ''}</div></div></div>`);
+    rows.push(`<div class="item">${c.source === 'watch' ? '⌚' : cardioIcon(c.type)}<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + c.type))}</div><div class="meta">${num(c.minutes)} min${c.km ? ` · ${num(c.km, 1)} km` : ''}${c.kcal ? ` · ${energy(state, c.kcal)}` : ''}${c.avgHr ? ` · Ø ${c.avgHr} bpm` : ''}</div></div></div>`);
   }
   // Krafttraining nur von der Uhr (ohne Training in der App an diesem Tag)
   for (const w of healthWorkoutsBetween(state, d, d).filter((x) => x.kind === 'strength')) {
     rows.push(`<div class="item">⌚<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + w.kind))}</div><div class="meta">${num(w.minutes)} min${w.kcal ? ` · ${energy(state, w.kcal)}` : ''}</div></div></div>`);
   }
   if (rows.length) parts.push(`<section class="card tight"><h3>${esc(t('nav.training'))}</h3><div class="list">${rows.join('')}</div></section>`);
-  // Vergangene Tage: geplantes Cardio, das noch offen ist (iPhone: „✓ Erledigt“, Android: kommt von der Uhr)
+  // Vergangene Tage: geplantes Cardio, das nicht gemacht wurde (verpasst, „doch gemacht?“ trägt es nach)
   if (d < today()) {
     const open = cardioEdit.plannedCardioList(state, d, { onlyOpen: true });
     if (open) parts.push(`<section class="card tight"><h3>${esc(t('cardio.plannedTitle'))}</h3><div class="list">${open}</div></section>`);

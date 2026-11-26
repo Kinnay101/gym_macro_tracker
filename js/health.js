@@ -234,7 +234,11 @@ export function applyHealth(state, p) {
   for (const [d, v] of Object.entries(p.exercise)) day(d).exerciseMin = v;
   for (const [d, v] of Object.entries(p.distance)) day(d).distanceKm = v;
   for (const w of Object.values(p.workouts)) state.healthWorkouts[w.id] = w;
-  Object.assign(state.healthSleep, sleepNights(p.sleepSamples));
+  // Nacht nur ersetzen, wenn die neue nicht kürzer ist (spät abends abgeglichen → Lieferung beginnt mitten in der Nacht) (K8)
+  for (const [d, n] of Object.entries(sleepNights(p.sleepSamples))) {
+    const old = state.healthSleep[d];
+    if (!old || !(n.minutes < old.minutes)) state.healthSleep[d] = n;
+  }
   // Früher übernommene unmögliche Werte aufräumen (falsch verbundener Repeat im Kurzbefehl)
   for (const x of Object.values(state.healthDays)) {
     if (x.exerciseMin != null && (x.exerciseMin > 1440 || (x.exerciseMin > 0 && x.exerciseMin === x.steps))) delete x.exerciseMin;

@@ -11,6 +11,8 @@ import * as daySheet from './daySheet.js';
 let tab = 'me';
 let exName = null;
 let monthOffset = 0;
+let allPrs = false; // „Alle anzeigen“ bei den Bestwerten (Prüfbericht B7)
+const PR_SHOWN = 6;
 
 function exerciseNames(state) {
   const names = new Set();
@@ -45,8 +47,12 @@ function me(state) {
        <div class="tiny muted">${esc(t(uni ? 'progress.uniHint' : 'progress.e1rmHint'))}</div>`
     : `<div class="empty">${esc(t('progress.noData'))}</div>`;
 
-  const prs = names.map((n) => ({ n, b: bestFor(state, n) })).filter((x) => x.b)
-    .sort((a, b) => b.b.date.localeCompare(a.b.date)).slice(0, 6);
+  // Neueste zuerst; standardmässig nur die letzten sechs, „Alle anzeigen“ klappt den Rest auf
+  const allPr = names.map((n) => ({ n, b: bestFor(state, n) })).filter((x) => x.b)
+    .sort((a, b) => b.b.date.localeCompare(a.b.date));
+  const prs = allPrs ? allPr : allPr.slice(0, PR_SHOWN);
+  const more = allPr.length > PR_SHOWN
+    ? `<button class="link small" data-act="prs-all" style="margin-top:6px">${esc(allPrs ? t('progress.prsLess') : t('progress.prsAll', { n: allPr.length }))}</button>` : '';
 
   const key = today();
   const spm = setsPerMuscle(state, addDays(key, -6), key);
@@ -54,10 +60,10 @@ function me(state) {
 
   return `
     <section class="card"><h3>${esc(t('progress.e1rm'))}</h3>${chart}</section>
-    <section class="card tight"><h3>${esc(t('progress.prs'))}</h3>
+    <section class="card tight"><h3>${esc(t(allPrs || allPr.length <= PR_SHOWN ? 'progress.prs' : 'progress.prsRecent'))}</h3>
       ${prs.length ? `<div class="list">${prs.map(({ n, b }) => `<div class="item"><div class="grow"><div class="ellipsis" style="font-weight:600">${esc(trackLabel(n))}</div>
         <div class="meta">${num(b.kg, 2)} kg × ${b.repsR != null ? `${num(b.reps)} L · ${num(b.repsR)} R` : num(b.reps)} · ${esc(shortDate(b.date))}</div></div><span style="font-weight:700">${num(b.e1rm, 1)} kg</span></div>`).join('')}</div>`
-        : `<div class="small muted">${esc(t('progress.noData'))}</div>`}
+        : `<div class="small muted">${esc(t('progress.noData'))}</div>`}${more}
     </section>
     <section class="card tight"><div class="card-head"><h3>${esc(t('progress.setsPerMuscle'))}</h3><span class="tiny muted">${esc(t('progress.last7'))}</span></div>
       ${MUSCLES.map((m) => `<div class="bar-row"><div class="top"><span>${esc(t('m.' + m))}</span><span class="muted">${num(spm[m] || 0)}</span></div><div class="bar"><i style="width:${((spm[m] || 0) / maxSets) * 100}%;background:var(--accent)"></i></div></div>`).join('')}
@@ -165,6 +171,7 @@ export const calendarActions = {
 export const actions = {
   ...friendsView.actions,
   ...daySheet.actions,
+  'prs-all'(el, ctx) { allPrs = !allPrs; ctx.render(); },
   tab(el, ctx) {
     tab = el.dataset.v;
     if (tab === 'friends') friendsView.load(ctx, { quiet: true });

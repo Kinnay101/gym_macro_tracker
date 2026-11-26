@@ -4,6 +4,12 @@ import { t } from './i18n.js';
 import { kcalToKj } from './nutrition.js';
 import { isUniTrack, trackBase } from './workout.js';
 
+/** Symbol passend zur Cardio-Art (Velo, Schwimmen, Rudern, Treppe; Laufen/Gehen/Laufband/Crosstrainer = Läufer). */
+export function cardioIcon(type) {
+  const k = { bike: 'bike', swim: 'swim', row: 'row', stairs: 'stairs', other: 'pulse', hiit: 'pulse' }[type] || 'run';
+  return icon(I[k] || I.run);
+}
+
 /** Anzeigename einer Übungs-Spur: einseitig mit Zusatz („Leg Curl · einseitig“). */
 export const trackLabel = (key) => (isUniTrack(key) ? `${trackBase(key)} · ${t('active.uniShort')}` : key);
 

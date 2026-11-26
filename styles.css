@@ -458,3 +458,6 @@ a.icon-btn, a.head-btn { color: var(--text); }
 .lgline.alt { background: var(--cardio); }
 /* Beim Laden bzw. wenn der Start nach einem Update nicht geklappt hat (js/boot.js) */
 .boot-msg { margin: 40vh auto 0; max-width: 320px; text-align: center; display: flex; flex-direction: column; gap: 16px; align-items: center; color: var(--muted); }
+/* Tagesübersicht: ‹ | Datum | › ✕ – Datum bleibt mittig */
+.day-head-grid { display: grid; grid-template-columns: 86px 1fr 86px; align-items: center; gap: 6px; }
+.day-head-grid h2 { font-size: 1rem; }

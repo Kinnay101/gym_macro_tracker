@@ -1,7 +1,7 @@
 // Aktives Training: Sätze eintragen (Wiederholungen eingeben = Satz gemacht), Varianten tauschen, überspringen,
 // Übungen verschieben (nur für dieses Training), Aufwärmsätze, PRs, Cardio anhängen
 import { esc, num, icon, I, parseNum, e1rm } from '../util.js';
-import { t } from '../i18n.js';
+import { t, targetText } from '../i18n.js';
 import { current, blankSet, lastSetsFor, bestFor, finishWorkout, workingSets, setE1rm, refillFor, UNI } from '../workout.js';
 import { sheetHead } from '../ui.js';
 import { CARDIO_TYPES } from './training.js';
@@ -62,16 +62,16 @@ function exCard(state, ex, i, count) {
     return `<div class="set-row ${uni ? 'uni' : ''} ${s.done ? 'done' : ''}">
       <button class="no ${s.warmup ? 'w' : ''}" data-act="set-menu" data-ex="${i}" data-set="${esc(s.id)}" aria-label="${esc(t('active.setMenu'))}">${label}</button>
       <span class="prev">${prevTxt}${isPr ? ' <span class="tag pr">PR</span>' : ''}</span>
-      <input class="input num" inputmode="decimal" data-in="kg" data-ex="${i}" data-set="${esc(s.id)}" value="${s.kg ?? ''}" placeholder="kg" aria-label="kg">
+      <input class="input num" inputmode="decimal" enterkeyhint="next" data-in="kg" data-ex="${i}" data-set="${esc(s.id)}" value="${s.kg ?? ''}" placeholder="kg" aria-label="kg">
       ${uni
-        ? `<input class="input num" inputmode="numeric" data-in="reps" data-ex="${i}" data-set="${esc(s.id)}" value="${s.reps ?? ''}" placeholder="L" aria-label="${esc(t('active.repsLeft'))}">
-      <input class="input num" inputmode="numeric" data-in="repsR" data-ex="${i}" data-set="${esc(s.id)}" value="${s.repsR ?? ''}" placeholder="R" aria-label="${esc(t('active.repsRight'))}">`
-        : `<input class="input num" inputmode="numeric" data-in="reps" data-ex="${i}" data-set="${esc(s.id)}" value="${s.reps ?? ''}" placeholder="${esc(t('active.reps'))}" aria-label="${esc(t('active.reps'))}">`}
+        ? `<input class="input num" inputmode="numeric" enterkeyhint="next" data-in="reps" data-ex="${i}" data-set="${esc(s.id)}" value="${s.reps ?? ''}" placeholder="L" aria-label="${esc(t('active.repsLeft'))}">
+      <input class="input num" inputmode="numeric" enterkeyhint="next" data-in="repsR" data-ex="${i}" data-set="${esc(s.id)}" value="${s.repsR ?? ''}" placeholder="R" aria-label="${esc(t('active.repsRight'))}">`
+        : `<input class="input num" inputmode="numeric" enterkeyhint="next" data-in="reps" data-ex="${i}" data-set="${esc(s.id)}" value="${s.reps ?? ''}" placeholder="${esc(t('active.reps'))}" aria-label="${esc(t('active.reps'))}">`}
       <button class="check" data-act="check" data-ex="${i}" data-set="${esc(s.id)}" aria-pressed="${!!s.done}" aria-label="${esc(t('active.check'))}">${icon(I.check)}</button></div>`;
   }).join('');
   return `<section class="card tight ex-card">
     <div class="row between" style="align-items:flex-start"><div class="grow"><h3>${esc(c.name)}</h3>
-      <div class="meta small muted">${uni ? `<span class="tag accent">${esc(t('active.uniShort'))}</span> ` : ''}${esc(c.target || '')} · ${esc(t('m.' + ex.muscle))}${c.note ? ` · ${esc(c.note)}` : ''}</div>
+      <div class="meta small muted">${uni ? `<span class="tag accent">${esc(t('active.uniShort'))}</span> ` : ''}${c.target ? `${esc(targetText(c.target))} · ` : ''}${esc(t('m.' + ex.muscle))}${c.note ? ` · ${esc(c.note)}` : ''}</div>
       <div class="tiny muted" style="margin-top:2px">${best ? esc(t('active.best', { v: num(best.e1rm, 1) })) : esc(t('active.firstTime'))}</div></div>
       <div class="row" style="gap:6px">
         ${ex.variant ? `<button class="icon-btn" data-act="swap" data-ex="${i}" aria-label="${esc(t('active.swap', { name: ex.useVar ? ex.name : ex.variant.name }))}" title="${esc(ex.useVar ? ex.name : ex.variant.name)}">${icon(I.swap)}</button>` : ''}
@@ -113,7 +113,7 @@ function finishSheet(state) {
   const done = a.exercises.filter((e) => !e.skipped).reduce((n, e) => n + current(e).sets.filter((s) => s.done && !s.warmup).length, 0);
   const open = a.exercises.filter((e) => !e.skipped).reduce((n, e) => n + current(e).sets.filter((s) => !s.done).length, 0);
   return `${sheetHead(t('active.finishTitle'))}
-    <div class="small">${esc(t('active.finishSummary', { done, open }))}</div>
+    <div class="small">${esc(t('active.finishSummary', { done, open, sets: t(done === 1 ? 'active.setsWord1' : 'active.setsWordN') }))}</div>
     ${open ? `<div class="tiny muted">${esc(t('active.openNotSaved'))}</div>` : ''}
     <button class="btn primary block" data-act="save" ${done ? '' : 'disabled'}>${esc(t('active.save'))}</button>
     <button class="btn block danger" data-act="discard">${esc(t('active.discard'))}</button>`;
@@ -124,6 +124,15 @@ function withEx(ctx, i, fn, opts) {
   ctx.update((s) => { const ex = s.active?.exercises[i]; if (ex) fn(ex, s); }, opts);
 }
 function setsOf(ex) { return ex.useVar && ex.variant ? ex.varSets : ex.sets; }
+
+// „Weiter“ auf der Ziffern-Tastatur: ins nächste Satz-Feld springen (kg → Wdh → nächster Satz)
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || !e.target.matches?.('.set-row input')) return;
+  const all = [...document.querySelectorAll('#view .set-row input')];
+  const next = all[all.indexOf(e.target) + 1];
+  e.preventDefault();
+  if (next) { next.focus(); next.select?.(); } else e.target.blur();
+});
 
 export function mounted() {
   clearInterval(timer);
@@ -137,6 +146,7 @@ export function mounted() {
 
 export const actions = {
   check(el, ctx) {
+    let blocked = false;
     withEx(ctx, +el.dataset.ex, (ex) => {
       const s = setsOf(ex).find((x) => x.id === el.dataset.set);
       if (!s) return;
@@ -153,8 +163,17 @@ export const actions = {
           s.repsR = repsR ?? s.repsR ?? prev?.repsR ?? prev?.reps ?? null;
         }
       }
+      // Ohne Wiederholungen (und ohne Vorwert) wäre der Satz leer → nicht abhaken, Feld zum Eintragen öffnen (K10)
+      if (!s.done && (!s.reps || (ex.uni && !s.repsR))) { blocked = true; return; }
       s.done = !s.done;
     });
+    if (blocked) {
+      // Seite wurde neu gezeichnet → Feld im neuen Inhalt suchen (leeres Wdh-Feld zuerst)
+      const q = (f) => document.querySelector(`#view [data-in="${f}"][data-set="${el.dataset.set}"]`);
+      const reps = q('reps'); const repsR = q('repsR');
+      ((reps && !reps.value) || !repsR ? reps : repsR)?.focus();
+      ctx.toast(t('active.needReps'));
+    }
   },
   'ex-move'(el, ctx) {
     const i = +el.dataset.ex; const j = i + Number(el.dataset.v);
@@ -224,7 +243,7 @@ export const actions = {
     ctx.closeSheet();
     ctx.update((s) => { finishWorkout(s); }, { silent: true });
     ctx.go('training');
-    ctx.toast(prs ? t('active.savedPr', { n: prs }) : t('active.saved'));
+    ctx.toast(prs === 1 ? t('active.savedPr1') : prs ? t('active.savedPr', { n: prs }) : t('active.saved'));
   },
   async discard(el, ctx) {
     if (!(await ctx.confirm(t('active.discardConfirm'), t('active.discard')))) return;

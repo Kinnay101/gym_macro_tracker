@@ -147,7 +147,11 @@ export const actions = {
     try {
       const row = await fb.answer(id, status, reply);
       items = items.map((x) => (x.id === id ? row : x));
+      // Noch nicht gespeicherte Antworten bei anderen Einträgen merken, sonst überschreibt das Neuzeichnen sie (K22)
+      const drafts = [...document.querySelectorAll('#sheet-root [id^="fb-re-"], #sheet-root [id^="fb-st-"]')]
+        .filter((e) => !e.id.endsWith(id)).map((e) => [e.id, e.value]);
       ctx.render();
+      for (const [eid, v] of drafts) { const e = document.getElementById(eid); if (e) e.value = v; }
       ctx.toast(t('fb.saved'));
     } catch (e) {
       ctx.toast(t(fb.errorKey(e)));

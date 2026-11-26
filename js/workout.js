@@ -159,7 +159,7 @@ export function finishWorkout(state) {
   const w = { id: a.id, planId: a.planId, date: a.date, startedAt: a.startedAt, finishedAt: new Date().toISOString(), note: a.note, exercises };
   state.workouts.push(w);
   if (a.cardio && a.cardio.minutes > 0 && a.cardio.minutes <= 600) { // negative/unsinnige Minuten nicht speichern
-    state.cardio.push({ id: uid(), date: a.date, type: a.cardio.type, minutes: a.cardio.minutes, km: a.cardio.km > 0 && a.cardio.km <= 300 ? a.cardio.km : null, after: true });
+    state.cardio.push({ id: uid(), workoutId: a.id, date: a.date, type: a.cardio.type, minutes: a.cardio.minutes, km: a.cardio.km > 0 && a.cardio.km <= 300 ? a.cardio.km : null, after: true });
   }
   state.active = null;
   return w;

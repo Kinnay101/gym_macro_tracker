@@ -79,16 +79,29 @@ export async function init() {
   await start();
 }
 
+// Die lokalen Daten gehören dem Konto, mit dem zuletzt synchronisiert wurde (Sync-Gedächtnis). Meldet sich ein anderes
+// Konto an (z. B. über den Passwort-Link eines anderen Kontos), lokale Daten zuerst leeren – sonst würden sie in das
+// neue Konto hochgeladen (Prüfbericht K21). Ohne bisheriges Konto (Daten vor dem ersten Anmelden) wird zusammengeführt.
+function ensureOwner(u) {
+  const m = loadMeta();
+  if (u && m?.userId && m.userId !== u.id) {
+    localStorage.removeItem(SYNC_KEY);
+    store.resetAll();
+  }
+}
+
 async function start() {
   client.auth.onAuthStateChange((event, session) => {
     const before = user?.id;
     user = session?.user ?? null;
+    ensureOwner(user);
     if (event === 'PASSWORD_RECOVERY') setStatus({ recovery: true });
     if (user && user.id !== before) { setStatus({ state: 'idle', error: null }); schedule(0); }
     if (!user) setStatus({ state: 'loggedOut' });
   });
   const { data } = await client.auth.getSession();
   user = data?.session?.user ?? null;
+  ensureOwner(user);
   setStatus({ state: user ? 'idle' : 'loggedOut' });
 
   store.onSave(() => { if (!applying && user) schedule(3000); });

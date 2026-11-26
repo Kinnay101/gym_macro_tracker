@@ -4,7 +4,7 @@ import { parseKey } from './util.js';
 const de = {
   'nav.today': 'Heute', 'nav.food': 'Ernährung', 'nav.training': 'Training', 'nav.progress': 'Fortschritt', 'nav.body': 'Körper',
   'app.rotate': 'Bitte Handy aufrecht halten',
-  'common.today': 'Heute', 'training.pulledForward': 'Plan rückt vor: heute {name}, danach geht es normal weiter.', 'active.uni': 'Einseitig (links und rechts einzeln)', 'active.uniShort': 'einseitig', 'active.repsLeft': 'Wiederholungen links', 'active.repsRight': 'Wiederholungen rechts', 'active.repsLeftShort': 'Wdh L', 'active.repsRightShort': 'Wdh R', 'plan.uni': 'Einseitig', 'progress.left': 'Links', 'progress.right': 'Rechts', 'progress.sideLeft': 'Linke', 'progress.sideRight': 'Rechte', 'progress.sideHint': '{side} Seite im Schnitt {pct} % schwächer (letzte {n} Trainings).', 'progress.uniHint': 'Einseitig: eine Linie pro Seite. Gleiches Gewicht, Unterschied kommt von den Wiederholungen.', 'settings.exportSaved': 'Sicherung gespeichert.', 'settings.exportCancelled': 'Export abgebrochen.', 'settings.exportFail': 'Export hat nicht geklappt.', 'settings.exportNeedsUpdate': 'Export braucht die neue App-Version 1.4.', 'settings.importConfirm': '«{name}» importieren? Alle Daten in der App werden durch die Datei ersetzt.', 'settings.importConfirmAccount': '«{name}» importieren? Alle Daten werden durch die Datei ersetzt – auch im Konto und damit auf allen Geräten.', 'food.errAmount': 'Menge zwischen 1 und {max} g eingeben.', 'food.errNegative': 'Werte dürfen nicht negativ sein.', 'food.errKcal100': 'Pro 100 g sind höchstens 900 kcal möglich.', 'food.errOver100': 'Pro 100 g können die Nährwerte zusammen nicht mehr als 100 g sein.', 'food.errSfa': 'Gesättigte Fette können nicht mehr sein als Fett insgesamt.', 'food.errSugar': 'Zucker kann nicht mehr sein als Kohlenhydrate insgesamt.', 'food.errTooMuch': 'Das ist zu viel für einen Eintrag – bitte Werte prüfen.', 'cardio.errMinutes': 'Minuten zwischen 1 und 600 eingeben.', 'cardio.errKm': 'Distanz zwischen 0 und 300 km eingeben.', 'cardio.errFuture': 'Cardio in der Zukunft geht nicht – zum Planen den Tag im Kalender antippen.', 'food.recipesSub0': 'Noch keine eigenen Rezepte', 'food.recipesSub1': '1 eigenes Rezept', 'food.recipesSubN': '{n} eigene Rezepte', 'common.std': 'Standard {v}', 'today.toCalendar': 'Kalender', 'food.forDate': 'für {date}', 'training.tabOverview': 'Übersicht', 'training.tabPlan': 'Plan', 'common.eg': 'z. B. {v}', 'profile.title': 'Profil', 'theme.title': 'Farben', 'theme.kreide': 'Kreide', 'theme.sand': 'Sand', 'theme.lime': 'Limette', 'active.moveUp': 'Übung nach oben', 'active.moveDown': 'Übung nach unten', 'common.discardChanges': 'Ungespeicherte Änderungen verwerfen?', 'common.toToday': '↺ Zu heute', 'common.undo': 'Rückgängig', 'common.close': 'Schliessen', 'common.back': 'Zurück', 'common.save': 'Speichern',
+  'common.today': 'Heute', 'active.setsWord1': 'Arbeitssatz', 'active.setsWordN': 'Arbeitssätze', 'active.savedPr1': 'Gespeichert – neuer Bestwert! 🏆', 'hc.notConnected': 'Health Connect ist noch nicht verbunden – unter Profil → Health Connect erlauben.', 'active.needReps': 'Zuerst Wiederholungen eintragen.', 'health.stale': 'Letzter Abgleich mit Apple Health: {when}. Der Kurzbefehl am Morgen ist seither nicht gelaufen.', 'health.fetchNow': 'Jetzt aus Apple Health holen', 'training.pulledForward': 'Plan rückt vor: heute {name}, danach geht es normal weiter.', 'active.uni': 'Einseitig (links und rechts einzeln)', 'active.uniShort': 'einseitig', 'active.repsLeft': 'Wiederholungen links', 'active.repsRight': 'Wiederholungen rechts', 'active.repsLeftShort': 'Wdh L', 'active.repsRightShort': 'Wdh R', 'plan.uni': 'Einseitig', 'progress.left': 'Links', 'progress.right': 'Rechts', 'progress.sideLeft': 'Linke', 'progress.sideRight': 'Rechte', 'progress.sideHint': '{side} Seite im Schnitt {pct} % schwächer (letzte {n} Trainings).', 'progress.uniHint': 'Einseitig: eine Linie pro Seite. Gleiches Gewicht, Unterschied kommt von den Wiederholungen.', 'settings.exportSaved': 'Sicherung gespeichert.', 'settings.exportCancelled': 'Export abgebrochen.', 'settings.exportFail': 'Export hat nicht geklappt.', 'settings.exportNeedsUpdate': 'Export braucht die neue App-Version 1.4.', 'settings.importConfirm': '«{name}» importieren? Alle Daten in der App werden durch die Datei ersetzt.', 'settings.importConfirmAccount': '«{name}» importieren? Alle Daten werden durch die Datei ersetzt – auch im Konto und damit auf allen Geräten.', 'food.errAmount': 'Menge zwischen 1 und {max} g eingeben.', 'food.errNegative': 'Werte dürfen nicht negativ sein.', 'food.errKcal100': 'Pro 100 g sind höchstens 900 kcal möglich.', 'food.errOver100': 'Pro 100 g können die Nährwerte zusammen nicht mehr als 100 g sein.', 'food.errSfa': 'Gesättigte Fette können nicht mehr sein als Fett insgesamt.', 'food.errSugar': 'Zucker kann nicht mehr sein als Kohlenhydrate insgesamt.', 'food.errTooMuch': 'Das ist zu viel für einen Eintrag – bitte Werte prüfen.', 'cardio.errMinutes': 'Minuten zwischen 1 und 600 eingeben.', 'cardio.errKm': 'Distanz zwischen 0 und 300 km eingeben.', 'cardio.errFuture': 'Cardio in der Zukunft geht nicht – zum Planen den Tag im Kalender antippen.', 'food.recipesSub0': 'Noch keine eigenen Rezepte', 'food.recipesSub1': '1 eigenes Rezept', 'food.recipesSubN': '{n} eigene Rezepte', 'common.std': 'Standard {v}', 'today.toCalendar': 'Kalender', 'food.forDate': 'für {date}', 'training.tabOverview': 'Übersicht', 'training.tabPlan': 'Plan', 'common.eg': 'z. B. {v}', 'profile.title': 'Profil', 'theme.title': 'Farben', 'theme.kreide': 'Kreide', 'theme.sand': 'Sand', 'theme.lime': 'Limette', 'active.moveUp': 'Übung nach oben', 'active.moveDown': 'Übung nach unten', 'common.discardChanges': 'Ungespeicherte Änderungen verwerfen?', 'common.toToday': '↺ Zu heute', 'common.undo': 'Rückgängig', 'common.close': 'Schliessen', 'common.back': 'Zurück', 'common.save': 'Speichern',
   'common.delete': 'Löschen', 'common.remove': 'Entfernen', 'common.done': 'Fertig', 'common.date': 'Datum',
   'common.prevDay': 'Vorheriger Tag', 'common.nextDay': 'Nächster Tag', 'common.prev': 'Zurück', 'common.next': 'Weiter',
 
@@ -29,7 +29,7 @@ const de = {
   'today.macros': 'Kalorien und Makros', 'today.left': '{unit} übrig', 'today.over': '{unit} zu viel', 'today.ofGoal': 'von {goal}',
   'today.setGoals': 'Tipp: Unter Körper Grösse, Alter und Gewicht eintragen – dann wird dein Tagesziel berechnet.',
   'today.running': 'Training läuft', 'today.continue': 'Weiter', 'today.doneToday': 'Heute erledigt', 'today.suggested': 'Heute vorgeschlagen',
-  'today.restHint': 'Ruhetag. Cardio geht trotzdem.', 'today.toTraining': 'Zum Training', 'today.week': 'Diese Woche', 'today.weekLegend': '● Cardio', 'today.meals': 'Mahlzeiten',
+  'today.restHint': 'Cardio geht trotzdem.', 'today.toTraining': 'Zum Training', 'today.week': 'Diese Woche', 'today.weekLegend': '● Cardio', 'today.meals': 'Mahlzeiten',
 
   'rhythm.full': 'Volle Woche', 'rhythm.light': 'Locker', 'rhythm.fullSub': '6 Trainings · 1 Pause', 'rhythm.lightSub': '3 Trainings · 1 Pause',
   'plan.title': 'Plan', 'plan.rest': 'Ruhetag', 'plan.pause': 'Pause (verschoben)', 'plan.shiftedHint': 'Verschoben – an diesem Tag Pause, ab hier rutscht der Plan einen Tag nach hinten.',
@@ -43,7 +43,7 @@ const de = {
   'plan.shiftHint': 'Dieser Tag wird Pause, alles danach rutscht einen Tag nach hinten. Ohne Verschieben fällt ein verpasstes Training einfach weg.',
   'plan.shiftedToast': 'Plan verschoben', 'plan.cardio': 'Cardio', 'plan.from.split': 'aus dem Split', 'plan.from.weekly': 'jede Woche (Cardio-Plan)', 'plan.from.day': 'nur an diesem Tag',
   'plan.editTitle': 'Training bearbeiten', 'plan.newTitle': 'Neues Training', 'plan.name': 'Name', 'plan.short': 'Kürzel (Kalender)', 'plan.exercises': 'Übungen',
-  'plan.exName': 'Übung', 'plan.target': 'Ziel, z. B. upper chest', 'plan.variant': 'Variante (optional)', 'plan.noEx': 'Noch keine Übungen.', 'plan.addEx': 'Übung',
+  'plan.exName': 'Übung', 'plan.target': 'Ziel, z. B. obere Brust', 'plan.variant': 'Variante (optional)', 'plan.noEx': 'Noch keine Übungen.', 'plan.addEx': 'Übung',
   'plan.needName': 'Bitte einen Namen eingeben.', 'plan.needEx': 'Mindestens eine Übung mit Namen nötig.', 'plan.created': 'Training erstellt', 'plan.saved': 'Training gespeichert',
   'plan.delete': 'Training löschen', 'plan.deleteConfirm': 'Training «{name}» löschen? In Splits wird der Tag zum Ruhetag. Dein Verlauf bleibt.',
   'split.title': 'Splits', 'split.unnamed': 'Eigener Split', 'split.new': 'Neuer Split', 'split.edit': 'Bearbeiten', 'split.name': 'Name', 'split.active': 'aktiv',
@@ -66,7 +66,7 @@ const de = {
   'training.history': 'Verlauf', 'training.noHistory': 'Noch keine Trainings. Starte dein erstes oben.', 'training.workout': 'Training', 'training.volume': 'Volumen',
   'training.deleteWorkout': 'Training löschen', 'training.workoutDeleted': 'Training gelöscht',
 
-  'cardio.alsoManual': 'auch von Hand eingetragen – zählt nur einmal', 'cardio.done': 'Erledigt', 'cardio.autoFromWatch': 'kommt automatisch von der Uhr', 'cardio.enterManually': 'von Hand eintragen', 'cardio.plannedWas': 'geplant {min} min', 'cardio.manual': 'von Hand', 'cardio.plannedTitle': 'Geplantes Cardio', 'cardio.week': 'Cardio diese Woche', 'cardio.none': 'Noch kein Cardio diese Woche.', 'cardio.add': 'Cardio eintragen', 'cardio.minutes': 'Minuten', 'cardio.km': 'Distanz in km (optional)',
+  'cardio.alsoManual': 'auch von Hand eingetragen – zählt nur einmal', 'cardio.done': 'Erledigt', 'cardio.missed': 'Nicht gemacht', 'cardio.didAnyway': 'Doch gemacht? Eintragen', 'cardio.autoFromWatch': 'kommt automatisch von der Uhr', 'cardio.enterManually': 'von Hand eintragen', 'cardio.plannedWas': 'geplant {min} min', 'cardio.manual': 'von Hand', 'cardio.plannedTitle': 'Geplantes Cardio', 'cardio.week': 'Cardio diese Woche', 'cardio.none': 'Noch kein Cardio diese Woche.', 'cardio.add': 'Cardio eintragen', 'cardio.minutes': 'Minuten', 'cardio.km': 'Distanz in km (optional)',
   'cardio.after': 'Nach dem Training', 'cardio.own': 'Eigene Einheit', 'cardio.needMinutes': 'Bitte Minuten eintragen.', 'cardio.saved': 'Cardio gespeichert', 'cardio.deleted': 'Cardio gelöscht',
   'cardio.run': 'Laufen', 'cardio.treadmill': 'Laufband', 'cardio.bike': 'Velo', 'cardio.crosstrainer': 'Crosstrainer', 'cardio.rowing': 'Rudern', 'cardio.stairs': 'Treppe', 'cardio.swim': 'Schwimmen', 'cardio.other': 'Anderes',
 
@@ -76,7 +76,7 @@ const de = {
   'active.addWarmup': 'Aufwärmsatz', 'active.addSet': 'Satz', 'active.makeWarmup': 'Als Aufwärmsatz (W)', 'active.makeWork': 'Als Arbeitssatz',
   'active.warmupHint': 'Aufwärmsätze (W) zählen nicht für Volumen und Bestwerte.', 'active.removeSet': 'Satz entfernen', 'active.setRemoved': 'Satz entfernt',
   'active.addCardio': 'Cardio anhängen', 'active.cardioAfter': 'Cardio danach',
-  'active.finishTitle': 'Training beenden?', 'active.finishSummary': '{done} Arbeitssätze abgehakt, {open} offen.', 'active.openNotSaved': 'Nicht abgehakte Sätze werden nicht gespeichert.',
+  'active.finishTitle': 'Training beenden?', 'active.finishSummary': '{done} {sets} abgehakt, {open} offen.', 'active.openNotSaved': 'Nicht abgehakte Sätze werden nicht gespeichert.',
   'active.save': 'Speichern und beenden', 'active.discard': 'Training verwerfen', 'active.discardConfirm': 'Training wirklich verwerfen? Die Sätze gehen verloren.',
   'active.saved': 'Training gespeichert 💪', 'active.savedPr': 'Gespeichert – {n} neue Bestwerte! 🏆',
 
@@ -91,18 +91,18 @@ const de = {
 
   'progress.me': 'Ich', 'progress.friends': 'Freunde', 'progress.e1rm': 'Geschätztes 1RM', 'progress.exercise': 'Übung', 'progress.chart': 'Verlauf',
   'progress.e1rmHint': 'Geschätzt aus Gewicht × Wiederholungen (Epley), ohne Aufwärmsätze.', 'progress.needTwo': 'Ab zwei Trainings siehst du hier eine Kurve.',
-  'progress.noData': 'Noch keine Trainings gespeichert.', 'progress.prs': 'Bestwerte', 'progress.setsPerMuscle': 'Sätze pro Muskel', 'progress.last7': 'letzte 7 Tage',
+  'progress.noData': 'Noch keine Trainings gespeichert.', 'progress.prs': 'Bestwerte', 'progress.prsRecent': 'Neueste Bestwerte', 'progress.prsAll': 'Alle {n} anzeigen', 'progress.prsLess': 'Weniger anzeigen', 'progress.setsPerMuscle': 'Sätze pro Muskel', 'progress.last7': 'letzte 7 Tage',
   'progress.trainings': '{n} Trainings', 'progress.strength': 'Kraft', 'progress.cardio': 'Cardio',
-  'friends.title': 'Freunde & Rangliste', 'friends.soonOld': 'Kommt, sobald Login und Sync eingerichtet sind: Gruppe mit Einladungscode, Rangliste für Kraft (relativ zum Körpergewicht), Konstanz, Volumen und PRs.',
+  'friends.title': 'Freunde & Rangliste',
 
   'body.weight': 'Gewicht', 'body.addWeight': 'Eintragen', 'body.firstWeight': 'Erstes Gewicht eintragen', 'body.weightPh': 'Gewicht heute in kg',
   'body.invalidWeight': 'Bitte ein gültiges Gewicht eingeben.', 'body.weightSaved': 'Gewicht gespeichert', 'body.weightDeleted': 'Eintrag gelöscht',
   'body.measures': 'Körpermasse', 'body.addMeasures': 'Masse eintragen', 'body.noMeasures': 'Noch keine Masse eingetragen.',
   'body.photos': 'Progress-Fotos', 'body.photosSoon': 'Kommt in einem späteren Schritt (Fotos bleiben privat).',
   'body.goals': 'Ziel & Tagesbedarf', 'body.sex': 'Geschlecht', 'body.birthYear': 'Geburtsjahr', 'body.height': 'Grösse (cm)', 'body.activity': 'Aktivität',
-  'body.calcInfo': 'Grundumsatz {bmr} kcal · Gesamtbedarf {tdee} kcal', 'body.needData': 'Trage Geschlecht, Geburtsjahr, Grösse und Gewicht ein, dann wird dein Ziel berechnet.',
+  'body.calcInfo': 'Grundumsatz {bmr} · Gesamtbedarf {tdee}', 'body.needData': 'Trage Geschlecht, Geburtsjahr, Grösse und Gewicht ein, dann wird dein Ziel berechnet.',
   'body.manual': 'Manuell gesetzt', 'body.backToAuto': 'Wieder automatisch', 'body.setManual': 'Ziel selbst festlegen', 'body.manualHint': 'Überschreibt die automatische Berechnung. Deine drei zuletzt eingegebenen Werte bleiben stehen, der vierte wird ausgerechnet (1 g Protein oder Kohlenhydrate = 4 kcal, 1 g Fett = 9 kcal).', 'body.computed': '· berechnet', 'body.moreGoals': 'Weitere Ziele', 'body.moreGoalsHint': 'Leer = Standard (Ballaststoffe 30 g, Zucker 50 g, Salz 5 g, gesättigte Fette 10 % der Kalorien).', 'body.min': 'min.', 'body.max': 'max.', 'body.extraInvalid': 'Bitte eine Zahl zwischen 0 und 1000 eingeben.',
-  'body.adjCut': 'Defizit pro Tag', 'body.adjBulk': 'Überschuss pro Tag', 'body.adjCutHint': 'Richtwert 300–700 kcal. 500 kcal ≈ 0,5 kg weniger pro Woche.', 'body.adjBulkHint': 'Richtwert 200–400 kcal für Aufbau mit wenig Fett.', 'body.adjInvalid': 'Bitte 0 bis {max} kcal eingeben.',
+  'body.adjCut': 'Defizit pro Tag', 'body.adjBulk': 'Überschuss pro Tag', 'body.adjCutHint': 'Richtwert {lo}–{hi}. {mid} ≈ 0.5 kg weniger pro Woche.', 'body.adjBulkHint': 'Richtwert {lo}–{hi} für Aufbau mit wenig Fett.', 'body.adjInvalid': 'Bitte {min} bis {max} eingeben.', 'body.kcalRaised': 'Die Makros brauchen mehr Energie als eingegeben – Kalorien auf {v} erhöht.', 'body.fatLow': 'Sehr wenig Fett: unter {min} g pro Tag (0.5 g pro kg Körpergewicht) ist auf Dauer nicht empfehlenswert.',
   'goal.cut': 'Diät', 'goal.maintain': 'Halten', 'goal.bulk': 'Aufbau', 'sex.m': 'Mann', 'sex.f': 'Frau',
   'act.sedentary': 'Kaum aktiv', 'act.light': 'Leicht aktiv', 'act.moderate': 'Aktiv', 'act.high': 'Sehr aktiv', 'act.veryHigh': 'Extrem aktiv',
   'body.actTracked': 'Aus deinen Einträgen der letzten 4 Wochen: {n} Einheiten pro Woche (Krafttrainings + Cardio, 45 min Cardio = 1 Einheit). Passt sich automatisch an.',
@@ -126,7 +126,7 @@ const de = {
   'measure.wImportKeep': 'Gewicht {kg} kg wird nicht übernommen – an diesem Tag sind schon {old} kg eingetragen.',
   'measure.empty': 'Bitte mindestens einen Wert eintragen.', 'measure.imported': '{n} Einträge übernommen',
 
-  'auth.intro': 'Mit einem Konto sind deine Daten auf allen Geräten gleich (PC, iPhone) und gesichert. Später auch für Freunde und Rangliste.',
+  'auth.intro': 'Mit einem Konto sind deine Daten auf allen Geräten gleich (z. B. Handy und PC) und gesichert. Auch für Freunde und Rangliste.',
   'auth.email': 'E-Mail', 'auth.password': 'Passwort (mind. 8 Zeichen)', 'auth.signIn': 'Anmelden', 'auth.signUp': 'Konto erstellen', 'auth.forgot': 'Passwort vergessen?',
   'auth.signedInAs': 'Angemeldet als', 'auth.signOut': 'Abmelden', 'auth.signedIn': 'Angemeldet – Daten werden synchronisiert.', 'auth.created': 'Konto erstellt – Daten werden synchronisiert.',
   'auth.checkMail': 'Fast fertig: Bestätige den Link in der E-Mail, dann hier anmelden.', 'auth.resetSent': 'Falls es das Konto gibt, ist eine E-Mail zum Zurücksetzen unterwegs.',
@@ -184,18 +184,18 @@ const de = {
   'recipe.deleteConfirm': '«{name}» löschen? Bereits eingetragene Mahlzeiten bleiben erhalten.', 'recipe.deleted': 'Rezept gelöscht', 'recipe.notFound': 'Dieses Rezept gibt es nicht mehr.',
   'recipe.portion1': '1 Portion', 'recipe.portionsN': '{n} Portionen', 'recipe.portionIs': '1 Portion = {g} g', 'src.recipe': 'Rezept',
   'day.openFood': 'Im Tagebuch öffnen', 'day.sets': 'Sätze', 'day.body': 'Aktivität, Schlaf & Körper', 'day.nothing': 'Für diesen Tag ist nichts eingetragen.',
-  'health.title': 'Aktivität & Schlaf', 'health.steps': 'Schritte', 'health.active': 'Aktive kcal', 'health.sleep': 'Schlaf', 'health.deep': 'Tief', 'health.yesterday': 'gestern', 'health.exercise': 'Training', 'health.refresh': 'Aktualisieren', 'health.noToday': 'Noch keine Werte von heute – sie kommen mit dem nächsten Abgleich.',
+  'health.title': 'Aktivität & Schlaf', 'health.steps': 'Schritte', 'health.active': 'Aktive Energie', 'health.sleep': 'Schlaf', 'health.deep': 'Tief', 'health.yesterday': 'gestern', 'health.exercise': 'Training', 'health.refresh': 'Aktualisieren', 'health.noToday': 'Noch keine Werte von heute – sie kommen mit dem nächsten Abgleich.',
   'cardio.walk': 'Gehen', 'cardio.strength': 'Krafttraining', 'cardio.hiit': 'HIIT',
   'hs.needAccount': 'Braucht ein Konto (oben unter Konto & Sync), weil der Kurzbefehl die Daten über dein Konto austauscht.',
   'hs.notSetupDb': 'Noch nicht eingerichtet: In Supabase fehlt health.sql.',
   'hs.intro': 'Ein iPhone-Kurzbefehl übernimmt jeden Morgen Gewicht, Körperfett, Schritte, aktive kcal, Trainingsminuten, Distanz und Schlaf aus Apple Health und trägt dort die Kalorien und Makros von gestern ein.',
-  'hc.title': 'Health Connect', 'hc.needApp': 'Auf Android geht der Abgleich mit Health Connect nur über die Gym-Macro-Tracker-App (kommt bald). Im Browser bleibt alles andere gleich.',
+  'hc.title': 'Health Connect', 'hc.needApp': 'Auf Android geht der Abgleich mit Health Connect nur in der Gym-Macro-Tracker-App (APK). Im Browser bleibt alles andere gleich.',
   'hc.notInstalled': 'Health Connect ist auf diesem Handy nicht installiert. Ab Android 14 ist es eingebaut, sonst gibt es die App im Play Store.',
   'hc.needsUpdate': 'Health Connect muss aktualisiert werden.', 'hc.install': 'Health Connect öffnen',
   'hc.intro': 'Übernimmt Gewicht, Körperfett, Schritte, aktive kcal, Distanz, Trainings und Schlaf aus Health Connect und trägt dort deine Mahlzeiten ein. Du wählst selbst, was erlaubt ist.',
   'hc.allow': 'Zugriff erlauben', 'hc.rights': 'Berechtigungen', 'hc.error': 'Health Connect antwortet nicht.',
   'hc.nutrition': 'Mahlzeiten an Health Connect senden', 'hc.on': 'Ein', 'hc.off': 'Aus',
-  'hc.nutritionHint': 'Pro Mahlzeit ein Eintrag (kcal, Makros, Ballaststoffe, Zucker, Natrium), Änderungen der letzten 7 Tage werden nachgeführt. Ausschalten, wenn du Essen auch in einer anderen App erfasst – sonst zählt es doppelt.',
+  'hc.nutritionHint': 'Pro Mahlzeit ein Eintrag (kcal, Makros, Ballaststoffe, Zucker, Natrium, gesättigte und ungesättigte Fette), Änderungen der letzten 7 Tage werden nachgeführt. Ausschalten, wenn du Essen auch in einer anderen App erfasst – sonst zählt es doppelt.',
   'hc.nutritionNoRight': 'Schreiben von Ernährungsdaten ist nicht erlaubt – unter «Berechtigungen» einschalten.',
   'hc.synced': 'Health Connect abgeglichen', 'hc.syncedWritten': 'Abgeglichen, {n} Mahlzeiten gesendet',
   'hs.connect': 'Verbindung einrichten', 'hs.connected': 'Verbunden ✓', 'hs.lastRun': 'Kurzbefehl zuletzt gelaufen: {time}', 'hs.lastData': 'Daten zuletzt übernommen: {time}',
@@ -221,8 +221,8 @@ const de = {
   'hs.guideOutro': 'Die App verarbeitet die Daten beim nächsten Sync. Manuell eingetragenes Gewicht hat immer Vorrang. Klappt etwas nicht, schick einen Screenshot vom Kurzbefehl – wir passen es an.',
   'settings.title': 'Einstellungen', 'settings.lang': 'Sprache', 'settings.energy': 'Energie-Einheit',
   'settings.sync': 'Konto & Sync', 'settings.syncSoon': 'Noch nicht eingerichtet. Bis dahin bleiben alle Daten nur in diesem Browser.',
-  'settings.health': 'Apple Health / Health Connect', 'settings.healthSoon': 'Geplant: Daten und Workouts übernehmen, Makros zurückschreiben.',
-  'settings.data': 'Daten', 'settings.dataHint': 'Sicherung als Datei – z. B. bevor du den Browser wechselst.', 'settings.export': 'Exportieren', 'settings.import': 'Importieren',
+  'settings.health': 'Apple Health', 'settings.healthSoon': 'Geplant: Daten und Workouts übernehmen, Makros zurückschreiben.',
+  'settings.data': 'Daten', 'settings.dataHint': 'Sicherung als Datei – z. B. bevor du das Handy wechselst.', 'settings.export': 'Exportieren', 'settings.import': 'Importieren',
   'settings.importDone': 'Daten importiert', 'settings.importFail': 'Datei konnte nicht gelesen werden.', 'settings.reset': 'Alle Daten löschen',
   'settings.resetConfirm': 'Wirklich alle Daten auf diesem Gerät löschen? Das kann nicht rückgängig gemacht werden.', 'settings.resetDone': 'Alle Daten gelöscht', 'settings.version': 'Version',
 };
@@ -230,7 +230,7 @@ const de = {
 const en = {
   'nav.today': 'Today', 'nav.food': 'Nutrition', 'nav.training': 'Training', 'nav.progress': 'Progress', 'nav.body': 'Body',
   'app.rotate': 'Please hold your phone upright',
-  'common.today': 'Today', 'training.pulledForward': 'Plan moved forward: {name} today, then it continues as usual.', 'active.uni': 'Unilateral (left and right separately)', 'active.uniShort': 'unilateral', 'active.repsLeft': 'Reps left', 'active.repsRight': 'Reps right', 'active.repsLeftShort': 'Reps L', 'active.repsRightShort': 'Reps R', 'plan.uni': 'Unilateral', 'progress.left': 'Left', 'progress.right': 'Right', 'progress.sideLeft': 'Left', 'progress.sideRight': 'Right', 'progress.sideHint': '{side} side on average {pct} % weaker (last {n} workouts).', 'progress.uniHint': 'Unilateral: one line per side. Same weight, the difference comes from the reps.', 'settings.exportSaved': 'Backup saved.', 'settings.exportCancelled': 'Export cancelled.', 'settings.exportFail': 'Export did not work.', 'settings.exportNeedsUpdate': 'Export needs the new app version 1.4.', 'settings.importConfirm': 'Import “{name}”? All data in the app will be replaced by the file.', 'settings.importConfirmAccount': 'Import “{name}”? All data will be replaced by the file – also in your account and therefore on all devices.', 'food.errAmount': 'Enter an amount between 1 and {max} g.', 'food.errNegative': 'Values cannot be negative.', 'food.errKcal100': 'At most 900 kcal per 100 g are possible.', 'food.errOver100': 'Per 100 g the nutrients together cannot exceed 100 g.', 'food.errSfa': 'Saturated fat cannot exceed total fat.', 'food.errSugar': 'Sugar cannot exceed total carbs.', 'food.errTooMuch': 'That is too much for one entry – please check the values.', 'cardio.errMinutes': 'Enter between 1 and 600 minutes.', 'cardio.errKm': 'Enter a distance between 0 and 300 km.', 'cardio.errFuture': 'Cardio cannot be in the future – to plan it, tap the day in the calendar.', 'food.recipesSub0': 'No recipes of your own yet', 'food.recipesSub1': '1 recipe of your own', 'food.recipesSubN': '{n} recipes of your own', 'common.std': 'Default {v}', 'today.toCalendar': 'Calendar', 'food.forDate': 'for {date}', 'training.tabOverview': 'Overview', 'training.tabPlan': 'Plan', 'common.eg': 'e.g. {v}', 'profile.title': 'Profile', 'theme.title': 'Colours', 'theme.kreide': 'Chalk', 'theme.sand': 'Sand', 'theme.lime': 'Lime', 'active.moveUp': 'Move exercise up', 'active.moveDown': 'Move exercise down', 'common.discardChanges': 'Discard unsaved changes?', 'common.toToday': '↺ Back to today', 'common.undo': 'Undo', 'common.close': 'Close', 'common.back': 'Back', 'common.save': 'Save',
+  'common.today': 'Today', 'active.setsWord1': 'working set', 'active.setsWordN': 'working sets', 'active.savedPr1': 'Saved – new PR! 🏆', 'hc.notConnected': 'Health Connect is not connected yet – allow it under Profile → Health Connect.', 'active.needReps': 'Enter the reps first.', 'health.stale': 'Last sync with Apple Health: {when}. The morning shortcut has not run since.', 'health.fetchNow': 'Fetch from Apple Health now', 'training.pulledForward': 'Plan moved forward: {name} today, then it continues as usual.', 'active.uni': 'Unilateral (left and right separately)', 'active.uniShort': 'unilateral', 'active.repsLeft': 'Reps left', 'active.repsRight': 'Reps right', 'active.repsLeftShort': 'Reps L', 'active.repsRightShort': 'Reps R', 'plan.uni': 'Unilateral', 'progress.left': 'Left', 'progress.right': 'Right', 'progress.sideLeft': 'Left', 'progress.sideRight': 'Right', 'progress.sideHint': '{side} side on average {pct} % weaker (last {n} workouts).', 'progress.uniHint': 'Unilateral: one line per side. Same weight, the difference comes from the reps.', 'settings.exportSaved': 'Backup saved.', 'settings.exportCancelled': 'Export cancelled.', 'settings.exportFail': 'Export did not work.', 'settings.exportNeedsUpdate': 'Export needs the new app version 1.4.', 'settings.importConfirm': 'Import “{name}”? All data in the app will be replaced by the file.', 'settings.importConfirmAccount': 'Import “{name}”? All data will be replaced by the file – also in your account and therefore on all devices.', 'food.errAmount': 'Enter an amount between 1 and {max} g.', 'food.errNegative': 'Values cannot be negative.', 'food.errKcal100': 'At most 900 kcal per 100 g are possible.', 'food.errOver100': 'Per 100 g the nutrients together cannot exceed 100 g.', 'food.errSfa': 'Saturated fat cannot exceed total fat.', 'food.errSugar': 'Sugar cannot exceed total carbs.', 'food.errTooMuch': 'That is too much for one entry – please check the values.', 'cardio.errMinutes': 'Enter between 1 and 600 minutes.', 'cardio.errKm': 'Enter a distance between 0 and 300 km.', 'cardio.errFuture': 'Cardio cannot be in the future – to plan it, tap the day in the calendar.', 'food.recipesSub0': 'No recipes of your own yet', 'food.recipesSub1': '1 recipe of your own', 'food.recipesSubN': '{n} recipes of your own', 'common.std': 'Default {v}', 'today.toCalendar': 'Calendar', 'food.forDate': 'for {date}', 'training.tabOverview': 'Overview', 'training.tabPlan': 'Plan', 'common.eg': 'e.g. {v}', 'profile.title': 'Profile', 'theme.title': 'Colours', 'theme.kreide': 'Chalk', 'theme.sand': 'Sand', 'theme.lime': 'Lime', 'active.moveUp': 'Move exercise up', 'active.moveDown': 'Move exercise down', 'common.discardChanges': 'Discard unsaved changes?', 'common.toToday': '↺ Back to today', 'common.undo': 'Undo', 'common.close': 'Close', 'common.back': 'Back', 'common.save': 'Save',
   'common.delete': 'Delete', 'common.remove': 'Remove', 'common.done': 'Done', 'common.date': 'Date',
   'common.prevDay': 'Previous day', 'common.nextDay': 'Next day', 'common.prev': 'Previous', 'common.next': 'Next',
 
@@ -255,7 +255,7 @@ const en = {
   'today.macros': 'Calories and macros', 'today.left': '{unit} left', 'today.over': '{unit} over', 'today.ofGoal': 'of {goal}',
   'today.setGoals': 'Tip: enter height, age and weight under Body to calculate your daily goal.',
   'today.running': 'Workout in progress', 'today.continue': 'Continue', 'today.doneToday': 'Done today', 'today.suggested': 'Suggested today',
-  'today.restHint': 'Rest day. Cardio is still fine.', 'today.toTraining': 'Go to training', 'today.week': 'This week', 'today.weekLegend': '● Cardio', 'today.meals': 'Meals',
+  'today.restHint': 'Cardio is still fine.', 'today.toTraining': 'Go to training', 'today.week': 'This week', 'today.weekLegend': '● Cardio', 'today.meals': 'Meals',
 
   'rhythm.full': 'Full week', 'rhythm.light': 'Easy', 'rhythm.fullSub': '6 workouts · 1 rest', 'rhythm.lightSub': '3 workouts · 1 rest',
   'plan.title': 'Plan', 'plan.rest': 'Rest day', 'plan.pause': 'Pause (shifted)', 'plan.shiftedHint': 'Shifted – pause on this day, the plan moves back one day from here.',
@@ -292,7 +292,7 @@ const en = {
   'training.history': 'History', 'training.noHistory': 'No workouts yet. Start your first one above.', 'training.workout': 'Workout', 'training.volume': 'volume',
   'training.deleteWorkout': 'Delete workout', 'training.workoutDeleted': 'Workout deleted',
 
-  'cardio.alsoManual': 'also entered manually – counts once', 'cardio.done': 'Done', 'cardio.autoFromWatch': 'comes automatically from your watch', 'cardio.enterManually': 'enter manually', 'cardio.plannedWas': 'planned {min} min', 'cardio.manual': 'manual', 'cardio.plannedTitle': 'Planned cardio', 'cardio.week': 'Cardio this week', 'cardio.none': 'No cardio this week yet.', 'cardio.add': 'Log cardio', 'cardio.minutes': 'Minutes', 'cardio.km': 'Distance in km (optional)',
+  'cardio.alsoManual': 'also entered manually – counts once', 'cardio.done': 'Done', 'cardio.missed': 'Not done', 'cardio.didAnyway': 'Done after all? Log it', 'cardio.autoFromWatch': 'comes automatically from your watch', 'cardio.enterManually': 'enter manually', 'cardio.plannedWas': 'planned {min} min', 'cardio.manual': 'manual', 'cardio.plannedTitle': 'Planned cardio', 'cardio.week': 'Cardio this week', 'cardio.none': 'No cardio this week yet.', 'cardio.add': 'Log cardio', 'cardio.minutes': 'Minutes', 'cardio.km': 'Distance in km (optional)',
   'cardio.after': 'After workout', 'cardio.own': 'Separate session', 'cardio.needMinutes': 'Please enter minutes.', 'cardio.saved': 'Cardio saved', 'cardio.deleted': 'Cardio deleted',
   'cardio.run': 'Running', 'cardio.treadmill': 'Treadmill', 'cardio.bike': 'Cycling', 'cardio.crosstrainer': 'Cross trainer', 'cardio.rowing': 'Rowing', 'cardio.stairs': 'Stairs', 'cardio.swim': 'Swimming', 'cardio.other': 'Other',
 
@@ -302,7 +302,7 @@ const en = {
   'active.addWarmup': 'Warm-up set', 'active.addSet': 'Set', 'active.makeWarmup': 'Mark as warm-up (W)', 'active.makeWork': 'Mark as working set',
   'active.warmupHint': 'Warm-up sets (W) do not count towards volume or PRs.', 'active.removeSet': 'Remove set', 'active.setRemoved': 'Set removed',
   'active.addCardio': 'Add cardio', 'active.cardioAfter': 'Cardio afterwards',
-  'active.finishTitle': 'Finish workout?', 'active.finishSummary': '{done} working sets completed, {open} open.', 'active.openNotSaved': 'Unchecked sets will not be saved.',
+  'active.finishTitle': 'Finish workout?', 'active.finishSummary': '{done} {sets} completed, {open} open.', 'active.openNotSaved': 'Unchecked sets will not be saved.',
   'active.save': 'Save and finish', 'active.discard': 'Discard workout', 'active.discardConfirm': 'Really discard this workout? All sets will be lost.',
   'active.saved': 'Workout saved 💪', 'active.savedPr': 'Saved – {n} new PRs! 🏆',
 
@@ -317,18 +317,18 @@ const en = {
 
   'progress.me': 'Me', 'progress.friends': 'Friends', 'progress.e1rm': 'Estimated 1RM', 'progress.exercise': 'Exercise', 'progress.chart': 'History',
   'progress.e1rmHint': 'Estimated from weight × reps (Epley), excluding warm-up sets.', 'progress.needTwo': 'After two workouts you will see a curve here.',
-  'progress.noData': 'No workouts saved yet.', 'progress.prs': 'Personal records', 'progress.setsPerMuscle': 'Sets per muscle', 'progress.last7': 'last 7 days',
+  'progress.noData': 'No workouts saved yet.', 'progress.prs': 'Personal records', 'progress.prsRecent': 'Latest personal records', 'progress.prsAll': 'Show all {n}', 'progress.prsLess': 'Show less', 'progress.setsPerMuscle': 'Sets per muscle', 'progress.last7': 'last 7 days',
   'progress.trainings': '{n} workouts', 'progress.strength': 'Strength', 'progress.cardio': 'Cardio',
-  'friends.title': 'Friends & leaderboard', 'friends.soon': 'Coming once login and sync are set up: group with invite code, leaderboard for strength (relative to body weight), consistency, volume and PRs.',
+  'friends.title': 'Friends & leaderboard',
 
   'body.weight': 'Weight', 'body.addWeight': 'Log', 'body.firstWeight': 'Log your first weight', 'body.weightPh': "Today's weight in kg",
   'body.invalidWeight': 'Please enter a valid weight.', 'body.weightSaved': 'Weight saved', 'body.weightDeleted': 'Entry deleted',
   'body.measures': 'Measurements', 'body.addMeasures': 'Log measurements', 'body.noMeasures': 'No measurements yet.',
   'body.photos': 'Progress photos', 'body.photosSoon': 'Coming in a later step (photos stay private).',
   'body.goals': 'Goal & daily needs', 'body.sex': 'Sex', 'body.birthYear': 'Year of birth', 'body.height': 'Height (cm)', 'body.activity': 'Activity',
-  'body.calcInfo': 'BMR {bmr} kcal · Total {tdee} kcal', 'body.needData': 'Enter sex, year of birth, height and weight to calculate your goal.',
+  'body.calcInfo': 'BMR {bmr} · Total {tdee}', 'body.needData': 'Enter sex, year of birth, height and weight to calculate your goal.',
   'body.manual': 'Set manually', 'body.backToAuto': 'Back to automatic', 'body.setManual': 'Set goal manually', 'body.manualHint': 'Overrides the automatic calculation. Your last three entries stay, the fourth value is calculated (1 g protein or carbs = 4 kcal, 1 g fat = 9 kcal).', 'body.computed': '· calculated', 'body.moreGoals': 'More goals', 'body.moreGoalsHint': 'Empty = default (fibre 30 g, sugar 50 g, salt 5 g, saturated fat 10 % of calories).', 'body.min': 'min.', 'body.max': 'max.', 'body.extraInvalid': 'Please enter a number between 0 and 1000.',
-  'body.adjCut': 'Deficit per day', 'body.adjBulk': 'Surplus per day', 'body.adjCutHint': 'Typical 300–700 kcal. 500 kcal ≈ 0.5 kg less per week.', 'body.adjBulkHint': 'Typical 200–400 kcal for a lean bulk.', 'body.adjInvalid': 'Please enter 0 to {max} kcal.',
+  'body.adjCut': 'Deficit per day', 'body.adjBulk': 'Surplus per day', 'body.adjCutHint': 'Typical {lo}–{hi}. {mid} ≈ 0.5 kg less per week.', 'body.adjBulkHint': 'Typical {lo}–{hi} for a lean bulk.', 'body.adjInvalid': 'Please enter {min} to {max}.', 'body.kcalRaised': 'The macros need more energy than entered – calories raised to {v}.', 'body.fatLow': 'Very little fat: below {min} g a day (0.5 g per kg body weight) is not recommended long-term.',
   'goal.cut': 'Cut', 'goal.maintain': 'Maintain', 'goal.bulk': 'Bulk', 'sex.m': 'Male', 'sex.f': 'Female',
   'act.sedentary': 'Sedentary', 'act.light': 'Lightly active', 'act.moderate': 'Active', 'act.high': 'Very active', 'act.veryHigh': 'Extremely active',
   'body.actTracked': 'From your entries of the last 4 weeks: {n} sessions per week (strength + cardio, 45 min cardio = 1 session). Adjusts automatically.',
@@ -352,7 +352,7 @@ const en = {
   'measure.wImportKeep': 'Weight {kg} kg is not imported – {old} kg is already logged that day.',
   'measure.empty': 'Please enter at least one value.', 'measure.imported': '{n} entries imported',
 
-  'auth.intro': 'With an account your data is the same on all devices (PC, iPhone) and backed up. Later also for friends and leaderboard.',
+  'auth.intro': 'With an account your data is the same on all devices (e.g. phone and PC) and backed up. Also for friends and leaderboard.',
   'auth.email': 'Email', 'auth.password': 'Password (min. 8 characters)', 'auth.signIn': 'Sign in', 'auth.signUp': 'Create account', 'auth.forgot': 'Forgot password?',
   'auth.signedInAs': 'Signed in as', 'auth.signOut': 'Sign out', 'auth.signedIn': 'Signed in – syncing your data.', 'auth.created': 'Account created – syncing your data.',
   'auth.checkMail': 'Almost done: confirm the link in the email, then sign in here.', 'auth.resetSent': 'If the account exists, a reset email is on its way.',
@@ -410,18 +410,18 @@ const en = {
   'recipe.deleteConfirm': 'Delete "{name}"? Meals already logged stay.', 'recipe.deleted': 'Recipe deleted', 'recipe.notFound': 'This recipe no longer exists.',
   'recipe.portion1': '1 serving', 'recipe.portionsN': '{n} servings', 'recipe.portionIs': '1 serving = {g} g', 'src.recipe': 'Recipe',
   'day.openFood': 'Open in diary', 'day.sets': 'sets', 'day.body': 'Activity, sleep & body', 'day.nothing': 'Nothing logged for this day.',
-  'health.title': 'Activity & sleep', 'health.steps': 'Steps', 'health.active': 'Active kcal', 'health.sleep': 'Sleep', 'health.deep': 'Deep', 'health.yesterday': 'yesterday', 'health.exercise': 'Exercise', 'health.refresh': 'Refresh', 'health.noToday': 'No values from today yet – they arrive with the next sync.',
+  'health.title': 'Activity & sleep', 'health.steps': 'Steps', 'health.active': 'Active energy', 'health.sleep': 'Sleep', 'health.deep': 'Deep', 'health.yesterday': 'yesterday', 'health.exercise': 'Exercise', 'health.refresh': 'Refresh', 'health.noToday': 'No values from today yet – they arrive with the next sync.',
   'cardio.walk': 'Walking', 'cardio.strength': 'Strength training', 'cardio.hiit': 'HIIT',
   'hs.needAccount': 'Needs an account (Account & sync above) because the shortcut exchanges data through your account.',
   'hs.notSetupDb': 'Not set up yet: health.sql is missing in Supabase.',
   'hs.intro': 'An iPhone shortcut imports weight, body fat, steps, active kcal, exercise minutes, distance and sleep from Apple Health every morning and logs yesterday\'s calories and macros there.',
-  'hc.title': 'Health Connect', 'hc.needApp': 'On Android, syncing with Health Connect only works through the Gym Macro Tracker app (coming soon). Everything else works the same in the browser.',
+  'hc.title': 'Health Connect', 'hc.needApp': 'On Android, syncing with Health Connect only works in the Gym Macro Tracker app (APK). Everything else works the same in the browser.',
   'hc.notInstalled': 'Health Connect is not installed on this phone. It is built into Android 14 and later, otherwise get it from the Play Store.',
   'hc.needsUpdate': 'Health Connect needs to be updated.', 'hc.install': 'Open Health Connect',
   'hc.intro': 'Imports weight, body fat, steps, active kcal, distance, workouts and sleep from Health Connect and logs your meals there. You choose what is allowed.',
   'hc.allow': 'Allow access', 'hc.rights': 'Permissions', 'hc.error': 'Health Connect is not responding.',
   'hc.nutrition': 'Send meals to Health Connect', 'hc.on': 'On', 'hc.off': 'Off',
-  'hc.nutritionHint': 'One entry per meal (kcal, macros, fibre, sugar, sodium); changes from the last 7 days are updated. Turn off if you also log food in another app – otherwise it counts twice.',
+  'hc.nutritionHint': 'One entry per meal (kcal, macros, fibre, sugar, sodium, saturated and unsaturated fat); changes from the last 7 days are updated. Turn off if you also log food in another app – otherwise it counts twice.',
   'hc.nutritionNoRight': 'Writing nutrition data is not allowed – turn it on under “Permissions”.',
   'hc.synced': 'Health Connect synced', 'hc.syncedWritten': 'Synced, {n} meals sent',
   'hs.connect': 'Set up connection', 'hs.connected': 'Connected ✓', 'hs.lastRun': 'Shortcut last ran: {time}', 'hs.lastData': 'Data last imported: {time}',
@@ -447,8 +447,8 @@ const en = {
   'hs.guideOutro': 'The app processes the data on the next sync. Manually entered weight always wins. If something does not work, send a screenshot of the shortcut – we will adjust it.',
   'settings.title': 'Settings', 'settings.lang': 'Language', 'settings.energy': 'Energy unit',
   'settings.sync': 'Account & sync', 'settings.syncSoon': 'Not set up yet. Until then, all data stays in this browser only.',
-  'settings.health': 'Apple Health / Health Connect', 'settings.healthSoon': 'Planned: import data and workouts, write macros back.',
-  'settings.data': 'Data', 'settings.dataHint': 'Backup as a file – e.g. before switching browsers.', 'settings.export': 'Export', 'settings.import': 'Import',
+  'settings.health': 'Apple Health', 'settings.healthSoon': 'Planned: import data and workouts, write macros back.',
+  'settings.data': 'Data', 'settings.dataHint': 'Backup as a file – e.g. before switching phones.', 'settings.export': 'Export', 'settings.import': 'Import',
   'settings.importDone': 'Data imported', 'settings.importFail': 'Could not read the file.', 'settings.reset': 'Delete all data',
   'settings.resetConfirm': 'Really delete all data on this device? This cannot be undone.', 'settings.resetDone': 'All data deleted', 'settings.version': 'Version',
 };
@@ -470,6 +470,22 @@ const locale = () => (current === 'en' ? 'en-GB' : 'de-CH');
 export function weekdayShort(key) {
   return parseKey(key).toLocaleDateString(locale(), { weekday: 'short' }).replace('.', '');
 }
+// Ziel-Zusatz der Standard-Übungen (englisch im Trainingsplan) für die Anzeige übersetzen; eigene Texte bleiben
+const TARGET_DE = {
+  abs: 'Bauch', adductors: 'Adduktoren', back: 'Rücken', 'biceps long head': 'Bizeps, langer Kopf', 'biceps short head': 'Bizeps, kurzer Kopf',
+  biceps: 'Bizeps', 'brachialis / brachioradialis': 'Oberarm- und Unterarmbeuger', calves: 'Waden', chest: 'Brust', core: 'Rumpf',
+  'forearm extensors': 'Unterarm-Strecker', 'forearm flexors': 'Unterarm-Beuger', forearms: 'Unterarme', 'front delts': 'vordere Schulter',
+  hamstrings: 'hintere Oberschenkel', lats: 'Latissimus', legs: 'Beine', 'lower back / hamstrings / glutes': 'unterer Rücken, hintere Oberschenkel, Gesäss',
+  'lower back': 'unterer Rücken', 'lower chest': 'untere Brust', 'middle chest': 'mittlere Brust', obliques: 'seitliche Bauchmuskeln',
+  'quads / glutes': 'Quadrizeps, Gesäss', quads: 'Quadrizeps', shoulders: 'Schultern', 'side delts': 'seitliche Schulter', traps: 'Trapez',
+  'triceps lateral head': 'Trizeps, seitlicher Kopf', 'triceps long head': 'Trizeps, langer Kopf', triceps: 'Trizeps', 'upper back': 'oberer Rücken',
+  'upper chest': 'obere Brust', 'rear delts': 'hintere Schulter', glutes: 'Gesäss',
+};
+export function targetText(s) {
+  if (!s || current !== 'de') return s || '';
+  return TARGET_DE[String(s).trim().toLowerCase()] || s;
+}
+
 export function longDate(key) {
   return parseKey(key).toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' });
 }

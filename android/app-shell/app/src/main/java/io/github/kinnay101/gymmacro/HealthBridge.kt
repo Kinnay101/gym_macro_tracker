@@ -128,20 +128,21 @@ class HealthBridge(private val context: Context) {
 
         val exercise = JSONArray()
         if (has(ExerciseSessionRecord::class)) {
-            // Werte pro Training (nur, was erlaubt ist – sonst wirft Health Connect einen Fehler)
-            val perSession = buildSet {
-                if (has(ActiveCaloriesBurnedRecord::class)) add(ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL)
-                if (has(DistanceRecord::class)) add(DistanceRecord.DISTANCE_TOTAL)
-                if (has(HeartRateRecord::class)) add(HeartRateRecord.BPM_AVG)
-            }
+            // Werte pro Training (nur, was erlaubt ist – sonst wirft Health Connect einen Fehler).
+            // kcal und km nur aus Einträgen, die ganz im Training liegen: Health Connect würde sonst
+            // Tages- oder Stundenwerte anteilig verteilen (z. B. „35 Min. Lauf · 0.1 km · 4 kcal“).
             for (s in readAll(ExerciseSessionRecord::class, range)) {
                 val o = JSONObject()
                     .put("start", s.startTime.toString()).put("end", s.endTime.toString())
                     .put("type", exerciseName(s.exerciseType)).put("title", s.title ?: "")
-                if (perSession.isNotEmpty()) {
-                    val a = client.aggregate(AggregateRequest(perSession, TimeRangeFilter.between(s.startTime, s.endTime)))
-                    a[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]?.let { o.put("kcal", it.inKilocalories) }
-                    a[DistanceRecord.DISTANCE_TOTAL]?.let { o.put("km", it.inKilometers) }
+                if (has(ActiveCaloriesBurnedRecord::class)) {
+                    inside(readAll(ActiveCaloriesBurnedRecord::class, TimeRangeFilter.between(s.startTime, s.endTime)).map { Part(it.startTime, it.endTime, it.metadata.dataOrigin.packageName, it.energy.inKilocalories) }, s)?.let { o.put("kcal", it) }
+                }
+                if (has(DistanceRecord::class)) {
+                    inside(readAll(DistanceRecord::class, TimeRangeFilter.between(s.startTime, s.endTime)).map { Part(it.startTime, it.endTime, it.metadata.dataOrigin.packageName, it.distance.inKilometers) }, s)?.let { o.put("km", it) }
+                }
+                if (has(HeartRateRecord::class)) {
+                    val a = client.aggregate(AggregateRequest(setOf(HeartRateRecord.BPM_AVG), TimeRangeFilter.between(s.startTime, s.endTime)))
                     a[HeartRateRecord.BPM_AVG]?.let { o.put("avgHr", it) }
                 }
                 exercise.put(o)
@@ -162,6 +163,23 @@ class HealthBridge(private val context: Context) {
         }
         out.put("sleep", sleep)
         return out
+    }
+
+    /**
+     * Summe der Einträge, die ganz innerhalb des Trainings liegen (1 Min. Spielraum). Pro Quelle
+     * (Uhr, Handy …) getrennt summiert, die grösste Quelle zählt – so wird nichts doppelt gezählt.
+     * null, wenn es keine passenden Einträge gibt (dann zeigt die App nichts statt eines Bruchteils).
+     */
+    private class Part(val start: Instant, val end: Instant, val source: String, val value: Double)
+
+    private fun inside(parts: List<Part>, s: ExerciseSessionRecord): Double? {
+        val from = s.startTime.minusSeconds(60)
+        val to = s.endTime.plusSeconds(60)
+        val bySource = parts
+            .filter { !it.start.isBefore(from) && !it.end.isAfter(to) }
+            .groupBy { it.source }
+            .mapValues { (_, list) -> list.sumOf { it.value } }
+        return bySource.values.maxOrNull()?.takeIf { it > 0 }
     }
 
     private suspend fun <T : Record> readAll(type: KClass<T>, range: TimeRangeFilter): List<T> {

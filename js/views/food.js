@@ -9,7 +9,7 @@ import * as browser from './recipeBrowser.js';
 let editId = null;
 let editGpp = null; // Gramm pro Portion des bearbeiteten Rezept-Eintrags
 
-const dateOf = (params) => params.date || today();
+const dateOf = (params) => (/^\d{4}-\d{2}-\d{2}$/.test(params.date || '') ? params.date : today()); // nur echtes Datum aus der Adresse
 
 const tabOf = (params) => (params.tab === 'recipes' ? 'recipes' : 'diary');
 
@@ -84,7 +84,7 @@ function fatSplit(tot, g) {
   const sw = (cls) => `<i class="fs ${cls}"></i>`;
   return `<div class="stack" style="gap:8px">
     <div class="row between"><span class="tiny muted">${esc(t('n.f'))}</span>
-      <span class="tiny muted">${num(tot.f, 1)} / ${num(g.f)} g</span></div>
+      <span class="tiny muted">${num(tot.f)} / ${num(g.f)} g</span></div>
     <div class="fat-bar" role="img" aria-label="${esc(t('n.sfa'))} ${num(sat, 1)} g, ${esc(t('n.unsatShort'))} ${num(unsat, 1)} g, ${esc(t('n.f'))} ${num(tot.f, 1)} / ${num(g.f)} g">
       <div class="fat-fill"><i class="s" style="width:${w(sat)}"></i><i class="u" style="width:${w(unsat)}"></i><i class="x" style="width:${w(unknown)}"></i></div>
       <span class="fat-mark" style="left:${w(Math.min(g.sfa, scale))}"></span>

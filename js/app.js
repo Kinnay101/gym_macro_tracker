@@ -144,6 +144,7 @@ function route() {
   const { name, params } = parseHash();
   const changed = name !== current.name;
   current = { name, mod: ROUTES[name], params };
+  if (changed) current.mod.enter?.(params, ctx); // Seite frisch geöffnet (z. B. Suche leeren)
   activeConfirm?.(false); // offenes Bestätigungsfenster gehört zur alten Seite (Prüfbericht AA3)
   closeSheet();
   render();

@@ -1,6 +1,6 @@
 // Heute: Kalorien & Makros, heutiges Training, Woche, Mahlzeiten, Gewicht
 import { esc, num, today, weekStart, icon, I } from '../util.js';
-import { t, longDate } from '../i18n.js';
+import { t, longDate, shortDate } from '../i18n.js';
 import { goals, sumEntries, dayEntries, MEALS, currentWeight } from '../nutrition.js';
 import { schedule, planMuscles, activeSplit } from '../plan.js';
 import { startWorkout } from '../workout.js';
@@ -103,11 +103,21 @@ function healthCard(state, key) {
   const canRefresh = hc.available() || (isIOS() && state.healthLastImport);
   const refresh = canRefresh ? `<button class="link tiny" data-act="health-refresh" aria-label="${esc(t('health.refresh'))}">↻ ${esc(healthSourceName())}</button>` : `<span class="tiny muted">${esc(healthSourceName())}</span>`;
   return `<section class="card tight"><div class="card-head"><h3>${esc(t('health.title'))}</h3>${refresh}</div>
-    <div class="grid3">${tiles.map(([l, v, sub]) => `<div class="stack" style="gap:2px"><span class="tiny muted">${esc(l)}</span><b>${esc(v)}</b>${sub ? `<span class="tiny muted">${esc(sub)}</span>` : ''}</div>`).join('')}</div>
-    ${hasToday ? '' : `<div class="tiny muted">${esc(t('health.noToday'))}</div>`}
+    <div class="grid3">${tiles.map(([l, v, sub], i) => `<div class="stack" style="gap:2px${i === 3 ? ';grid-column:span 2' : ''}"><span class="tiny muted">${esc(l)}</span><b>${esc(v)}</b>${sub ? `<span class="tiny muted">${esc(sub)}</span>` : ''}</div>`).join('')}</div>
+    ${staleHint(state) || (hasToday ? '' : `<div class="tiny muted">${esc(t(hc.available() && !state.healthLastImport ? 'hc.notConnected' : 'health.noToday'))}</div>`)}
     ${ws.map((w) => `<div class="small muted">⌚ ${esc(t('cardio.' + w.kind))} · ${num(w.minutes)} min${w.kcal ? ` · ${energy(state, w.kcal)}` : ''}${w.avgHr ? ` · Ø ${w.avgHr} bpm` : ''}</div>`).join('')}
   </section>`;
 }
+
+/** iPhone: Morgen-Kurzbefehl lief länger nicht (z. B. Health bei gesperrtem iPhone nicht lesbar) → Hinweis + Knopf. */
+function staleHint(state) {
+  const last = state.healthLastImport ? new Date(state.healthLastImport) : null;
+  if (!last || !isIOS() || Date.now() - last.getTime() < 20 * 3600 * 1000) return '';
+  const when = `${shortDate(dayKeyOf(last))} ${last.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}`;
+  return `<div class="hint small">${esc(t('health.stale', { when }))}</div>
+    <button class="btn sm" data-act="health-refresh">↻ ${esc(t('health.fetchNow'))}</button>`;
+}
+const dayKeyOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 function mealsCard(state, key, entries) {
   const rows = MEALS.map((m) => {

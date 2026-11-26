@@ -38,13 +38,18 @@ export function loadBlv() {
 export function blvLoaded() { return blv; }
 
 // ---------- lokale Suche ----------
+// Suchindex pro Lebensmittel – in einer WeakMap, nicht am Objekt (sonst landet er in gespeicherten Produkten
+// und alle Open-Food-Facts-Dokumente gelten beim Sync als geändert, K13)
+const HAY = new WeakMap();
 function haystack(f) {
-  if (!f._hay) {
+  let h = HAY.get(f);
+  if (!h) {
     const n = typeof f.name === 'string' ? f.name : `${f.name.de} ${f.name.en}`;
     const text = `${n} ${f.syn || ''} ${f.brand || ''}`;
-    f._hay = { words: words(text), compact: norm(text).replace(/[^a-z0-9]/g, ''), first: words(foodName(f))[0] || '' };
+    h = { words: words(text), compact: norm(text).replace(/[^a-z0-9]/g, ''), first: words(foodName(f))[0] || '' };
+    HAY.set(f, h);
   }
-  return f._hay;
+  return h;
 }
 
 /** Eigene Lebensmittel, gespeicherte Online-Produkte und BLV durchsuchen. */
@@ -158,11 +163,27 @@ export async function lookupBarcode(state, code) {
   }
 }
 
-/** Gültige EAN-8/EAN-13/UPC-A Prüfziffer? */
-export function validBarcode(code) {
-  if (!/^\d{8}$|^\d{12,14}$/.test(code)) return false;
+const checkOk = (code) => {
   const digits = code.split('').map(Number);
   const check = digits.pop();
   const sum = digits.reverse().reduce((s, d, i) => s + d * (i % 2 === 0 ? 3 : 1), 0);
   return (10 - (sum % 10)) % 10 === check;
+};
+/** UPC-E (8-stellig) → UPC-A (12-stellig); die Prüfziffer von UPC-E gilt für die lange Form. */
+function upcEtoA(c) {
+  const [ns, d1, d2, d3, d4, d5, d6, chk] = c;
+  if (ns !== '0' && ns !== '1') return null;
+  let body;
+  if ('012'.includes(d6)) body = d1 + d2 + d6 + '0000' + d3 + d4 + d5;
+  else if (d6 === '3') body = d1 + d2 + d3 + '00000' + d4 + d5;
+  else if (d6 === '4') body = d1 + d2 + d3 + d4 + '00000' + d5;
+  else body = d1 + d2 + d3 + d4 + d5 + '0000' + d6;
+  return ns + body + chk;
+}
+/** Gültige EAN-8/EAN-13/UPC-A/UPC-E Prüfziffer? */
+export function validBarcode(code) {
+  if (!/^\d{8}$|^\d{12,14}$/.test(code)) return false;
+  if (checkOk(code)) return true;
+  const a = code.length === 8 ? upcEtoA(code) : null;
+  return !!a && checkOk(a);
 }

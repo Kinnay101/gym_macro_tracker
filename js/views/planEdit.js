@@ -480,7 +480,11 @@ export const changes = {
   cw(el, ctx) {
     const { id, f } = el.dataset;
     const v = f === 'type' ? el.value : parseNum(el.value);
-    if (f === 'minutes' && (!v || v <= 0 || v > 600)) { ctx.toast(t('cardio.needMinutes')); ctx.refreshSheet(); return; }
+    if (f === 'minutes' && (!v || v <= 0 || v > 600)) {
+      ctx.toast(t('cardio.errMinutes'));
+      el.value = (ctx.state.training.weeklyCardio || []).find((x) => x.id === id)?.minutes ?? ''; // alten Wert zeigen
+      return;
+    }
     updTraining(ctx, (tr) => {
       const w = (tr.weeklyCardio || []).find((x) => x.id === id);
       if (w) w[f] = f === 'type' ? v : Math.round(v);

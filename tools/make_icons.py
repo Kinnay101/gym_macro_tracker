@@ -8,8 +8,8 @@ import os
 import struct
 import zlib
 
-BG = (0x0E, 0x0F, 0x11)
-FG = (0xC6, 0xF4, 0x32)
+BG = (0x12, 0x11, 0x10)
+FG = (0xFF, 0x7A, 0x3D)
 # Linien im 512er-Raster wie in icon.svg, Strichbreite 40, runde Enden
 SEGMENTS = [((156, 176), (156, 336)), ((356, 176), (356, 336)), ((96, 224), (96, 288)),
             ((416, 224), (416, 288)), ((156, 256), (356, 256))]

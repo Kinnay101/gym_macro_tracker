@@ -49,6 +49,16 @@ export async function publishRecipes() {
     const keep = new Set(pub.map((r) => r.id));
     const { data: mine, error: listErr } = await c.from('public_recipes').select('id').eq('user_id', user.id);
     if (listErr) throw listErr;
+    // Eigenes öffentliches Rezept fehlt auf dem Server (z. B. gleichzeitig von einem anderen Gerät mit altem Stand
+    // gelöscht) → trotz gleichem Fingerabdruck neu hochladen (Prüfbericht K20)
+    const onServer = new Set(mine.map((x) => x.id));
+    for (const r of pub) {
+      if (onServer.has(r.id)) continue;
+      const row = { id: r.id, user_id: user.id, author_name: author, name: r.name.trim().slice(0, 60), data: publicData(r), updated_at: r.updatedAt || new Date().toISOString() };
+      const { error } = await c.from('public_recipes').upsert(row, { onConflict: 'id' });
+      if (error) throw error;
+      mine.push({ id: r.id });
+    }
     for (const id of new Set([...Object.keys(fps), ...mine.map((x) => x.id)])) {
       if (keep.has(id)) continue;
       const { error } = await c.from('public_recipes').delete().eq('id', id).eq('user_id', user.id);

@@ -48,13 +48,14 @@ export function cardioMinutes(sessions) {
 export function cardioDay(state, date) {
   const sessions = cardioSessions(state, date, date);
   const free = [...sessions];
-  const items = (state.training ? dayPlan(state, date).cardio : []).map((p) => {
-    let i = free.findIndex((s) => s.type === p.type);
-    if (i < 0 && p.type === 'other' && free.length) i = 0;
-    if (i < 0) i = free.findIndex((s) => s.type === 'other');
-    const done = i >= 0 ? free.splice(i, 1)[0] : null;
-    return { ...p, done };
-  });
+  const planned = state.training ? dayPlan(state, date).cardio : [];
+  const done = planned.map(() => null);
+  const take = (pred) => { const i = free.findIndex(pred); return i >= 0 ? free.splice(i, 1)[0] : null; };
+  // Erst gleiche Art, dann „Anderes“ geplant = beliebige Einheit, zuletzt eine „Anderes“-Einheit für eine bestimmte Art (K11)
+  planned.forEach((p, k) => { if (p.type !== 'other') done[k] = take((s) => s.type === p.type); });
+  planned.forEach((p, k) => { if (!done[k] && p.type === 'other') done[k] = take(() => true); });
+  planned.forEach((p, k) => { if (!done[k]) done[k] = take((s) => s.type === 'other'); });
+  const items = planned.map((p, k) => ({ ...p, done: done[k] }));
   return { items, extra: free, sessions };
 }
 
