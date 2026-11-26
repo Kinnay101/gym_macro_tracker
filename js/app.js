@@ -91,6 +91,7 @@ function render() {
 }
 
 const themeMeta = document.querySelector('meta[name="theme-color"]');
+let themeApplied = false;
 // Schriftvergrösserung des Systems als --tz (1 = normal, 1.3 = 130 %). Android vergrössert nur die Schrift, nicht die
 // Längen → Elemente mit fester Grösse (Kalorienring) wachsen über --tz mit. Am iPhone kommt der Wert aus Dynamic Type.
 function updateTextZoom() {
@@ -98,10 +99,16 @@ function updateTextZoom() {
   const tz = Math.max(1, Math.min(2, fs / 17)).toFixed(3);
   if (document.documentElement.style.getPropertyValue('--tz') !== tz) document.documentElement.style.setProperty('--tz', tz);
 }
+const statusBarMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
 function applyTheme(theme) {
   const th = THEMES.includes(theme) ? theme : THEMES[0];
-  if (document.documentElement.dataset.theme === th) return;
+  // Für den nächsten Start merken (js/boot.js liest das, bevor die Seite aufgebaut wird)
+  try { if (localStorage.getItem('gmt-theme') !== th) localStorage.setItem('gmt-theme', th); } catch { /* egal */ }
+  if (document.documentElement.dataset.theme === th && themeApplied) return;
+  themeApplied = true;
   document.documentElement.dataset.theme = th;
+  // iPhone-Statusleiste: Sand hell mit dunkler Schrift, sonst schwarz (wirkt ab dem nächsten Start der App)
+  statusBarMeta?.setAttribute('content', th === 'sand' ? 'default' : 'black');
   // Farbe der Statusleiste / Browserleiste passend zum Hintergrund
   requestAnimationFrame(() => themeMeta?.setAttribute('content', getComputedStyle(document.documentElement).getPropertyValue('--bg').trim()));
 }
