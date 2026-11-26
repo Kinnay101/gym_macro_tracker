@@ -57,3 +57,13 @@ export function cardioDay(state, date) {
   });
   return { items, extra: free, sessions };
 }
+
+// ---- Cardio-Eingabe prüfen (Prüfbericht A2/A3: negative Minuten und Tage in der Zukunft wurden gespeichert) ----
+export const MAX_CARDIO_MIN = 600;
+/** → Text-Schlüssel des Fehlers oder null. `todayKey` = heutiges Datum (JJJJ-MM-TT). */
+export function cardioError({ minutes, km, date }, todayKey) {
+  if (minutes == null || !Number.isFinite(minutes) || minutes <= 0 || minutes > MAX_CARDIO_MIN) return 'cardio.errMinutes';
+  if (km != null && (!Number.isFinite(km) || km < 0 || km > 300)) return 'cardio.errKm';
+  if (date && date > todayKey) return 'cardio.errFuture';
+  return null;
+}

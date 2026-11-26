@@ -1,9 +1,9 @@
 // Fortschritt: 1RM-Verlauf, Bestwerte, Sätze pro Muskel; Umschalter zu Freunde & Rangliste. Der Kalender (calendar) wird von der Trainingsseite angezeigt.
 import { esc, num, today, addDays, parseKey, dayKey, daysBetween, icon, I } from '../util.js';
 import { t, monthName, shortDate, weekdayHeaders, longDate, weekdayShort } from '../i18n.js';
-import { historyFor, bestFor, setsPerMuscle } from '../workout.js';
+import { historyFor, bestFor, setsPerMuscle, trackOf, isUniTrack } from '../workout.js';
 import { MUSCLES, dayPlan, planShort } from '../plan.js';
-import { header, seg, lineChart } from '../ui.js';
+import { header, seg, lineChart, trackLabel } from '../ui.js';
 import * as friendsView from './friends.js';
 import { healthWorkoutsBetween } from '../health.js';
 import * as daySheet from './daySheet.js';
@@ -14,8 +14,8 @@ let monthOffset = 0;
 
 function exerciseNames(state) {
   const names = new Set();
-  for (const w of state.workouts) for (const e of w.exercises) names.add(e.name);
-  return [...names].sort();
+  for (const w of state.workouts) for (const e of w.exercises) names.add(trackOf(e)); // einseitig = eigene Spur
+  return [...names].sort((a, b) => trackLabel(a).localeCompare(trackLabel(b)));
 }
 
 export function render(state, params, ctx) {
@@ -33,10 +33,16 @@ function me(state) {
     exName = [...names].sort((a, b) => info[b].n - info[a].n || info[b].last.localeCompare(info[a].last))[0] || null;
   }
   const hist = exName ? historyFor(state, exName) : [];
-  const pts = hist.map((h) => ({ x: daysBetween(hist[0].date, h.date), y: h.e1rm, label: shortDate(h.date) }));
+  const uni = isUniTrack(exName);
+  const pt = (h, y) => ({ x: daysBetween(hist[0].date, h.date), y, label: shortDate(h.date) });
+  // Einseitig: eine Linie pro Seite (links = Akzentfarbe, rechts = zweite Farbe)
+  const pts = hist.map((h) => pt(h, uni ? h.l : h.e1rm));
+  const pts2 = uni ? hist.map((h) => pt(h, h.r)) : null;
   const chart = names.length
-    ? `<select class="input" data-in="ex" aria-label="${esc(t('progress.exercise'))}">${names.map((n) => `<option ${n === exName ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
-       ${lineChart(pts, { unit: '' })}<div class="tiny muted">${esc(t('progress.e1rmHint'))}</div>`
+    ? `<select class="input" data-in="ex" aria-label="${esc(t('progress.exercise'))}">${names.map((n) => `<option value="${esc(n)}" ${n === exName ? 'selected' : ''}>${esc(trackLabel(n))}</option>`).join('')}</select>
+       ${lineChart(pts, { unit: '', points2: pts2 })}
+       ${uni && hist.length >= 2 ? `<div class="chart-legend tiny muted"><span><i class="lgline"></i>${esc(t('progress.left'))}</span><span><i class="lgline alt"></i>${esc(t('progress.right'))}</span></div>${sideHint(hist)}` : ''}
+       <div class="tiny muted">${esc(t(uni ? 'progress.uniHint' : 'progress.e1rmHint'))}</div>`
     : `<div class="empty">${esc(t('progress.noData'))}</div>`;
 
   const prs = names.map((n) => ({ n, b: bestFor(state, n) })).filter((x) => x.b)
@@ -49,8 +55,8 @@ function me(state) {
   return `
     <section class="card"><h3>${esc(t('progress.e1rm'))}</h3>${chart}</section>
     <section class="card tight"><h3>${esc(t('progress.prs'))}</h3>
-      ${prs.length ? `<div class="list">${prs.map(({ n, b }) => `<div class="item"><div class="grow"><div class="ellipsis" style="font-weight:600">${esc(n)}</div>
-        <div class="meta">${num(b.kg, 2)} kg × ${num(b.reps)} · ${esc(shortDate(b.date))}</div></div><span style="font-weight:700">${num(b.e1rm, 1)} kg</span></div>`).join('')}</div>`
+      ${prs.length ? `<div class="list">${prs.map(({ n, b }) => `<div class="item"><div class="grow"><div class="ellipsis" style="font-weight:600">${esc(trackLabel(n))}</div>
+        <div class="meta">${num(b.kg, 2)} kg × ${b.repsR != null ? `${num(b.reps)} L · ${num(b.repsR)} R` : num(b.reps)} · ${esc(shortDate(b.date))}</div></div><span style="font-weight:700">${num(b.e1rm, 1)} kg</span></div>`).join('')}</div>`
         : `<div class="small muted">${esc(t('progress.noData'))}</div>`}
     </section>
     <section class="card tight"><div class="card-head"><h3>${esc(t('progress.setsPerMuscle'))}</h3><span class="tiny muted">${esc(t('progress.last7'))}</span></div>
@@ -66,6 +72,17 @@ const MONTHS_AHEAD = 3;
  * (Kürzel des Trainings, Ruhetage blass, geplantes Cardio = Ring). Verpasste Trainings seit Planbeginn sind durchgestrichen.
  * Jeder Tag lässt sich antippen → Tagesübersicht mit Plan (ändern, verschieben, Cardio).
  */
+/** Hinweis, wenn eine Seite in den letzten Trainings immer schwächer ist (> 5 % im 1RM ≈ 2 Wdh, mindestens 2 Trainings). */
+function sideHint(hist) {
+  const last = hist.slice(-3);
+  if (last.length < 2) return '';
+  const diffs = last.map((h) => (h.l - h.r) / Math.max(h.l, h.r)); // > 0: rechts schwächer
+  const allSame = diffs.every((d) => d > 0.05) || diffs.every((d) => d < -0.05);
+  if (!allSame) return '';
+  const avg = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+  return `<div class="small" style="color:var(--warn)">${esc(t('progress.sideHint', { side: t(avg > 0 ? 'progress.sideRight' : 'progress.sideLeft'), pct: Math.round(Math.abs(avg) * 100), n: last.length }))}</div>`;
+}
+
 // Gemeinsame Daten für Kalender-Kacheln (Monat unter Training, Woche auf Heute)
 function calEnv(state) {
   const nowKey = today();

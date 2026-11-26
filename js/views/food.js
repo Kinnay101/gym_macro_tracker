@@ -1,12 +1,13 @@
 // Ernährung: Tab "Tagebuch" (ein Tag, nach Mahlzeiten, mit Bearbeiten/Löschen) und Tab "Rezepte" (eigene + Entdecken)
 import { esc, num, today, addDays, icon, I, parseNum, uid } from '../util.js';
 import { t, longDate, shortDate } from '../i18n.js';
-import { goals, sumEntries, dayEntries, MEALS, forGrams } from '../nutrition.js';
+import { goals, sumEntries, dayEntries, MEALS, forGrams, validGrams } from '../nutrition.js';
 import { header, bar, energy, sheetHead, seg } from '../ui.js';
 import { portionsLabel, recipeFood } from '../recipes.js';
 import * as browser from './recipeBrowser.js';
 
 let editId = null;
+let editGpp = null; // Gramm pro Portion des bearbeiteten Rezept-Eintrags
 
 const dateOf = (params) => params.date || today();
 
@@ -200,7 +201,13 @@ export const actions = {
     rbTab = 'mine';
     ctx.render();
   },
-  edit(el, ctx) { editId = el.dataset.id; ctx.openSheet(editSheet); },
+  edit(el, ctx) {
+    editId = el.dataset.id;
+    // Gramm pro Portion beim Öffnen merken (Rezept-Einträge) – sonst rechnet jeder Tastendruck mit gerundeten Zwischenwerten
+    const e = (ctx.state.diary[dateOf(ctx.params)] || []).find((x) => x.id === editId);
+    editGpp = e?.portions ? e.grams / e.portions : null;
+    ctx.openSheet(editSheet);
+  },
   'edit-meal'(el, ctx) { patchEntry(ctx, (e) => { e.meal = el.dataset.v; }); },
   delete(el, ctx) {
     const key = dateOf(ctx.params);
@@ -220,12 +227,17 @@ export const inputs = {
     const g = parseNum(el.value);
     const key = dateOf(ctx.params);
     const e = (ctx.state.diary[key] || []).find((x) => x.id === editId);
-    if (!e || g == null) return;
+    if (!e || !validGrams(g)) return; // 0, negativ oder über 5 kg: nicht speichern (beim Verlassen springt das Feld zurück)
     // Ohne Neuzeichnen speichern, damit das Eingabefeld den Fokus behält
-    ctx.update((s) => { const x = s.diary[key].find((y) => y.id === editId); if (x.portions) x.portions = Math.round((x.portions * g / x.grams) * 100) / 100; x.grams = g; x.n = forGrams(x.per100, g); }, { silent: true });
+    ctx.update((s) => { const x = s.diary[key].find((y) => y.id === editId); if (editGpp) x.portions = Math.round((g / editGpp) * 100) / 100; x.grams = g; x.n = forGrams(x.per100, g); }, { silent: true });
     document.getElementById('edit-preview').innerHTML = preview(ctx.state, e, g);
   },
 };
 export const changes = {
-  'edit-grams'(el, ctx) { ctx.render(); },
+  'edit-grams'(el, ctx) {
+    // Ungültige Eingabe wurde nicht gespeichert → Feld auf den gespeicherten Wert zurücksetzen
+    const e = (ctx.state.diary[dateOf(ctx.params)] || []).find((x) => x.id === editId);
+    if (e && !validGrams(parseNum(el.value))) { el.value = e.grams; ctx.toast(t('food.errAmount', { max: num(5000) })); }
+    ctx.render();
+  },
 };

@@ -179,7 +179,8 @@ function planSheet(state) {
         <input class="input grow" data-in="pe-ex" data-f="target" data-i="${i}" value="${esc(e.target ?? '')}" placeholder="${esc(t('plan.target'))}"></div>
       <div class="row" style="gap:6px;padding-left:28px">
         <input class="input grow" data-in="pe-ex" data-f="variant" data-i="${i}" value="${esc(e.variant?.name ?? '')}" list="ex-names" placeholder="${esc(t('plan.variant'))}">
-        <label class="row tiny" style="gap:4px"><input type="checkbox" data-in="pe-ex" data-f="optional" data-i="${i}" ${e.optional ? 'checked' : ''}>${esc(t('training.optional'))}</label></div>
+        <label class="row tiny" style="gap:4px"><input type="checkbox" data-in="pe-ex" data-f="optional" data-i="${i}" ${e.optional ? 'checked' : ''}>${esc(t('training.optional'))}</label>
+        <label class="row tiny" style="gap:4px"><input type="checkbox" data-in="pe-ex" data-f="uni" data-i="${i}" ${e.uni ? 'checked' : ''}>${esc(t('plan.uni'))}</label></div>
     </div>`).join('');
   return `${sheetHead(d.isNew ? t('plan.newTitle') : t('plan.editTitle'))}
     <div class="grid2"><label class="field">${esc(t('plan.name'))}<input class="input" data-in="pe-name" value="${esc(p.name)}" maxlength="40"></label>
@@ -465,7 +466,7 @@ export const changes = {
     if (!planDraft) return;
     const e = planDraft.plan.ex[Number(el.dataset.i)];
     if (!e) return;
-    if (el.type === 'checkbox') e.optional = el.checked;
+    if (el.type === 'checkbox') e[el.dataset.f === 'uni' ? 'uni' : 'optional'] = el.checked;
     else if (el.tagName === 'SELECT') e[el.dataset.f] = el.value;
   },
   cw(el, ctx) {

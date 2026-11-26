@@ -172,3 +172,18 @@ export function forGrams(per100, grams) {
 }
 
 export function kcalToKj(kcal) { return kcal * 4.184; }
+
+// ---- Eingaben prüfen (Prüfbericht A1: negative/unsinnige Mengen wurden gespeichert) ----
+export const MAX_GRAMS = 5000;
+/** Menge in Gramm gültig? (mehr als 0, höchstens 5 kg) */
+export const validGrams = (g) => g != null && Number.isFinite(g) && g > 0 && g <= MAX_GRAMS;
+/** Nährwerte pro 100 g eines eigenen Lebensmittels prüfen → Text-Schlüssel des Fehlers oder null. */
+export function per100Error(n) {
+  if (Object.values(n).some((v) => v != null && (!Number.isFinite(v) || v < 0))) return 'food.errNegative';
+  if (n.kcal > 900) return 'food.errKcal100';
+  if ((n.p || 0) + (n.c || 0) + (n.f || 0) > 101) return 'food.errOver100';
+  for (const k of ['fiber', 'sugar', 'salt', 'sfa']) if ((n[k] || 0) > 100) return 'food.errOver100';
+  if (n.sfa != null && n.sfa > (n.f || 0) + 0.05) return 'food.errSfa';
+  if ((n.sugar || 0) > (n.c || 0) + 0.05) return 'food.errSugar';
+  return null;
+}

@@ -1,6 +1,6 @@
 # Android / Health Connect
 
-Stand: 24.11.2026 (App 1.3). Web-Seite: `js/healthConnect.js`, `js/views/healthConnectSetup.js`.
+Stand: 26.11.2026 (App 1.4). Web-Seite: `js/healthConnect.js`, `js/views/healthConnectSetup.js`.
 Android-Hülle: `android/app-shell` (Kotlin, WebView + Brücke `GymHC`), im Emulator (Android 17) getestet:
 Rechte-Dialog, Lesen aller Datenarten, Mahlzeiten schreiben.
 
@@ -32,6 +32,10 @@ cd android\app-shell; .\gradlew.bat assembleDebug
 - **Version 1.3 (24.11.):** Die Hülle hängt `GymMacroApp/<versionName>` an den User-Agent der WebView. Die Web-App zeigt damit
   unter Körper „Version 1.3.55“ (Hülle + Web-Stand aus `APP_CACHE`) und speichert diese Nummer im Feedback. Ältere Hüllen: „55 · Android“.
   Im Emulator geprüft (Debug gegen lokale Vorschau), 1.3 als Update über 1.2 installiert.
+- **Version 1.4 (26.11.):** Daten exportieren ging in der App still nicht (die WebView kann `blob:`-Downloads nicht speichern).
+  Neue Brücken-Methode `saveFile({ name, text })` → Android-Dialog „Speichern unter“ (`ActivityResultContracts.CreateDocument`),
+  Antwort `{ saved: true|false }`. Die Web-App nutzt sie in Profil → Daten → Exportieren; ältere Hüllen melden „braucht App 1.4“.
+  Im Emulator geprüft (Debug gegen lokale Vorschau: speichern, abbrechen, Datei vollständig), 1.4 als Update über 1.3 installiert.
 - Emulator-Fenster zu gross für den Bildschirm: `window.scale = 0.3` in `%USERPROFILE%\.android\avd\Medium_Phone.avd\emulator-user.ini`.
   Samsung-ähnlich testen: `adb shell cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.threebutton`.
 

@@ -4,7 +4,7 @@ import { esc, num, today, parseNum, uid, icon, I } from '../util.js';
 import { t } from '../i18n.js';
 import { CARDIO_TYPES } from '../plan.js';
 import { seg, sheetHead, watchSourceName } from '../ui.js';
-import { cardioDay, isAndroid } from '../cardio.js';
+import { cardioDay, isAndroid, cardioError } from '../cardio.js';
 
 let draft = null;   // { type, minutes, km, date, after }
 let onDone = null;  // nach dem Speichern (z. B. Tagesübersicht wieder öffnen)
@@ -83,6 +83,8 @@ export const actions = {
     keepInputs();
     const d = draft;
     if (!d.minutes) { document.getElementById('c-err').textContent = t('cardio.needMinutes'); return; }
+    const bad = cardioError(d, today());
+    if (bad) { document.getElementById('c-err').textContent = t(bad); return; }
     const entry = { id: uid(), date: d.date || today(), type: d.type, minutes: d.minutes, km: d.km, after: d.after };
     const after = onDone;
     draft = null; onDone = null;

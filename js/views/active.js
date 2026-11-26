@@ -2,7 +2,7 @@
 // Übungen verschieben (nur für dieses Training), Aufwärmsätze, PRs, Cardio anhängen
 import { esc, num, icon, I, parseNum, e1rm } from '../util.js';
 import { t } from '../i18n.js';
-import { current, blankSet, lastSetsFor, bestFor, finishWorkout, workingSets } from '../workout.js';
+import { current, blankSet, lastSetsFor, bestFor, finishWorkout, workingSets, setE1rm, refillFor, UNI } from '../workout.js';
 import { sheetHead } from '../ui.js';
 import { CARDIO_TYPES } from './training.js';
 
@@ -45,8 +45,9 @@ function moveBtns(i, count) {
 
 function exCard(state, ex, i, count) {
   const c = current(ex);
-  const last = lastSetsFor(state, c.name);
-  const best = bestFor(state, c.name);
+  const uni = !!ex.uni;
+  const last = lastSetsFor(state, c.name, uni);
+  const best = bestFor(state, uni ? c.name + UNI : c.name);
   if (ex.skipped) {
     return `<section class="card tight ex-card skipped"><div class="row between"><div class="grow"><h3 class="ellipsis">${esc(c.name)}</h3><div class="meta small muted">${esc(ex.optional ? t('training.optional') : t('active.skipped'))}</div></div>
       ${moveBtns(i, count)}<button class="btn sm" data-act="skip" data-ex="${i}">${esc(t('active.doIt'))}</button></div></section>`;
@@ -56,17 +57,21 @@ function exCard(state, ex, i, count) {
   const rows = c.sets.map((s) => {
     const label = s.warmup ? 'W' : String(++workNo);
     const prevSet = s.warmup ? lastWork.filter((x) => x.warmup)[0] : lastWork.filter((x) => !x.warmup)[workNo - 1];
-    const isPr = s.done && !s.warmup && best && e1rm(s.kg, s.reps) > best.e1rm;
-    return `<div class="set-row ${s.done ? 'done' : ''}">
+    const isPr = s.done && !s.warmup && best && s.reps && (!uni || s.repsR) && setE1rm(s) > best.e1rm;
+    const prevTxt = prevSet ? (uni && prevSet.repsR != null ? `${num(prevSet.kg, 2)}×${num(prevSet.reps)}/${num(prevSet.repsR)}` : `${num(prevSet.kg, 2)}×${num(prevSet.reps)}`) : '–';
+    return `<div class="set-row ${uni ? 'uni' : ''} ${s.done ? 'done' : ''}">
       <button class="no ${s.warmup ? 'w' : ''}" data-act="set-menu" data-ex="${i}" data-set="${esc(s.id)}" aria-label="${esc(t('active.setMenu'))}">${label}</button>
-      <span class="prev">${prevSet ? `${num(prevSet.kg, 2)}×${num(prevSet.reps)}` : '–'}${isPr ? ' <span class="tag pr">PR</span>' : ''}</span>
+      <span class="prev">${prevTxt}${isPr ? ' <span class="tag pr">PR</span>' : ''}</span>
       <input class="input num" inputmode="decimal" data-in="kg" data-ex="${i}" data-set="${esc(s.id)}" value="${s.kg ?? ''}" placeholder="kg" aria-label="kg">
-      <input class="input num" inputmode="numeric" data-in="reps" data-ex="${i}" data-set="${esc(s.id)}" value="${s.reps ?? ''}" placeholder="${esc(t('active.reps'))}" aria-label="${esc(t('active.reps'))}">
+      ${uni
+        ? `<input class="input num" inputmode="numeric" data-in="reps" data-ex="${i}" data-set="${esc(s.id)}" value="${s.reps ?? ''}" placeholder="L" aria-label="${esc(t('active.repsLeft'))}">
+      <input class="input num" inputmode="numeric" data-in="repsR" data-ex="${i}" data-set="${esc(s.id)}" value="${s.repsR ?? ''}" placeholder="R" aria-label="${esc(t('active.repsRight'))}">`
+        : `<input class="input num" inputmode="numeric" data-in="reps" data-ex="${i}" data-set="${esc(s.id)}" value="${s.reps ?? ''}" placeholder="${esc(t('active.reps'))}" aria-label="${esc(t('active.reps'))}">`}
       <button class="check" data-act="check" data-ex="${i}" data-set="${esc(s.id)}" aria-pressed="${!!s.done}" aria-label="${esc(t('active.check'))}">${icon(I.check)}</button></div>`;
   }).join('');
   return `<section class="card tight ex-card">
     <div class="row between" style="align-items:flex-start"><div class="grow"><h3>${esc(c.name)}</h3>
-      <div class="meta small muted">${esc(c.target || '')} · ${esc(t('m.' + ex.muscle))}${c.note ? ` · ${esc(c.note)}` : ''}</div>
+      <div class="meta small muted">${uni ? `<span class="tag accent">${esc(t('active.uniShort'))}</span> ` : ''}${esc(c.target || '')} · ${esc(t('m.' + ex.muscle))}${c.note ? ` · ${esc(c.note)}` : ''}</div>
       <div class="tiny muted" style="margin-top:2px">${best ? esc(t('active.best', { v: num(best.e1rm, 1) })) : esc(t('active.firstTime'))}</div></div>
       <div class="row" style="gap:6px">
         ${ex.variant ? `<button class="icon-btn" data-act="swap" data-ex="${i}" aria-label="${esc(t('active.swap', { name: ex.useVar ? ex.name : ex.variant.name }))}" title="${esc(ex.useVar ? ex.name : ex.variant.name)}">${icon(I.swap)}</button>` : ''}
@@ -74,7 +79,9 @@ function exCard(state, ex, i, count) {
         <button class="icon-btn" data-act="skip" data-ex="${i}" aria-label="${esc(t('active.skip'))}" title="${esc(t('active.skip'))}">${icon(I.x)}</button>
       </div></div>
     ${ex.useVar ? `<div class="tiny"><span class="tag accent">${esc(t('training.variant'))}</span> ${esc(t('active.insteadOf', { name: ex.name }))}</div>` : ''}
-    <div class="set-head"><span>${esc(t('active.set'))}</span><span style="text-align:center">${esc(t('active.last'))}</span><span style="text-align:center">kg</span><span style="text-align:center">${esc(t('active.reps'))}</span><span></span></div>
+    <div class="set-head ${uni ? 'uni' : ''}"><span>${esc(t('active.set'))}</span><span style="text-align:center">${esc(t('active.last'))}</span><span style="text-align:center">kg</span>${uni
+      ? `<span style="text-align:center">${esc(t('active.repsLeftShort'))}</span><span style="text-align:center">${esc(t('active.repsRightShort'))}</span>`
+      : `<span style="text-align:center">${esc(t('active.reps'))}</span>`}<span class="uni-cell"><button class="uni-pill" data-act="uni" data-ex="${i}" aria-pressed="${uni}" aria-label="${esc(t('active.uni'))}" title="${esc(t('active.uni'))}">L/R</button></span></div>
     ${rows}
     <div class="grid2"><button class="btn sm ghost" data-act="add-warmup" data-ex="${i}">${icon(I.plus)} ${esc(t('active.addWarmup'))}</button><button class="btn sm ghost" data-act="add-set" data-ex="${i}">${icon(I.plus)} ${esc(t('active.addSet'))}</button></div>
   </section>`;
@@ -134,13 +141,17 @@ export const actions = {
       const s = setsOf(ex).find((x) => x.id === el.dataset.set);
       if (!s) return;
       // Abhaken ohne eingetippte Werte = „gleich wie letztes Mal“: leere Felder mit dem Satz vom letzten Mal füllen
-      if (!s.done && (s.kg == null || !s.reps)) {
+      if (!s.done && (s.kg == null || !s.reps || (ex.uni && !s.repsR))) {
         const row = el.closest('.set-row');
         const kg = parseNum(row.querySelector('[data-in="kg"]').value);
         const reps = parseNum(row.querySelector('[data-in="reps"]').value);
         const prev = prevSetFor(ctx.state, ex, s);
         s.kg = kg ?? s.kg ?? prev?.kg ?? null;
         s.reps = reps ?? s.reps ?? prev?.reps ?? null;
+        if (ex.uni) {
+          const repsR = parseNum(row.querySelector('[data-in="repsR"]')?.value);
+          s.repsR = repsR ?? s.repsR ?? prev?.repsR ?? prev?.reps ?? null;
+        }
       }
       s.done = !s.done;
     });
@@ -154,12 +165,20 @@ export const actions = {
     });
   },
   swap(el, ctx) { withEx(ctx, +el.dataset.ex, (ex) => { ex.useVar = !ex.useVar; }); },
+  // Einseitig an/aus: offene Sätze bekommen die kg vom letzten Mal in dieser Ausführung, erledigte bleiben
+  uni(el, ctx) {
+    withEx(ctx, +el.dataset.ex, (ex, s) => {
+      ex.uni = !ex.uni;
+      ex.sets = refillFor(s, ex.name, ex.uni, ex.sets);
+      if (ex.variant && ex.varSets) ex.varSets = refillFor(s, ex.variant.name, ex.uni, ex.varSets);
+    });
+  },
   skip(el, ctx) { withEx(ctx, +el.dataset.ex, (ex) => { ex.skipped = !ex.skipped; }); },
   'add-set'(el, ctx) {
     withEx(ctx, +el.dataset.ex, (ex) => {
       const sets = setsOf(ex);
       const lastWork = [...sets].reverse().find((s) => !s.warmup);
-      sets.push(blankSet(false, lastWork?.kg ?? null, lastWork?.reps ?? null));
+      sets.push(blankSet(false, lastWork?.kg ?? null, lastWork?.reps ?? null, ex.uni ? (lastWork?.repsR ?? lastWork?.reps ?? null) : null));
     });
   },
   'add-warmup'(el, ctx) {
@@ -168,7 +187,7 @@ export const actions = {
       const firstWork = sets.find((s) => !s.warmup);
       const kg = firstWork?.kg ? Math.round(firstWork.kg / 2 / 2.5) * 2.5 : null;
       const lastW = sets.map((s) => s.warmup).lastIndexOf(true);
-      sets.splice(lastW + 1, 0, blankSet(true, kg, firstWork?.reps ?? 10));
+      sets.splice(lastW + 1, 0, blankSet(true, kg, firstWork?.reps ?? 10, ex.uni ? (firstWork?.repsR ?? firstWork?.reps ?? 10) : null));
     });
   },
   'set-menu'(el, ctx) { menu = { ex: +el.dataset.ex, set: el.dataset.set }; ctx.openSheet(menuSheet); },
@@ -199,8 +218,8 @@ export const actions = {
     const before = ctx.state.active;
     // PRs vor dem Speichern bestimmen (Vergleich mit bisherigen Bestwerten)
     const prs = before.exercises.filter((e) => !e.skipped).filter((e) => {
-      const c = current(e); const best = bestFor(ctx.state, c.name);
-      return best && workingSets({ sets: c.sets }).some((s) => e1rm(s.kg, s.reps) > best.e1rm);
+      const c = current(e); const best = bestFor(ctx.state, e.uni ? c.name + UNI : c.name);
+      return best && workingSets({ sets: c.sets, uni: e.uni }).some((s) => setE1rm(s) > best.e1rm);
     }).length;
     ctx.closeSheet();
     ctx.update((s) => { finishWorkout(s); }, { silent: true });
@@ -218,6 +237,7 @@ export const actions = {
 export const inputs = {
   kg(el, ctx) { patchSet(ctx, el, 'kg'); },
   reps(el, ctx) { patchSet(ctx, el, 'reps'); },
+  repsR(el, ctx) { patchSet(ctx, el, 'repsR'); },
   note(el, ctx) { ctx.update((s) => { s.active.note = el.value; }, { silent: true }); },
   'cardio-min'(el, ctx) { ctx.update((s) => { s.active.cardio.minutes = parseNum(el.value); }, { silent: true }); },
   'cardio-km'(el, ctx) { ctx.update((s) => { s.active.cardio.km = parseNum(el.value); }, { silent: true }); },
@@ -230,8 +250,8 @@ function patchSet(ctx, el, field) {
     const s = setsOf(ex).find((x) => x.id === el.dataset.set);
     if (!s) return;
     s[field] = parseNum(el.value);
-    // Wiederholungen eingetragen = Satz gemacht; gelöscht = wieder offen
-    if (field === 'reps') { s.done = s.reps > 0; done = s.done; }
+    // Wiederholungen eingetragen = Satz gemacht (einseitig: beide Seiten); gelöscht = wieder offen
+    if (field === 'reps' || field === 'repsR') { s.done = s.reps > 0 && (!ex.uni || s.repsR > 0); done = s.done; }
   }, { silent: true });
   if (done != null) {
     const row = el.closest('.set-row');
@@ -243,7 +263,7 @@ function patchSet(ctx, el, field) {
 /** Satz vom letzten Mal an derselben Stelle (Aufwärmsatz ↔ Aufwärmsatz, n-ter Arbeitssatz ↔ n-ter). */
 function prevSetFor(state, ex, s) {
   const c = current(ex);
-  const last = lastSetsFor(state, c.name);
+  const last = lastSetsFor(state, c.name, !!ex.uni);
   if (!last) return null;
   if (s.warmup) return last.sets.find((x) => x.warmup) || null;
   const n = c.sets.filter((x) => !x.warmup).indexOf(s);

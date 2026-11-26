@@ -69,6 +69,23 @@ class MainActivity : AppCompatActivity() {
         fileCallback = null
     }
 
+    // Datei speichern (Daten exportieren): Android-Dialog „Speichern unter“, danach Text hineinschreiben.
+    // Die WebView kann blob:-Downloads der Web-App nicht speichern → Export ging in 1.3 still nicht.
+    private var pendingSave: Triple<JavaScriptReplyProxy, Int, String>? = null
+    private val saveLauncher = registerForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        val (proxy, id, text) = pendingSave ?: return@registerForActivityResult
+        pendingSave = null
+        if (uri == null) { send(proxy, JSONObject().put("id", id).put("ok", true).put("result", JSONObject().put("saved", false))); return@registerForActivityResult }
+        lifecycleScope.launch {
+            reply(proxy, id) {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    contentResolver.openOutputStream(uri, "wt")?.use { it.write(text.toByteArray(Charsets.UTF_8)) } ?: error("no stream")
+                }
+                JSONObject().put("saved", true)
+            }
+        }
+    }
+
     private fun allowedOrigins(): Set<String> = if (BuildConfig.DEBUG) setOf(APP_ORIGIN, DEV_ORIGIN) else setOf(APP_ORIGIN)
 
     private fun isOwnPage(uri: Uri): Boolean {
@@ -180,6 +197,14 @@ class MainActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     pendingPermissionReply = null
                     send(proxy, JSONObject().put("id", id).put("ok", false).put("error", e.message ?: "error"))
+                }
+            }
+            "saveFile" -> {
+                val name = params.optString("name").ifBlank { "gym-macro-tracker.json" }.replace(Regex("[^A-Za-z0-9._-]"), "_")
+                pendingSave = Triple(proxy, id, params.optString("text"))
+                try { saveLauncher.launch(name) } catch (e: ActivityNotFoundException) {
+                    pendingSave = null
+                    send(proxy, JSONObject().put("id", id).put("ok", false).put("error", "no file dialog"))
                 }
             }
             "openSettings" -> {

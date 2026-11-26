@@ -3,7 +3,7 @@ import { esc, num, icon, I } from '../util.js';
 import { t, shortDate } from '../i18n.js';
 import * as sync from '../sync.js';
 import * as social from '../social.js';
-import { seg, sheetHead } from '../ui.js';
+import { seg, sheetHead, trackLabel } from '../ui.js';
 
 let data = null; // { groups, members, stats }
 let loading = false;
@@ -110,7 +110,7 @@ function board(state, members) {
     rows.forEach((r) => Object.keys(r.s.strength || {}).forEach((n) => { counts[n] = (counts[n] || 0) + 1; }));
     const lifts = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b)).slice(0, 12);
     if (!lifts.includes(liftName)) liftName = lifts[0] || null;
-    extra = lifts.length ? `<div class="chips">${lifts.map((n) => `<button class="chip" data-act="fr-lift" data-v="${esc(n)}" aria-pressed="${n === liftName}">${esc(n)}${counts[n] > 1 ? ` · ${counts[n]}` : ''}</button>`).join('')}</div>` : '';
+    extra = lifts.length ? `<div class="chips">${lifts.map((n) => `<button class="chip" data-act="fr-lift" data-v="${esc(n)}" aria-pressed="${n === liftName}">${esc(trackLabel(n))}${counts[n] > 1 ? ` · ${counts[n]}` : ''}</button>`).join('')}</div>` : '';
     ranked = rows.map((r) => ({ ...r, v: liftName ? r.s.strength?.[liftName] : null }))
       .map((r) => ({ ...r, label: r.v != null ? `×${num(r.v, 2)}` : null, sub: r.v != null ? t('friends.ratioSub') : null }));
   } else if (cat === 'consistency') {
@@ -126,7 +126,7 @@ function board(state, members) {
   } else {
     ranked = rows.map((r) => {
       const c = r.s.prs;
-      return { ...r, v: c ? c.prs30 : null, label: c ? String(c.prs30) : null, sub: c?.recent?.length ? c.recent.map((p) => `${p.name} (${shortDate(p.date)})`).join(', ') : (c ? t('friends.noPrs') : null) };
+      return { ...r, v: c ? c.prs30 : null, label: c ? String(c.prs30) : null, sub: c?.recent?.length ? c.recent.map((p) => `${trackLabel(p.name)} (${shortDate(p.date)})`).join(', ') : (c ? t('friends.noPrs') : null) };
     });
   }
   const withVal = ranked.filter((r) => r.v != null).sort((a, b) => b.v - a.v);

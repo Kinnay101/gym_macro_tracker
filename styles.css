@@ -439,3 +439,18 @@ a.icon-btn, a.head-btn { color: var(--text); }
 .ring-card { flex-wrap: wrap; justify-content: center; }
 .ring-card .macros { min-width: calc(150px * var(--tz, 1)); }
 .bar-row .top > :last-child { white-space: nowrap; }
+/* Einseitige Übungen: Wdh links und rechts (eine Spalte mehr), Knopf „L/R“ im Übungskopf, zweite Linie in der Kurve */
+.set-head.uni, .set-row.uni { grid-template-columns: 34px .9fr 1fr .75fr .75fr 40px; gap: 6px; }
+/* Knopf „L/R“ in der Tabellenkopfzeile über der Haken-Spalte (Tipp-Fläche unsichtbar auf 44 px vergrössert) */
+.set-head .uni-cell { display: flex; justify-content: center; }
+.uni-pill { position: relative; height: 26px; min-width: 40px; padding: 0 6px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--card-2);
+  color: var(--muted); font-size: .647rem; font-weight: 800; letter-spacing: .02em; text-transform: none; cursor: pointer; }
+.uni-pill::after { content: ''; position: absolute; inset: -9px -2px; }
+.uni-pill[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--card-2)); }
+.uni-pill:active { filter: brightness(1.3); }
+.chart .line.alt { stroke: var(--cardio); }
+.chart .pt.alt { fill: var(--cardio); }
+.chart-legend { display: flex; gap: 14px; }
+.chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.lgline { display: inline-block; width: 14px; height: 3px; border-radius: 2px; background: var(--accent); }
+.lgline.alt { background: var(--cardio); }

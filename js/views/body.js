@@ -12,6 +12,7 @@ import * as healthSetup from './healthSetup.js';
 import * as feedbackView from './feedback.js';
 import { rhythmName } from './today.js';
 import * as version from '../version.js';
+import * as hc from '../healthConnect.js';
 import { THEMES } from '../theme.js';
 
 
@@ -78,8 +79,7 @@ export function renderProfile(state, params, ctx) {
 
     <section class="card">
       <h3>${esc(t('settings.title'))}</h3>
-      <div class="field">${esc(t('theme.title'))}${seg('theme', THEMES.map((x) => [x, t('theme.' + x)]), THEMES.includes(p.theme) ? p.theme : THEMES[0])}
-        <span class="tiny muted">${esc(t('theme.hint'))}</span></div>
+      <div class="field">${esc(t('theme.title'))}${seg('theme', THEMES.map((x) => [x, t('theme.' + x)]), THEMES.includes(p.theme) ? p.theme : THEMES[0])}</div>
       <div class="field">${esc(t('settings.lang'))}${seg('lang', [['de', 'Deutsch'], ['en', 'English']], p.lang)}</div>
       <div class="field">${esc(t('settings.energy'))}${seg('energy', [['kcal', 'kcal'], ['kj', 'kJ']], p.energyUnit)}</div>
     </section>
@@ -274,11 +274,22 @@ export const actions = {
     ctx.update((s) => { s.profile.goalOverride = o; });
   },
   'auto-goals'(el, ctx) { ctx.update((s) => { s.profile.goalOverride = null; }); },
-  export() {
+  async export(el, ctx) {
+    const name = `gym-macro-tracker-${today()}.json`;
+    // Android-App: die WebView kann keine Downloads speichern → Android-Dialog „Speichern unter“ über die Brücke (ab App 1.4)
+    if (hc.available()) {
+      try {
+        const r = await hc.call('saveFile', { name, text: store.exportJSON() }, 10 * 60 * 1000);
+        ctx.toast(t(r?.saved ? 'settings.exportSaved' : 'settings.exportCancelled'));
+      } catch (e) {
+        ctx.toast(t(/unknown method/.test(e.message) ? 'settings.exportNeedsUpdate' : 'settings.exportFail'));
+      }
+      return;
+    }
     const blob = new Blob([store.exportJSON()], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `gym-macro-tracker-${today()}.json`;
+    a.download = name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   },
@@ -397,7 +408,10 @@ export const changes = {
   heightCm(el, ctx) { const v = parseNum(el.value); ctx.update((s) => { s.profile.heightCm = v && v > 100 && v < 250 ? v : null; }); },
   async import(el, ctx) {
     const file = el.files?.[0];
+    el.value = ''; // dieselbe Datei später nochmals wählbar
     if (!file) return;
+    // Import ersetzt alle Daten → vorher nachfragen (Prüfbericht AA7)
+    if (!(await ctx.confirm(t(sync.getUser() ? 'settings.importConfirmAccount' : 'settings.importConfirm', { name: file.name }), t('settings.import')))) return;
     try {
       store.importJSON(await file.text());
       ctx.toast(t('settings.importDone'));

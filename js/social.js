@@ -2,7 +2,7 @@
 // Freunde sehen nur shared_stats (und nur freigegebene Bereiche) – nie die eigentlichen Daten.
 import { today, addDays, weekStart, e1rm, round } from './util.js';
 import { currentWeight } from './nutrition.js';
-import { workingSets } from './workout.js';
+import { workingSets, trackOf, setE1rm, setVolume } from './workout.js';
 import { plannedPerWeek } from './plan.js';
 import { fingerprint } from './docs.js';
 import * as sync from './sync.js';
@@ -33,7 +33,7 @@ export function computeStats(state, now = today()) {
       const best = {};
       for (const w of ws) {
         if (w.date < from) continue;
-        for (const ex of w.exercises) for (const s of workingSets(ex)) best[ex.name] = Math.max(best[ex.name] || 0, e1rm(s.kg, s.reps));
+        for (const ex of w.exercises) for (const s of workingSets(ex)) best[trackOf(ex)] = Math.max(best[trackOf(ex)] || 0, setE1rm(s));
       }
       const strength = {};
       // nur das Verhältnis zum Körpergewicht – keine absoluten Kilos, kein Körpergewicht
@@ -62,7 +62,7 @@ export function computeStats(state, now = today()) {
     let kg7 = 0; let sets7 = 0;
     for (const w of ws) {
       if (w.date < from7 || w.date > now) continue;
-      for (const ex of w.exercises) for (const s of workingSets(ex)) { kg7 += s.kg * s.reps; sets7++; }
+      for (const ex of w.exercises) for (const s of workingSets(ex)) { kg7 += setVolume(s); sets7++; }
     }
     out.volume = { kg7: Math.round(kg7), sets7 };
   }
@@ -72,10 +72,11 @@ export function computeStats(state, now = today()) {
     const prs = [];
     for (const w of ws) {
       for (const ex of w.exercises) {
-        const top = Math.max(0, ...workingSets(ex).map((s) => e1rm(s.kg, s.reps)));
+        const top = Math.max(0, ...workingSets(ex).map(setE1rm));
         if (!top) continue;
-        if (best[ex.name] && top > best[ex.name]) prs.push({ name: ex.name, date: w.date });
-        best[ex.name] = Math.max(best[ex.name] || 0, top);
+        const k = trackOf(ex);
+        if (best[k] && top > best[k]) prs.push({ name: k, date: w.date });
+        best[k] = Math.max(best[k] || 0, top);
       }
     }
     const from30 = addDays(now, -29);

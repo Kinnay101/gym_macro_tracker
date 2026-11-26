@@ -2,6 +2,7 @@
 import { esc, num, icon, I, parseNum } from '../util.js';
 import { t } from '../i18n.js';
 import { recipeTotals } from '../recipes.js';
+import { validGrams } from '../nutrition.js';
 import { energy, seg } from '../ui.js';
 import * as sync from '../sync.js';
 import * as publicRecipes from '../publicRecipes.js';
@@ -119,6 +120,7 @@ export const inputs = {
   'r-cooked'(el, ctx) { const v = parseNum(el.value); patch(ctx, (r) => { r.cookedWeight = v > 0 ? v : null; }, false); refreshTotals(ctx); },
   'r-grams'(el, ctx) {
     const v = parseNum(el.value);
+    if (v != null && !validGrams(v)) return; // negativ / über 5 kg: nicht übernehmen (Feld springt beim Verlassen zurück)
     patch(ctx, (r) => { const it = r.items.find((x) => x.id === el.dataset.id); if (it) it.grams = v || 0; }, false);
     refreshTotals(ctx);
   },

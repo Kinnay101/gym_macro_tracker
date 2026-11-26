@@ -4,7 +4,7 @@
 import { esc, num, today, addDays, icon, I, parseNum } from '../util.js';
 import { t, longDate } from '../i18n.js';
 import { goals, sumEntries, dayEntries } from '../nutrition.js';
-import { volume, workingSets } from '../workout.js';
+import { volume, workingSets, setText } from '../workout.js';
 import { healthWorkoutsBetween } from '../health.js';
 import { energy, healthSourceName } from '../ui.js';
 import * as planEdit from './planEdit.js';
@@ -53,8 +53,8 @@ function sheet(state) {
     const mins = w.startedAt && w.finishedAt ? Math.round((new Date(w.finishedAt) - new Date(w.startedAt)) / 60000) : null;
     // Antippen klappt die Übungen mit allen Sätzen auf (W = Aufwärmsatz)
     const detail = open ? `<div class="list" style="padding:0 0 4px 30px">${w.exercises.map((ex) => `<div class="item" style="padding:6px 0"><div class="grow">
-        <div class="small" style="font-weight:600">${esc(ex.name)}</div>
-        <div class="meta">${ex.sets.map((s) => `${s.warmup ? 'W ' : ''}${num(s.kg, 2)} kg × ${num(s.reps)}`).join(' · ') || '–'}</div></div>
+        <div class="small" style="font-weight:600">${esc(ex.name)}${ex.uni ? ` <span class="tag accent">${esc(t('active.uniShort'))}</span>` : ''}</div>
+        <div class="meta">${ex.sets.map((s) => setText(s)).join(' · ') || '–'}</div></div>
         <span class="tiny muted">${workingSets(ex).length}</span></div>`).join('')}
         ${w.note ? `<div class="small muted" style="padding-top:6px">${esc(w.note)}</div>` : ''}</div>` : '';
     rows.push(`<button type="button" class="item item-btn" data-act="day-workout" data-id="${esc(w.id)}" aria-expanded="${open}" style="width:100%;text-align:left">${icon(I.check)}<div class="grow"><div style="font-weight:600">${esc(plan?.name || t('training.workout'))}</div>

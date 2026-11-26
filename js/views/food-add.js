@@ -2,7 +2,7 @@
 // Mit ?recipe=<id> fügt die Seite Zutaten zu einem Rezept hinzu statt ins Tagebuch.
 import { esc, num, today, uid, icon, I, parseNum, addDays } from '../util.js';
 import { t, shortDate } from '../i18n.js';
-import { MEALS, forGrams, NUTRIENTS } from '../nutrition.js';
+import { MEALS, forGrams, NUTRIENTS, validGrams, per100Error, MAX_GRAMS } from '../nutrition.js';
 import { foodName, loadBlv, blvLoaded, searchLocal, searchOff, lookupBarcode, validBarcode } from '../foods.js';
 import { openScanner } from '../scanner.js';
 import { recipeFood, portionsLabel } from '../recipes.js';
@@ -172,7 +172,8 @@ function portionSheet(state, ctx) {
     <div class="chips">${chips}</div>
     <label class="field">${esc(t('food.amount'))}<input class="input" inputmode="decimal" data-in="grams" value="${esc(pickedGrams)}" autofocus></label>
     <div class="grid2" id="portion-n">${portionNutrients(state, n)}</div>
-    <button class="btn primary block" data-act="add">${esc(inRecipe ? t('recipe.addToRecipe') : t('food.addTo', { meal: t('meal.' + mealOf(ctx.params)) }))}</button>`;
+    <div class="small" id="pick-err" style="color:var(--bad)" ${validGrams(pickedGrams) ? 'hidden' : ''}>${esc(t('food.errAmount', { max: num(MAX_GRAMS) }))}</div>
+    <button class="btn primary block" data-act="add" ${validGrams(pickedGrams) ? '' : 'disabled'}>${esc(inRecipe ? t('recipe.addToRecipe') : t('food.addTo', { meal: t('meal.' + mealOf(ctx.params)) }))}</button>`;
 }
 function portionNutrients(state, n) {
   return `<div class="stack" style="gap:2px"><span class="tiny muted">${esc(t('n.kcal'))}</span><span class="big">${energy(state, n.kcal)}</span></div>
@@ -250,7 +251,7 @@ export const actions = {
   },
   grams(el, ctx) { pickedGrams = Number(el.dataset.v); ctx.refreshSheet(); },
   add(el, ctx) {
-    if (!picked || !pickedGrams) return;
+    if (!picked || !validGrams(pickedGrams)) return;
     if (recipeMode(ctx.params)) {
       const rid = ctx.params.recipe;
       const food = picked;
@@ -316,9 +317,13 @@ export const actions = {
     const per100 = Object.fromEntries(NUTRIENTS.map((k) => [k, val('nf-' + k) ?? (k === 'sfa' ? null : 0)])); // gesättigte Fette leer = unbekannt
     const barcode = document.getElementById('nf-barcode').value.replace(/\D/g, '') || null;
     const err = document.getElementById('nf-err');
-    if (!name || !val('nf-kcal')) { err.textContent = t('food.needNameKcal'); return; }
+    if (!name || val('nf-kcal') == null) { err.textContent = t('food.needNameKcal'); return; } // 0 kcal ist erlaubt (Wasser, Tee)
+    const bad = per100Error(per100);
+    if (bad) { err.textContent = t(bad); return; }
+    const portion = val('nf-portion');
+    if (portion != null && !validGrams(portion)) { err.textContent = t('food.errAmount', { max: num(MAX_GRAMS) }); return; }
     if (barcode && !validBarcode(barcode)) { err.textContent = t('scan.invalid'); return; }
-    const food = { id: uid(), name, brand: document.getElementById('nf-brand').value.trim() || null, barcode, per100, portion: val('nf-portion') || 100 };
+    const food = { id: uid(), name, brand: document.getElementById('nf-brand').value.trim() || null, barcode, per100, portion: portion || 100 };
     ctx.update((s) => { s.foods.push(food); }, { silent: true });
     openPortion(ctx, { ...food, source: 'own' });
   },
@@ -349,8 +354,11 @@ export const actions = {
   },
   'save-quick'(el, ctx) {
     const kcal = val('q-kcal');
-    if (!kcal) { document.getElementById('q-err').textContent = t('food.needKcal'); return; }
+    const err = document.getElementById('q-err');
+    if (!kcal) { err.textContent = t('food.needKcal'); return; }
     const n = { kcal, p: val('q-p') || 0, c: val('q-c') || 0, f: val('q-f') || 0, fiber: 0, sugar: 0, salt: 0 };
+    if (Object.values(n).some((v) => !Number.isFinite(v) || v < 0)) { err.textContent = t('food.errNegative'); return; }
+    if (kcal > 10000 || n.p > 1000 || n.c > 1000 || n.f > 1000) { err.textContent = t('food.errTooMuch'); return; }
     addEntry(ctx, { foodId: null, name: document.getElementById('q-name').value.trim() || t('food.quickName'), grams: 100, per100: n, n });
   },
 };
@@ -362,6 +370,11 @@ export const inputs = {
   },
   grams(el, ctx) {
     pickedGrams = parseNum(el.value) || 0;
-    document.getElementById('portion-n').innerHTML = portionNutrients(ctx.state, forGrams(picked.per100, pickedGrams));
+    const ok = validGrams(pickedGrams);
+    document.getElementById('portion-n').innerHTML = portionNutrients(ctx.state, forGrams(picked.per100, ok ? pickedGrams : 0));
+    // Ungültige Menge (0, negativ, über 5 kg): Hinweis zeigen, Knopf sperren
+    document.getElementById('pick-err')?.toggleAttribute('hidden', ok);
+    const add = document.querySelector('#sheet-root [data-act="add"]');
+    if (add) add.disabled = !ok;
   },
 };

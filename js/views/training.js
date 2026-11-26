@@ -2,7 +2,7 @@
 import { esc, num, today, weekStart, addDays, icon, I, parseNum, uid } from '../util.js';
 import { t, weekdayShort, shortDate } from '../i18n.js';
 import { schedule, lastDone, planMuscles, CARDIO_TYPES, splitFor, indexOfPlan, restartAt } from '../plan.js';
-import { startWorkout, volume, workingSets } from '../workout.js';
+import { startWorkout, volume, workingSets, setText } from '../workout.js';
 import { header, seg, sheetHead, watchSourceName } from '../ui.js';
 import { healthWorkoutsBetween, watchStatsFor } from '../health.js';
 import { rhythmName } from './today.js';
@@ -124,8 +124,8 @@ function detailSheet(state) {
   return `${sheetHead(plan?.name || t('training.workout'))}
     <div class="small muted">${esc(shortDate(w.date))}${mins ? ` · ${num(mins)} min` : ''} · ${num(volume(w))} kg ${esc(t('training.volume'))}</div>
     ${watch ? `<div class="small">⌚ ${esc(watchSourceName())}: ${num(watch.minutes)} min${watch.kcal ? ` · ${num(watch.kcal)} kcal` : ''}${watch.avgHr ? ` · Ø ${watch.avgHr} bpm` : ''}</div>` : ''}
-    <div class="list">${w.exercises.map((ex) => `<div class="item"><div class="grow"><div style="font-weight:600">${esc(ex.name)}</div>
-      <div class="meta">${ex.sets.map((s) => `${s.warmup ? 'W ' : ''}${num(s.kg, 2)}×${num(s.reps)}`).join(' · ')}</div></div><span class="tiny muted">${workingSets(ex).length}</span></div>`).join('')}</div>
+    <div class="list">${w.exercises.map((ex) => `<div class="item"><div class="grow"><div style="font-weight:600">${esc(ex.name)}${ex.uni ? ` <span class="tag accent">${esc(t('active.uniShort'))}</span>` : ''}</div>
+      <div class="meta">${ex.sets.map((s) => setText(s, { unit: '', x: '×' })).join(' · ')}</div></div><span class="tiny muted">${workingSets(ex).length}</span></div>`).join('')}</div>
     ${w.note ? `<div class="small">${esc(w.note)}</div>` : ''}
     <button class="btn danger" data-act="del-workout">${icon(I.trash)} ${esc(t('training.deleteWorkout'))}</button>`;
 }

@@ -13,6 +13,7 @@
 //   read({ from, to })       → siehe fromHealthConnect() (Zeiten als ISO-Text)
 //   writeNutrition({ upsert: [Datensätze], remove: [ids] }) → { written, removed }
 //   openSettings()           → öffnet die Health-Connect-Einstellungen
+//   saveFile({ name, text }) → Android-Dialog „Speichern unter“ (ab App 1.4) → { saved }
 import { dayKey, round, addDays, today } from './util.js';
 import { MEALS, sumEntries, dayEntries } from './nutrition.js';
 import { workoutKind, applyHealth } from './health.js';
