@@ -246,6 +246,13 @@ button.preview-day { width: 100%; background: none; border: 0; border-top: 1px s
 .chart .grid { stroke: var(--line); stroke-width: 1; }
 .chart .line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
 .chart .pt { fill: var(--accent); }
+.chart .col { fill: var(--accent); }
+.chart .col.dim { fill: color-mix(in srgb, var(--accent) 45%, transparent); } /* laufende Woche */
+.chart .goal { stroke: var(--text); stroke-width: 1.5; stroke-dasharray: 5 4; opacity: .7; }
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.stat-grid > div { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 10px 6px; text-align: center; }
+.stat-grid b { display: block; font-size: 1.2rem; }
+.stat-grid span { font-size: .647rem; color: var(--muted); }
 .chart text { fill: var(--muted); font-size: .647rem; }
 .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; font-size: .706rem; }
 .cal .h { color: var(--muted); font-weight: 600; }
@@ -300,7 +307,7 @@ button.preview-day { width: 100%; background: none; border: 0; border-top: 1px s
 .sheet-actions #se-err:empty, .sheet-actions #pe-err:empty { display: none; }
 .sheet .grab { width: 40px; height: 4px; border-radius: 2px; background: var(--line-2); align-self: center; }
 /* Tagesübersicht: immer gleich hoch, Kopf mit Pfeilen bleibt oben stehen (Pfeile springen beim Blättern nicht) */
-.sheet:has(.day-head), .sheet:has(.fb-top) { height: min(85dvh, 760px); }
+.sheet:has(.day-head), .sheet:has(.fb-top), .sheet:has(.hist-head) { height: min(85dvh, 760px); } /* gleich hoch, springt beim Filtern nicht */
 /* Feedback-Liste: Kopf mit Filtern bleibt oben */
 .fb-top { position: sticky; top: -16px; z-index: 1; background: var(--card); margin: -8px 0 0; padding: 8px 0 4px; display: flex; flex-direction: column; gap: 12px; border-bottom: 1px solid var(--line); }
 /* Tastatur offen (iPhone): Fenster sitzt direkt über der Tastatur, unten kein Abstand für den Home-Balken */

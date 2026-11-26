@@ -20,6 +20,7 @@
 import { dayKey, parseNum, round, addDays, today } from './util.js';
 import * as sync from './sync.js';
 import * as store from './store.js';
+import { dayPlan } from './plan.js';
 
 // ---------- Text lesen ----------
 function parseDate(s) {
@@ -221,11 +222,20 @@ export function sleepNights(samples) {
 /** Geparste Daten in den App-Zustand übernehmen. Manuell eingetragenes Gewicht hat Vorrang. */
 export function applyHealth(state, p) {
   state.healthDays ||= {}; state.healthWorkouts ||= {}; state.healthSleep ||= {};
+  const latest = () => state.weights.reduce((a, w) => (!a || w.date > a.date ? w : a), null);
+  const before = latest();
+  const replaced = {};
   for (const [date, w] of Object.entries(p.weights)) {
     const i = state.weights.findIndex((x) => x.date === date);
     if (i >= 0 && state.weights[i].source !== 'health') continue;
     const entry = { date, kg: w.v, source: 'health' };
-    if (i >= 0) state.weights[i] = entry; else state.weights.push(entry);
+    if (i >= 0) { replaced[date] ||= state.weights[i]; state.weights[i] = entry; } else state.weights.push(entry);
+  }
+  // Neuestes Gewicht kam aus Health und ist anders → Heute zeigt einmal, wie sich das Tagesziel ändert (Prüfbericht D8).
+  // Gespeichert wird, wie es vorher war, damit Heute das alte Ziel ausrechnen kann.
+  const after = latest();
+  if (after && after.source === 'health' && (!before || before.date !== after.date || before.kg !== after.kg)) {
+    state.healthWeightNew = { date: after.date, kg: after.kg, replaced: replaced[after.date] || null, at: new Date().toISOString() };
   }
   const day = (d) => (state.healthDays[d] ||= { date: d });
   for (const [d, v] of Object.entries(p.bodyFat)) day(d).bodyFat = v.v;
@@ -233,7 +243,8 @@ export function applyHealth(state, p) {
   for (const [d, v] of Object.entries(p.active)) day(d).activeKcal = v;
   for (const [d, v] of Object.entries(p.exercise)) day(d).exerciseMin = v;
   for (const [d, v] of Object.entries(p.distance)) day(d).distanceKm = v;
-  for (const w of Object.values(p.workouts)) state.healthWorkouts[w.id] = w;
+  // „linked“ (schon als Training übernommen bzw. bewusst gelöscht) beim erneuten Einlesen behalten
+  for (const w of Object.values(p.workouts)) { const old = state.healthWorkouts[w.id]; state.healthWorkouts[w.id] = old?.linked ? { ...w, linked: old.linked } : w; }
   // Nacht nur ersetzen, wenn die neue nicht kürzer ist (spät abends abgeglichen → Lieferung beginnt mitten in der Nacht) (K8)
   for (const [d, n] of Object.entries(sleepNights(p.sleepSamples))) {
     const old = state.healthSleep[d];
@@ -244,7 +255,28 @@ export function applyHealth(state, p) {
     if (x.exerciseMin != null && (x.exerciseMin > 1440 || (x.exerciseMin > 0 && x.exerciseMin === x.steps))) delete x.exerciseMin;
   }
   for (const [d, n] of Object.entries(state.healthSleep)) if (n.minutes > 16 * 60) delete state.healthSleep[d];
+  linkWatchStrength(state);
   state.healthLastImport = new Date().toISOString();
+}
+
+/**
+ * Krafttraining von der Uhr an einem geplanten Trainingstag ohne Training in der App → als Training „von der Uhr“
+ * (ohne Übungen) speichern, damit der Tag nicht als verpasst gilt. Jede Uhr-Einheit nur einmal (`linked`):
+ * löscht man das Training, kommt es nicht wieder. Ruhetage, Krank-Tage und Tage vor dem Planbeginn: nichts.
+ */
+export function linkWatchStrength(state, now = today()) {
+  const start = state.training?.anchor?.date;
+  if (!start) return;
+  for (const w of Object.values(state.healthWorkouts || {})) {
+    if (w.kind !== 'strength' || w.linked || !w.date || w.date < start || w.date > now) continue;
+    if (state.active?.date === w.date) continue; // Training in der App läuft gerade
+    if (state.workouts.some((x) => x.date === w.date)) { w.linked = 'app'; continue; }
+    const p = dayPlan(state, w.date);
+    if (p.kind !== 'train' || p.sick) continue;
+    const id = 'hw-' + String(w.id).replace(/[^0-9A-Za-z]/g, '');
+    state.workouts.push({ id, planId: p.planId, date: w.date, startedAt: null, finishedAt: null, minutes: w.minutes || null, note: '', exercises: [], source: 'watch' });
+    w.linked = id;
+  }
 }
 
 /** Nach dem Sync: neue Daten aus dem Kurzbefehl verarbeiten und das Eingangs-Dokument löschen. */

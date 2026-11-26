@@ -1,8 +1,9 @@
 // Training: Rhythmus, heutiger Vorschlag (flexibel), 7-Tage-Vorschau, Cardio, Pläne, Verlauf
-import { esc, num, today, weekStart, addDays, icon, I, parseNum, uid } from '../util.js';
-import { t, weekdayShort, shortDate } from '../i18n.js';
+import { esc, num, today, weekStart, addDays, icon, I, parseNum, uid, parseKey } from '../util.js';
+import { t, weekdayShort, shortDate, monthName } from '../i18n.js';
 import { schedule, lastDone, planMuscles, CARDIO_TYPES, splitFor, indexOfPlan, restartAt, removeRestart, markDay } from '../plan.js';
-import { startWorkout, volume, workingSets, setText } from '../workout.js';
+import { startWorkout, volume, workingSets, setText, workoutMinutes } from '../workout.js';
+import * as workoutEdit from './workoutEdit.js';
 import { header, seg, sheetHead, watchSourceName, energy, cardioIcon } from '../ui.js';
 import { healthWorkoutsBetween, watchStatsFor } from '../health.js';
 import { rhythmName } from './today.js';
@@ -16,6 +17,9 @@ export { CARDIO_TYPES };
 
 let continueOther = true; // „Anderes Training“: Plan ab heute von diesem Training aus fortsetzen
 let detailId = null;
+let detailFromHistory = false; // Detail aus der ganzen Historie geöffnet → beim Schliessen dorthin zurück
+let histFilter = 'all'; // ganze Historie: 'all' | 'cardio' | Trainings-ID
+const HIST_SHOWN = 5; // auf der Seite nur die letzten Einträge
 
 // Oben „Übersicht | Plan“: täglich Gebrauchtes (Vorschlag, Kalender, Cardio, Verlauf) getrennt von selten Bearbeitetem
 // (Splits, Cardio-Plan, Trainings)
@@ -64,6 +68,7 @@ function todayCard(state, d, plans) {
          <button class="btn primary" data-act="start" data-plan="${esc(p.id)}">${esc(t('training.start'))}</button></div>`}
     ${cardioEdit.cardioLine(state, d.date)}
     <div class="grid2"><button class="btn" data-act="other">${esc(t('training.another'))}</button>${restBtn}</div>
+    ${isRest ? '' : `<button class="link tiny" style="align-self:flex-start" data-act="dp-quick-done" data-d="${esc(d.date)}">${esc(t('plan.quickDoneLink'))}</button>`}
   </section>`;
 }
 
@@ -105,30 +110,67 @@ function cardioCard(state, key) {
     <button class="btn sm ghost" data-act="add-cardio">${icon(I.plus)} ${esc(t('cardio.add'))}</button></section>`;
 }
 
-function historyCard(state, plans) {
-  const items = [
+/** Alle Einträge des Verlaufs, neueste zuerst: Trainings und eigenständiges Cardio (angehängtes gehört zum Training). */
+function historyItems(state) {
+  return [
     ...state.workouts.map((w) => ({ date: w.date, kind: 'w', w })),
     ...state.cardio.filter((c) => !c.after).map((c) => ({ date: c.date, kind: 'c', c })),
-  ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 15);
-  const rows = items.map((it) => it.kind === 'w'
-    ? `<div class="item"><button class="item-btn grow" data-act="detail" data-id="${esc(it.w.id)}"><div style="font-weight:600">${esc(plans[it.w.planId]?.name || t('training.workout'))}</div>
-        <div class="meta">${esc(shortDate(it.date))} · ${esc(t('training.exCount', { n: it.w.exercises.length }))} · ${num(volume(it.w))} kg</div></button>${icon(I.chevron)}</div>`
-    : `<div class="item">${cardioIcon(it.c.type)}<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + it.c.type))}</div><div class="meta">${esc(shortDate(it.date))} · ${num(it.c.minutes)} min</div></div></div>`).join('');
-  return `<section class="card tight"><h3>${esc(t('training.history'))}</h3>${rows ? `<div class="list">${rows}</div>` : `<div class="small muted">${esc(t('training.noHistory'))}</div>`}</section>`;
+  ].sort((a, b) => b.date.localeCompare(a.date));
+}
+function historyRow(it, plans) {
+  return it.kind === 'w'
+    // ganze Zeile inkl. Pfeil antippbar
+    ? `<button type="button" class="item item-btn" data-act="detail" data-id="${esc(it.w.id)}"><div class="grow"><div style="font-weight:600">${esc(plans[it.w.planId]?.name || t('training.workout'))}</div>
+        <div class="meta">${esc(shortDate(it.date))} · ${it.w.exercises.length ? `${esc(t('training.exCount', { n: it.w.exercises.length }))} · ${num(volume(it.w))} kg` : esc(workoutEdit.bareLabel(it.w, plans[it.w.planId]))}</div></div>${icon(I.chevron)}</button>`
+    : `<div class="item">${cardioIcon(it.c.type)}<div class="grow"><div style="font-weight:600">${esc(t('cardio.' + it.c.type))}</div><div class="meta">${esc(shortDate(it.date))} · ${num(it.c.minutes)} min${it.c.km ? ` · ${num(it.c.km, 1)} km` : ''}</div></div></div>`;
+}
+
+// Auf der Seite nur die letzten Einträge; Kopf antippen → ganze Historie mit Filter
+function historyCard(state, plans) {
+  const all = historyItems(state);
+  const rows = all.slice(0, HIST_SHOWN).map((it) => historyRow(it, plans)).join('');
+  const head = all.length
+    ? `<button class="card-head item-btn" data-act="history-all" style="width:100%;text-align:left"><h3>${esc(t('training.history'))}</h3><span class="small muted row" style="gap:4px">${esc(t('training.historyAll', { n: all.length }))}${icon(I.chevron)}</span></button>`
+    : `<h3>${esc(t('training.history'))}</h3>`;
+  return `<section class="card tight">${head}${rows ? `<div class="list">${rows}</div>` : `<div class="small muted">${esc(t('training.noHistory'))}</div>`}</section>`;
+}
+
+function historySheet(state) {
+  const plans = Object.fromEntries(state.plans.map((p) => [p.id, p]));
+  const all = historyItems(state);
+  // Filter: nur Trainings, die im Verlauf vorkommen (auch gelöschte Pläne), dazu Cardio
+  const used = [...new Set(state.workouts.map((w) => w.planId))].filter((id) => plans[id]);
+  const chips = [['all', t('training.filterAll')], ...used.map((id) => [id, plans[id].name])];
+  if (all.some((it) => it.kind === 'c')) chips.push(['cardio', t('training.filterCardio')]);
+  if (!chips.some(([v]) => v === histFilter)) histFilter = 'all';
+  const items = all.filter((it) => histFilter === 'all' || (histFilter === 'cardio' ? it.kind === 'c' : it.kind === 'w' && it.w.planId === histFilter));
+  // nach Monat gruppiert
+  let month = '';
+  const rows = items.map((it) => {
+    const m = it.date.slice(0, 7);
+    const headRow = m !== month ? `<div class="tiny muted" style="padding:10px 0 2px;font-weight:600;text-transform:capitalize">${esc(monthName(parseKey(it.date)))}</div>` : '';
+    month = m;
+    return headRow + historyRow(it, plans);
+  }).join('');
+  return `<div class="hist-head">${sheetHead(t('training.history'))}</div>
+    <div class="chips">${chips.map(([v, l]) => `<button class="chip" data-act="history-filter" data-v="${esc(v)}" aria-pressed="${v === histFilter}">${esc(l)}</button>`).join('')}</div>
+    <div class="small muted">${esc(t('training.historyCount', { n: items.length }))}</div>
+    ${rows ? `<div class="list">${rows}</div>` : `<div class="small muted">${esc(t('training.noHistory'))}</div>`}`;
 }
 
 function detailSheet(state) {
   const w = state.workouts.find((x) => x.id === detailId);
   if (!w) return null;
   const plan = state.plans.find((p) => p.id === w.planId);
-  const mins = w.startedAt && w.finishedAt ? Math.round((new Date(w.finishedAt) - new Date(w.startedAt)) / 60000) : null;
+  const mins = workoutMinutes(w);
   const watch = watchStatsFor(state, w.date);
   return `${sheetHead(plan?.name || t('training.workout'))}
-    <div class="small muted">${esc(shortDate(w.date))}${mins ? ` · ${num(mins)} min` : ''} · ${num(volume(w))} kg ${esc(t('training.volume'))}</div>
+    <div class="small muted">${esc(shortDate(w.date))}${mins ? ` · ${num(mins)} min` : ''}${w.exercises.length ? ` · ${num(volume(w))} kg ${esc(t('training.volume'))}` : ''}</div>
+    ${w.exercises.length ? '' : `<div class="hint small">${esc(t(w.source === 'watch' ? 'wedit.bareWatch' : 'wedit.bareQuick'))}</div>`}
     ${watch ? `<div class="small">⌚ ${esc(watchSourceName())}: ${num(watch.minutes)} min${watch.kcal ? ` · ${energy(state, watch.kcal)}` : ''}${watch.avgHr ? ` · Ø ${watch.avgHr} bpm` : ''}</div>` : ''}
-    <div class="list">${w.exercises.map((ex) => `<div class="item"><div class="grow"><div style="font-weight:600">${esc(ex.name)}${ex.uni ? ` <span class="tag accent">${esc(t('active.uniShort'))}</span>` : ''}</div>
-      <div class="meta">${ex.sets.map((s) => setText(s, { unit: '', x: '×' })).join(' · ')}</div></div><span class="tiny muted">${workingSets(ex).length}</span></div>`).join('')}</div>
+    <div class="list">${workoutEdit.exerciseList(state, w)}</div>
     ${w.note ? `<div class="small">${esc(w.note)}</div>` : ''}
+    <button class="btn" data-act="we-open" data-id="${esc(w.id)}">${icon(I.edit)} ${esc(t(w.exercises.length ? 'wedit.open' : 'wedit.openBare'))}</button>
     <button class="btn danger" data-act="del-workout">${icon(I.trash)} ${esc(t('training.deleteWorkout'))}</button>`;
 }
 
@@ -179,7 +221,15 @@ export const actions = {
     }));
   },
   other(el, ctx) { ctx.openSheet(otherSheet); },
-  detail(el, ctx) { detailId = el.dataset.id; ctx.openSheet(detailSheet); },
+  'history-all'(el, ctx) { ctx.openSheet(historySheet); },
+  'history-filter'(el, ctx) { histFilter = el.dataset.v; ctx.refreshSheet(); },
+  detail(el, ctx) {
+    detailId = el.dataset.id;
+    detailFromHistory = !!el.closest('#sheet-root');
+    openDetail(ctx);
+  },
+  // Bearbeiten → Trainings-Bildschirm mit den gespeicherten Sätzen, danach zurück auf diese Seite
+  'we-open'(el, ctx) { workoutEdit.openEdit(ctx, el.dataset.id); },
   'del-workout'(el, ctx) {
     const idx = ctx.state.workouts.findIndex((w) => w.id === detailId);
     if (idx < 0) return;
@@ -193,4 +243,8 @@ export const actions = {
 };
 
 export const inputs = { ...daySheet.inputs };
+
+function openDetail(ctx) {
+  ctx.openSheet(detailSheet, detailFromHistory ? { guard: () => { setTimeout(() => ctx.openSheet(historySheet), 0); return true; } } : {});
+}
 export const changes = { ...daySheet.changes, 'other-continue'(el) { continueOther = el.checked; } };

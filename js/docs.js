@@ -26,7 +26,8 @@ export function toDocs(state) {
   for (const [id, v] of Object.entries(state.healthWorkouts || {})) m.set(`hw:${id}`, v);
   for (const [date, v] of Object.entries(state.healthSleep || {})) m.set(`sleep:${date}`, v);
   for (const [id, v] of Object.entries(state.healthInbox || {})) m.set(`hinbox:${id}`, v);
-  if (state.healthLastImport) m.set('hmeta', { lastImport: state.healthLastImport });
+  // Hinweis „Gewicht übernommen – Ziel geändert“ mitsynchronisieren: der Kurzbefehl wird oft auf einem anderen Gerät verarbeitet
+  if (state.healthLastImport) m.set('hmeta', { lastImport: state.healthLastImport, ...(state.healthWeightNew ? { weightNew: state.healthWeightNew } : {}) });
   return m;
 }
 
@@ -63,7 +64,7 @@ export function applyDoc(state, key, value) {
     case 'hw': state.healthWorkouts ||= {}; if (del) delete state.healthWorkouts[a]; else state.healthWorkouts[a] = value; break;
     case 'sleep': state.healthSleep ||= {}; if (del) delete state.healthSleep[a]; else state.healthSleep[a] = value; break;
     case 'hinbox': state.healthInbox ||= {}; if (del) delete state.healthInbox[a]; else state.healthInbox[a] = value; break;
-    case 'hmeta': if (!del) state.healthLastImport = value.lastImport; break;
+    case 'hmeta': if (!del) { state.healthLastImport = value.lastImport; if (value.weightNew) state.healthWeightNew = value.weightNew; else delete state.healthWeightNew; } break;
     default: console.warn('Unbekanntes Dokument', key);
   }
 }

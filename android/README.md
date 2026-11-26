@@ -49,6 +49,9 @@ cd android\app-shell; .\gradlew.bat assembleDebug
   Ausserdem (vor dem Verteilen noch in 1.6 aufgenommen): kcal und km pro Workout nur aus Einträgen, die ganz im Workout liegen
   (±1 Min., pro Quelle summiert, grösste Quelle zählt) – vorher verteilte `aggregate` Tages-/Stundenwerte anteilig
   („35-min-Lauf 0.1 km · 4 kcal“). Testdaten (`DebugData`) enthalten dafür Lauf-Werte. Icon in Kreide-Farben (#121110 / #FF7A3D).
+  Sicherung (D10): keine Google-Cloud-Sicherung mehr (WebView-Daten = Gesundheitsdaten + Anmeldung im selben localStorage),
+  nur Umzug Handy → Handy (`data_extraction_rules.xml`, bis Android 11 `backup_rules.xml` mit `deviceToDeviceTransfer`).
+  Emulator-Test: `bmgr transport com.android.localtransport/.LocalTransport` + `bmgr backupnow` → Paket wird abgelehnt (nichts zu sichern).
 - Emulator-Fenster zu gross für den Bildschirm: `window.scale = 0.3` in `%USERPROFILE%\.android\avd\Medium_Phone.avd\emulator-user.ini`.
   Samsung-ähnlich testen: `adb shell cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.threebutton`.
 

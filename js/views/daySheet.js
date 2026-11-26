@@ -4,10 +4,11 @@
 import { esc, num, today, addDays, icon, I, parseNum } from '../util.js';
 import { t, longDate } from '../i18n.js';
 import { goals, sumEntries, dayEntries } from '../nutrition.js';
-import { volume, workingSets, setText } from '../workout.js';
+import { volume, workingSets, setText, workoutMinutes } from '../workout.js';
 import { healthWorkoutsBetween } from '../health.js';
 import { energy, healthSourceName, cardioIcon } from '../ui.js';
 import * as planEdit from './planEdit.js';
+import * as workoutEdit from './workoutEdit.js';
 import * as cardioEdit from './cardioEdit.js';
 import { cardioSessions } from '../cardio.js';
 
@@ -52,15 +53,14 @@ function sheet(state) {
     const plan = state.plans.find((p) => p.id === w.planId);
     const sets = w.exercises.reduce((s, ex) => s + workingSets(ex).length, 0);
     const open = openWorkout === w.id;
-    const mins = w.startedAt && w.finishedAt ? Math.round((new Date(w.finishedAt) - new Date(w.startedAt)) / 60000) : null;
+    const mins = workoutMinutes(w);
     // Antippen klappt die Übungen mit allen Sätzen auf (W = Aufwärmsatz)
-    const detail = open ? `<div class="list" style="padding:0 0 4px 30px">${w.exercises.map((ex) => `<div class="item" style="padding:6px 0"><div class="grow">
-        <div class="small" style="font-weight:600">${esc(ex.name)}${ex.uni ? ` <span class="tag accent">${esc(t('active.uniShort'))}</span>` : ''}</div>
-        <div class="meta">${ex.sets.map((s) => setText(s)).join(' · ') || '–'}</div></div>
-        <span class="tiny muted">${workingSets(ex).length}</span></div>`).join('')}
-        ${w.note ? `<div class="small muted" style="padding-top:6px">${esc(w.note)}</div>` : ''}</div>` : '';
+    // ohne Details: Übungen des Plans ohne Werte (–)
+    const detail = open ? `<div class="list" style="padding:0 0 4px 30px">${workoutEdit.exerciseList(state, w, { compact: true })}
+        ${w.note ? `<div class="small muted" style="padding-top:6px">${esc(w.note)}</div>` : ''}
+        <button class="link tiny" style="align-self:flex-start;margin-top:4px" data-act="we-open" data-id="${esc(w.id)}">${esc(t(w.exercises.length ? 'wedit.open' : 'wedit.openBare'))}</button></div>` : '';
     rows.push(`<button type="button" class="item item-btn" data-act="day-workout" data-id="${esc(w.id)}" aria-expanded="${open}" style="width:100%;text-align:left">${icon(I.check)}<div class="grow"><div style="font-weight:600">${esc(plan?.name || t('training.workout'))}</div>
-      <div class="meta">${esc(t('training.exCount', { n: w.exercises.length }))} · ${num(sets)} ${esc(t('day.sets'))} · ${num(volume(w))} kg${mins ? ` · ${num(mins)} min` : ''}</div></div>${icon(open ? I.down : I.chevron)}</button>${detail}`);
+      <div class="meta">${w.exercises.length ? `${esc(t('training.exCount', { n: w.exercises.length }))} · ${num(sets)} ${esc(t('day.sets'))} · ${num(volume(w))} kg${mins ? ` · ${num(mins)} min` : ''}` : esc(workoutEdit.bareLabel(w, plan))}</div></div>${icon(open ? I.down : I.chevron)}</button>${detail}`);
   }
   // Cardio: Uhr und von Hand zusammengeführt (dieselbe Einheit nur einmal, Uhr-Werte gelten; js/cardio.js)
   for (const c of cardioSessions(state, d, d)) {
@@ -105,6 +105,7 @@ export function open(ctx, date) { day = date; ctx.openSheet(sheet); }
 
 export const actions = {
   ...planEdit.actions,
+  'we-open'(el, ctx) { workoutEdit.openEdit(ctx, el.dataset.id); },
   ...cardioEdit.actions,
   // Geplantes Cardio erledigt → Cardio-Fenster mit Art, Dauer und Datum vorausgefüllt; danach zurück zur Tagesübersicht
   'cardio-done'(el, ctx) {
@@ -112,6 +113,8 @@ export const actions = {
     const fromSheet = !!el.closest('#sheet-root');
     cardioEdit.openCardio(ctx, { date: d, type, minutes: parseNum(min) || null }, fromSheet ? () => open(ctx, d) : null);
   },
+  // Anderes Training aus der Tagesübersicht → danach wieder die Tagesübersicht
+  'dp-other'(el, ctx) { const d = el.dataset.d; planEdit.openOther(ctx, d, () => open(ctx, d)); },
   'day-open'(el, ctx) { openWorkout = null; open(ctx, el.dataset.d); },
   'day-workout'(el, ctx) { openWorkout = openWorkout === el.dataset.id ? null : el.dataset.id; ctx.refreshSheet(); },
   'day-today'(el, ctx) {

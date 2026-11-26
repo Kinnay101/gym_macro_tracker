@@ -35,12 +35,28 @@ export function render(state) {
       </div>
     </section>
     ${g.isDefault ? `<a class="card tight" href="#/body" style="color:inherit"><span class="small hint">${esc(t('today.setGoals'))}</span></a>` : ''}
+    ${weightNotice(state, g)}
     ${trainingCard(state, key)}
     ${weekCard(state, key)}
     ${healthCard(state, key)}
     ${mealsCard(state, key, entries)}
     ${weightCard(state)}
   `;
+}
+
+/**
+ * Gewicht kam aus Apple Health / Health Connect und hat das (automatische) Tagesziel verändert → einmal Bescheid geben,
+ * damit sich die Ziele nicht unbemerkt ändern. Ohne Änderung oder nach 3 Tagen: nichts.
+ */
+function weightNotice(state, g) {
+  const n = state.healthWeightNew;
+  if (!n || state.profile.goalOverride || g.isDefault) return '';
+  if (Date.now() - new Date(n.at).getTime() > 3 * 86400000) return '';
+  const old = { ...state, weights: state.weights.filter((w) => w.date !== n.date).concat(n.replaced ? [n.replaced] : []) };
+  const prev = goals(old);
+  if (prev.isDefault || Math.abs(prev.kcal - g.kcal) < 10) return '';
+  return `<section class="card tight"><div class="row" style="gap:8px;align-items:flex-start"><div class="hint small grow">${esc(t('today.weightGoal', { kg: num(n.kg, 1), src: healthSourceName(), kcal: energy(state, g.kcal), before: energy(state, prev.kcal) }))}</div>
+    <button class="icon-btn" data-act="weight-notice-ok" aria-label="${esc(t('common.close'))}">${icon(I.x)}</button></div></section>`;
 }
 
 function trainingCard(state, key) {
@@ -143,6 +159,7 @@ export const changes = { ...daySheet.changes };
 export const actions = {
   ...daySheet.actions,
   'toggle-ring'(el, ctx) { showEaten = !showEaten; ctx.render(); },
+  'weight-notice-ok'(el, ctx) { ctx.update((s) => { delete s.healthWeightNew; }); },
   async 'health-refresh'(el, ctx) {
     if (!hc.available()) { runShortcut(); return; }
     try { await hc.syncNow(); ctx.render(); ctx.toast(t('hc.synced')); } catch { ctx.toast(t('hc.error')); }

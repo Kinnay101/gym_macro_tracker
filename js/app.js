@@ -411,7 +411,13 @@ sync.onStatus((st) => {
     setTimeout(() => openSheet(bodyView.recoverySheet), 50);
   }
 });
-sync.init();
+// Lokale Vorschau (localhost, auch Debug-App im Emulator): Vorschau-Werkzeug mit Demo-Daten und nachgebautem Konto
+// (js/devDemo.js). Online wird es nie geladen.
+if (['localhost', '127.0.0.1'].includes(location.hostname)) {
+  import('./devDemo.js').then((m) => m.init({ sync, store, go })).catch((e) => { console.warn('Vorschau-Werkzeug', e); sync.init(); });
+} else {
+  sync.init();
+}
 
 // Offline-Fähigkeit (nur über http(s), nicht bei file://)
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

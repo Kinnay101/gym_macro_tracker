@@ -1,9 +1,10 @@
 // Fortschritt: 1RM-Verlauf, Bestwerte, Sätze pro Muskel; Umschalter zu Freunde & Rangliste. Der Kalender (calendar) wird von der Trainingsseite angezeigt.
-import { esc, num, today, addDays, parseKey, dayKey, daysBetween, icon, I } from '../util.js';
-import { t, monthName, shortDate, weekdayHeaders, longDate, weekdayShort } from '../i18n.js';
-import { historyFor, bestFor, setsPerMuscle, trackOf, isUniTrack } from '../workout.js';
+import { esc, num, today, addDays, parseKey, dayKey, daysBetween, icon, I, weekStart } from '../util.js';
+import { t, monthName, shortDate, weekdayHeaders, longDate, weekdayShort, dayMonth } from '../i18n.js';
+import { historyFor, bestFor, setsPerMuscle, trackOf, isUniTrack, volume } from '../workout.js';
+import { goals, sumEntries, dayEntries, kcalToKj } from '../nutrition.js';
 import { MUSCLES, dayPlan, planShort } from '../plan.js';
-import { header, seg, lineChart, trackLabel } from '../ui.js';
+import { header, seg, lineChart, barChart, trackLabel, energy } from '../ui.js';
 import * as friendsView from './friends.js';
 import { healthWorkoutsBetween } from '../health.js';
 import * as daySheet from './daySheet.js';
@@ -11,6 +12,7 @@ import * as daySheet from './daySheet.js';
 let tab = 'me';
 let exName = null;
 let monthOffset = 0;
+let meTab = 'strength'; // Fortschritt → Ich: 'strength' | 'body' (Prüfbericht D4)
 let allPrs = false; // „Alle anzeigen“ bei den Bestwerten (Prüfbericht B7)
 const PR_SHOWN = 6;
 
@@ -27,6 +29,98 @@ export function render(state, params, ctx) {
 }
 
 function me(state) {
+  const tabs = seg('me-tab', [['strength', t('progress.tabStrength')], ['body', t('progress.tabBody')]], meTab);
+  return tabs + (meTab === 'body' ? bodyStats(state) : strength(state));
+}
+
+// ---- Wochen-Auswertungen ----
+const WEEKS = 8;
+/** Montage der letzten `n` Wochen, älteste zuerst, die laufende Woche zuletzt. */
+function lastWeeks(n = WEEKS) {
+  const cur = weekStart(today());
+  return Array.from({ length: n }, (_, i) => addDays(cur, -7 * (n - 1 - i)));
+}
+const signed = (v, dec = 0) => (v > 0 ? '+' : v < 0 ? '−' : '±') + num(Math.abs(v), dec);
+const kFmt = (v) => (v >= 1000 ? `${num(v / 1000, v % 1000 ? 1 : 0)}k` : num(v));
+
+/** Kraft: Volumen pro Woche (+ Anzahl Trainings). */
+function volumeCards(state) {
+  const weeks = lastWeeks();
+  const cur = weeks[weeks.length - 1];
+  const per = weeks.map((ws) => {
+    const ws7 = addDays(ws, 6);
+    const list = state.workouts.filter((w) => w.date >= ws && w.date <= ws7);
+    return { ws, n: list.length, vol: list.reduce((a, w) => a + volume(w), 0) };
+  });
+  if (!per.some((x) => x.n)) return '';
+  const done4 = per.slice(-5, -1); // die letzten vier abgeschlossenen Wochen
+  const avg = done4.reduce((a, x) => a + x.n, 0) / done4.length;
+  const chart = barChart(per.map((x) => ({ v: x.vol, label: dayMonth(x.ws), top: x.n ? String(x.n) : '', dim: x.ws === cur })), { fmt: kFmt });
+  return `<section class="card tight"><h3>${esc(t('progress.volumeWeek'))}</h3><div class="small muted">${esc(t('progress.perWeek', { n: num(avg, 1) }))}</div>
+      ${chart}<div class="tiny muted">${esc(t('progress.volumeHint'))}</div></section>`;
+}
+
+/** Körper & Ernährung: Gewichtstrend (Wochenschnitt), Kalorien pro Woche gegenüber dem Ziel, Tage nach Plan. */
+function bodyStats(state) {
+  const key = today();
+  // Gewicht: Schnitt pro Woche (12 Wochen), nur Wochen mit Messung
+  const wk = lastWeeks(12).map((ws) => {
+    const ws7 = addDays(ws, 6);
+    const list = state.weights.filter((w) => w.date >= ws && w.date <= ws7);
+    return { ws, avg: list.length ? list.reduce((a, w) => a + w.kg, 0) / list.length : null };
+  }).filter((x) => x.avg != null);
+  let weight;
+  if (wk.length >= 2) {
+    const pts = wk.map((x) => ({ x: daysBetween(wk[0].ws, x.ws), y: Math.round(x.avg * 10) / 10, label: dayMonth(x.ws) }));
+    const last = wk[wk.length - 1]; const prev = wk[wk.length - 2];
+    const sum = last.ws === weekStart(key)
+      ? t('progress.weightDelta', { kg: num(last.avg, 1), d: signed(Math.round((last.avg - prev.avg) * 10) / 10, 1) }) : '';
+    weight = `${sum ? `<div class="small">${esc(sum)}</div>` : ''}${lineChart(pts)}<div class="tiny muted">${esc(t('progress.weightTrendHint'))}</div>`;
+  } else weight = `<div class="small muted">${esc(t('progress.needWeights'))}</div>`;
+
+  // Kalorien: Ø pro Tag (nur Tage mit Einträgen), heute zählt nicht (der Tag läuft noch)
+  const g = goals(state);
+  const kj = state.profile.energyUnit === 'kj';
+  const unit = (v) => (kj ? Math.round(kcalToKj(v)) : Math.round(v));
+  const dayKcal = (d) => { const e = dayEntries(state, d); return e.length ? sumEntries(e).kcal : null; };
+  const weeks = lastWeeks();
+  const kw = weeks.map((ws) => {
+    const vals = Array.from({ length: 7 }, (_, i) => addDays(ws, i)).filter((d) => d < key).map(dayKcal).filter((v) => v != null);
+    return { ws, avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null };
+  });
+  let kcal;
+  if (kw.some((x) => x.avg != null)) {
+    const last28 = Array.from({ length: 28 }, (_, i) => addDays(key, -28 + i)).map(dayKcal).filter((v) => v != null);
+    const avg = last28.length ? last28.reduce((a, b) => a + b, 0) / last28.length : null;
+    const sum = avg != null ? t('progress.kcalAvg', { v: energy(state, Math.round(avg)), d: `${signed(unit(avg - g.kcal))} ${kj ? 'kJ' : 'kcal'}` }) : '';
+    kcal = `${sum ? `<div class="small">${esc(sum)}</div>` : ''}
+      ${barChart(kw.map((x) => ({ v: x.avg != null ? unit(x.avg) : null, label: dayMonth(x.ws), dim: x.ws === weeks[weeks.length - 1] })), { goal: unit(g.kcal), fmt: kFmt })}
+      <div class="tiny muted">${esc(t('progress.kcalHint', { goal: energy(state, g.kcal) }))}</div>`;
+  } else kcal = `<div class="small muted">${esc(t('progress.needDiary'))}</div>`;
+
+  // Tage nach Plan (letzte 28 Tage ohne heute, erst ab Planbeginn)
+  const start = state.training?.anchor?.date || key;
+  const c = { trained: 0, missed: 0, rest: 0, sick: 0 };
+  const doneDays = new Set(state.workouts.map((w) => w.date));
+  for (let i = 28; i >= 1; i--) {
+    const d = addDays(key, -i);
+    if (d < start) continue;
+    if (doneDays.has(d)) { c.trained++; continue; }
+    const p = dayPlan(state, d);
+    if (p.sick) c.sick++;
+    else if (p.kind === 'train') c.missed++;
+    else c.rest++;
+  }
+  const tile = (n, l) => `<div><b>${num(n)}</b><span>${esc(t(l))}</span></div>`;
+  const days = `<div class="stat-grid">${tile(c.trained, 'progress.daysTrained')}${tile(c.missed, 'progress.daysMissed')}${tile(c.rest, 'progress.daysRest')}${tile(c.sick, 'progress.daysSick')}</div>
+    <div class="tiny muted">${esc(t('progress.daysHint'))}</div>`;
+
+  return `<section class="card tight"><h3>${esc(t('progress.weightTrend'))}</h3>${weight}</section>
+    <section class="card tight"><h3>${esc(t('progress.kcalWeek'))}</h3>${kcal}</section>
+    <section class="card tight"><h3>${esc(t('progress.daysTitle'))}</h3>${days}</section>`;
+}
+
+function strength(state) {
   const names = exerciseNames(state);
   // Standard: die Übung mit den meisten Trainings (dann gibt es am ehesten eine Kurve)
   if (!names.includes(exName)) {
@@ -65,6 +159,7 @@ function me(state) {
         <div class="meta">${num(b.kg, 2)} kg × ${b.repsR != null ? `${num(b.reps)} L · ${num(b.repsR)} R` : num(b.reps)} · ${esc(shortDate(b.date))}</div></div><span style="font-weight:700">${num(b.e1rm, 1)} kg</span></div>`).join('')}</div>`
         : `<div class="small muted">${esc(t('progress.noData'))}</div>`}${more}
     </section>
+    ${volumeCards(state)}
     <section class="card tight"><div class="card-head"><h3>${esc(t('progress.setsPerMuscle'))}</h3><span class="tiny muted">${esc(t('progress.last7'))}</span></div>
       ${MUSCLES.map((m) => `<div class="bar-row"><div class="top"><span>${esc(t('m.' + m))}</span><span class="muted">${num(spm[m] || 0)}</span></div><div class="bar"><i style="width:${((spm[m] || 0) / maxSets) * 100}%;background:var(--accent)"></i></div></div>`).join('')}
     </section>`;
@@ -172,6 +267,7 @@ export const actions = {
   ...friendsView.actions,
   ...daySheet.actions,
   'prs-all'(el, ctx) { allPrs = !allPrs; ctx.render(); },
+  'me-tab'(el, ctx) { meTab = el.dataset.v; ctx.render(); },
   tab(el, ctx) {
     tab = el.dataset.v;
     if (tab === 'friends') friendsView.load(ctx, { quiet: true });

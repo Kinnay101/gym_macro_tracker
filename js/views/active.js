@@ -1,8 +1,8 @@
 // Aktives Training: Sätze eintragen (Wiederholungen eingeben = Satz gemacht), Varianten tauschen, überspringen,
 // Übungen verschieben (nur für dieses Training), Aufwärmsätze, PRs, Cardio anhängen
 import { esc, num, icon, I, parseNum, e1rm } from '../util.js';
-import { t, targetText } from '../i18n.js';
-import { current, blankSet, lastSetsFor, bestFor, finishWorkout, workingSets, setE1rm, refillFor, UNI } from '../workout.js';
+import { t, targetText, shortDate } from '../i18n.js';
+import { current, blankSet, lastSetsFor, bestFor, finishWorkout, finishEdit, workingSets, setE1rm, refillFor, UNI } from '../workout.js';
 import { sheetHead } from '../ui.js';
 import { CARDIO_TYPES } from './training.js';
 
@@ -10,9 +10,17 @@ export const immersive = true; // ohne untere Navigation
 
 let timer = null;
 let menu = null; // { ex, set } für das Satz-Menü
+// Derselbe Bildschirm bearbeitet auch gespeicherte Trainings (#/active?edit=1 → state.editing statt state.active)
+let mode = 'live';
+const KEY = () => (mode === 'edit' ? 'editing' : 'active');
+const sess = (state) => state[KEY()];
+/** Vergleichswerte („Zuletzt“, Bestwert): beim Bearbeiten ohne das Training selbst und nur bis zu seinem Datum. */
+const histOpt = (state) => (mode === 'edit' && state.editing ? { exclude: state.editing.id, before: state.editing.date } : {});
 
-export function render(state) {
-  const a = state.active;
+export function render(state, params) {
+  mode = params?.edit ? 'edit' : 'live';
+  const a = sess(state);
+  if (a && mode === 'edit') return renderEdit(state, a);
   if (!a) {
     return `<header class="head"><div class="row"><a class="icon-btn" href="#/training" aria-label="${esc(t('common.back'))}">${icon(I.back)}</a><h1>${esc(t('active.none'))}</h1></div></header>
       <a class="btn primary" href="#/training">${esc(t('nav.training'))}</a>`;
@@ -26,6 +34,20 @@ export function render(state) {
     ${cardioCard(a)}
     <label class="field">${esc(t('active.note'))}<textarea class="input" style="min-height:70px;padding:10px 12px" data-in="note">${esc(a.note || '')}</textarea></label>
     <button class="btn primary block" data-act="finish">${esc(t('active.finish'))}</button>
+  `;
+}
+
+// Bearbeiten: kein Timer und kein Cardio, oben Datum; Speichern übernimmt alles direkt (ohne Zusammenfassung)
+function renderEdit(state, a) {
+  const plan = state.plans.find((p) => p.id === a.planId);
+  return `
+    <header class="head"><div class="row grow"><button class="icon-btn" data-act="edit-cancel" aria-label="${esc(t('common.cancel'))}">${icon(I.back)}</button>
+      <div class="grow"><div class="tiny muted">${esc(t('wedit.open'))} · ${esc(shortDate(a.date))}</div><h1 class="ellipsis" style="font-size:1.412rem">${esc(plan?.name || t('training.workout'))}</h1></div></div>
+      <button class="btn primary" data-act="edit-save">${esc(t('common.save'))}</button></header>
+    <div class="tiny muted">${esc(t('wedit.liveHint'))}</div>
+    ${a.exercises.map((ex, i) => exCard(state, ex, i, a.exercises.length)).join('')}
+    <label class="field">${esc(t('active.note'))}<textarea class="input" style="min-height:70px;padding:10px 12px" data-in="note">${esc(a.note || '')}</textarea></label>
+    <button class="btn primary block" data-act="edit-save">${esc(t('common.save'))}</button>
   `;
 }
 
@@ -46,8 +68,8 @@ function moveBtns(i, count) {
 function exCard(state, ex, i, count) {
   const c = current(ex);
   const uni = !!ex.uni;
-  const last = lastSetsFor(state, c.name, uni);
-  const best = bestFor(state, uni ? c.name + UNI : c.name);
+  const last = lastSetsFor(state, c.name, uni, histOpt(state));
+  const best = bestFor(state, uni ? c.name + UNI : c.name, histOpt(state));
   if (ex.skipped) {
     return `<section class="card tight ex-card skipped"><div class="row between"><div class="grow"><h3 class="ellipsis">${esc(c.name)}</h3><div class="meta small muted">${esc(ex.optional ? t('training.optional') : t('active.skipped'))}</div></div>
       ${moveBtns(i, count)}<button class="btn sm" data-act="skip" data-ex="${i}">${esc(t('active.doIt'))}</button></div></section>`;
@@ -97,8 +119,8 @@ function cardioCard(a) {
 }
 
 function menuSheet(state) {
-  if (!menu || !state.active) return null;
-  const ex = state.active.exercises[menu.ex];
+  if (!menu || !sess(state)) return null;
+  const ex = sess(state).exercises[menu.ex];
   const s = current(ex).sets.find((x) => x.id === menu.set);
   if (!s) return null;
   return `${sheetHead(t('active.setMenu'))}
@@ -121,7 +143,7 @@ function finishSheet(state) {
 
 // Hilfen zum Ändern des laufenden Trainings
 function withEx(ctx, i, fn, opts) {
-  ctx.update((s) => { const ex = s.active?.exercises[i]; if (ex) fn(ex, s); }, opts);
+  ctx.update((s) => { const ex = s[KEY()]?.exercises[i]; if (ex) fn(ex, s); }, opts);
 }
 function setsOf(ex) { return ex.useVar && ex.variant ? ex.varSets : ex.sets; }
 
@@ -136,6 +158,7 @@ document.addEventListener('keydown', (e) => {
 
 export function mounted() {
   clearInterval(timer);
+  if (mode === 'edit') return;
   timer = setInterval(() => {
     const el = document.getElementById('timer');
     const a = window.__gmt?.store.get().active;
@@ -178,7 +201,7 @@ export const actions = {
   'ex-move'(el, ctx) {
     const i = +el.dataset.ex; const j = i + Number(el.dataset.v);
     ctx.update((s) => {
-      const list = s.active?.exercises;
+      const list = s[KEY()]?.exercises;
       if (!list || j < 0 || j >= list.length) return;
       [list[i], list[j]] = [list[j], list[i]];
     });
@@ -233,6 +256,19 @@ export const actions = {
   'cardio-off'(el, ctx) { ctx.update((s) => { s.active.cardio = null; }); },
   'cardio-type'(el, ctx) { ctx.update((s) => { s.active.cardio.type = el.dataset.v; }); },
   finish(el, ctx) { ctx.openSheet(finishSheet); },
+  'edit-save'(el, ctx) {
+    const back = ctx.state.editing?.back || 'training';
+    ctx.update((s) => { finishEdit(s); }, { silent: true });
+    ctx.go(back);
+    ctx.toast(t('wedit.saved'));
+  },
+  async 'edit-cancel'(el, ctx) {
+    const e = ctx.state.editing;
+    const back = e?.back || 'training';
+    if (e && JSON.stringify(e.exercises) !== e.initial && !(await ctx.confirm(t('common.discardChanges'), t('common.discard')))) return;
+    ctx.update((s) => { s.editing = null; }, { silent: true });
+    ctx.go(back);
+  },
   save(el, ctx) {
     const before = ctx.state.active;
     // PRs vor dem Speichern bestimmen (Vergleich mit bisherigen Bestwerten)
@@ -257,7 +293,7 @@ export const inputs = {
   kg(el, ctx) { patchSet(ctx, el, 'kg'); },
   reps(el, ctx) { patchSet(ctx, el, 'reps'); },
   repsR(el, ctx) { patchSet(ctx, el, 'repsR'); },
-  note(el, ctx) { ctx.update((s) => { s.active.note = el.value; }, { silent: true }); },
+  note(el, ctx) { ctx.update((s) => { s[KEY()].note = el.value; }, { silent: true }); },
   'cardio-min'(el, ctx) { ctx.update((s) => { s.active.cardio.minutes = parseNum(el.value); }, { silent: true }); },
   'cardio-km'(el, ctx) { ctx.update((s) => { s.active.cardio.km = parseNum(el.value); }, { silent: true }); },
 };
@@ -282,7 +318,7 @@ function patchSet(ctx, el, field) {
 /** Satz vom letzten Mal an derselben Stelle (Aufwärmsatz ↔ Aufwärmsatz, n-ter Arbeitssatz ↔ n-ter). */
 function prevSetFor(state, ex, s) {
   const c = current(ex);
-  const last = lastSetsFor(state, c.name, !!ex.uni);
+  const last = lastSetsFor(state, c.name, !!ex.uni, histOpt(state));
   if (!last) return null;
   if (s.warmup) return last.sets.find((x) => x.warmup) || null;
   const n = c.sets.filter((x) => !x.warmup).indexOf(s);

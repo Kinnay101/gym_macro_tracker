@@ -28,9 +28,17 @@ export function workingSets(ex) {
   return (ex.sets || []).filter((s) => s.done && !s.warmup && s.kg != null && s.reps && (!ex.uni || s.repsR));
 }
 
+/**
+ * Trainings, die als „vorher“ gelten. Beim Bearbeiten eines gespeicherten Trainings (`opt.exclude` = seine ID,
+ * `opt.before` = sein Datum) zählen nur andere Trainings bis zu diesem Tag – sonst wäre „Zuletzt“ das Training selbst.
+ */
+function earlier(state, opt = {}) {
+  return state.workouts.filter((w) => w.id !== opt.exclude && (!opt.before || w.date <= opt.before));
+}
+
 /** Sätze der Übung aus dem letzten Training, in dem sie vorkam (einseitig und beidseitig getrennt). */
-export function lastSetsFor(state, name, uni = false) {
-  const ws = [...state.workouts].sort(sortByDate).reverse();
+export function lastSetsFor(state, name, uni = false, opt = {}) {
+  const ws = earlier(state, opt).sort(sortByDate).reverse();
   for (const w of ws) {
     const ex = w.exercises.find((e) => e.name === name && !!e.uni === !!uni);
     if (ex && ex.sets.some((s) => s.done)) return { date: w.date, sets: ex.sets.filter((s) => s.done) };
@@ -39,9 +47,9 @@ export function lastSetsFor(state, name, uni = false) {
 }
 
 /** Bestes geschätztes 1RM einer Spur (Übungsname, einseitig mit „|uni“) über alle gespeicherten Trainings. */
-export function bestFor(state, key) {
+export function bestFor(state, key, opt = {}) {
   let best = null;
-  for (const w of state.workouts) {
+  for (const w of opt.exclude ? earlier(state, { exclude: opt.exclude }) : state.workouts) {
     for (const ex of w.exercises) {
       if (trackOf(ex) !== key) continue;
       for (const s of workingSets(ex)) {
@@ -83,8 +91,8 @@ export function volume(w) {
  * und werden selbst eingetragen – damit gilt der Satz als gemacht (siehe views/active.js). „Zuletzt“ zeigt kg×Wdh.
  */
 export const DEFAULT_SETS = 3;
-function prefill(state, name, uni = false) {
-  const last = lastSetsFor(state, name, uni);
+function prefill(state, name, uni = false, opt = {}) {
+  const last = lastSetsFor(state, name, uni, opt);
   const work = last ? last.sets.filter((s) => !s.warmup) : [];
   return Array.from({ length: DEFAULT_SETS }, (_, i) => {
     const s = work[i] || work[work.length - 1];
@@ -145,10 +153,30 @@ export function current(ex) {
 }
 
 /** Training abschließen: nur gemachte Übungen und abgehakte Sätze werden gespeichert. */
+/** Dauer in Minuten: aus Start/Ende (App) oder gespeichert (Uhr). */
+export function workoutMinutes(w) {
+  if (w.startedAt && w.finishedAt) return Math.round((new Date(w.finishedAt) - new Date(w.startedAt)) / 60000);
+  return w.minutes ?? null;
+}
+
 export function finishWorkout(state) {
   const a = state.active;
   if (!a) return null;
-  const exercises = a.exercises
+  // Am selben Tag schon „ohne Details“ eingetragen oder von der Uhr übernommen → das echte Training ersetzt es
+  state.workouts = state.workouts.filter((x) => !(x.date === a.date && !x.exercises.length && (x.quick || x.source === 'watch')));
+  const exercises = collectExercises(a);
+  const w = { id: a.id, planId: a.planId, date: a.date, startedAt: a.startedAt, finishedAt: new Date().toISOString(), note: a.note, exercises };
+  state.workouts.push(w);
+  if (a.cardio && a.cardio.minutes > 0 && a.cardio.minutes <= 600) { // negative/unsinnige Minuten nicht speichern
+    state.cardio.push({ id: uid(), workoutId: a.id, date: a.date, type: a.cardio.type, minutes: a.cardio.minutes, km: a.cardio.km > 0 && a.cardio.km <= 300 ? a.cardio.km : null, after: true });
+  }
+  state.active = null;
+  return w;
+}
+
+/** Gemachte Übungen mit abgehakten Sätzen aus einem laufenden bzw. bearbeiteten Training. */
+function collectExercises(a) {
+  return a.exercises
     .filter((ex) => !ex.skipped)
     .map((ex) => {
       const c = current(ex);
@@ -156,12 +184,54 @@ export function finishWorkout(state) {
       return { name: c.name, muscle: ex.muscle, variant: !!ex.useVar, ...(ex.uni ? { uni: true } : {}), sets };
     })
     .filter((ex) => ex.sets.length);
-  const w = { id: a.id, planId: a.planId, date: a.date, startedAt: a.startedAt, finishedAt: new Date().toISOString(), note: a.note, exercises };
-  state.workouts.push(w);
-  if (a.cardio && a.cardio.minutes > 0 && a.cardio.minutes <= 600) { // negative/unsinnige Minuten nicht speichern
-    state.cardio.push({ id: uid(), workoutId: a.id, date: a.date, type: a.cardio.type, minutes: a.cardio.minutes, km: a.cardio.km > 0 && a.cardio.km <= 300 ? a.cardio.km : null, after: true });
+}
+
+/**
+ * Gespeichertes Training im Trainings-Bildschirm bearbeiten (state.editing, nur auf diesem Gerät).
+ * Gespeicherte Übungen mit ihren Sätzen (abgehakt), dazu die übrigen Übungen des Plans – bei einem Training ohne
+ * Details (oder von der Uhr) wie beim Start vorbelegt, sonst als übersprungen. `back` = Seite, zu der es danach zurückgeht.
+ */
+export function startEdit(state, id, back = 'training') {
+  const w = state.workouts.find((x) => x.id === id);
+  if (!w) return false;
+  const plan = state.plans.find((p) => p.id === w.planId);
+  const opt = { exclude: w.id, before: w.date };
+  const bare = !w.exercises.length;
+  const fromPlan = (e) => ({
+    key: e.id, name: e.name, target: e.target, muscle: e.muscle, variant: e.variant, optional: e.optional, uni: !!e.uni, useVar: false,
+    skipped: bare ? e.optional : true,
+    sets: prefill(state, e.name, !!e.uni, opt),
+    varSets: e.variant ? prefill(state, e.variant.name, !!e.uni, opt) : null,
+  });
+  const saved = w.exercises.map((ex) => {
+    const pe = plan?.ex.find((e) => e.name === ex.name || e.variant?.name === ex.name);
+    const sets = ex.sets.map((s) => ({ ...s, id: uid(), done: true }));
+    const isVar = !!pe?.variant && pe.variant.name === ex.name && pe.name !== ex.name;
+    return {
+      key: pe?.id || uid(), name: isVar ? pe.name : ex.name, target: pe?.target || '', muscle: ex.muscle, variant: pe?.variant || null,
+      optional: false, uni: !!ex.uni, useVar: isVar, skipped: false,
+      sets: isVar ? prefill(state, pe.name, !!ex.uni, opt) : sets,
+      varSets: isVar ? sets : (pe?.variant ? prefill(state, pe.variant.name, !!ex.uni, opt) : null),
+    };
+  });
+  const have = new Set(w.exercises.map((e) => e.name));
+  const rest = (plan?.ex || []).filter((e) => !have.has(e.name) && !have.has(e.variant?.name)).map(fromPlan);
+  state.editing = { id: w.id, planId: w.planId, date: w.date, note: w.note || '', back, exercises: [...saved, ...rest], initial: null };
+  state.editing.initial = JSON.stringify(state.editing.exercises);
+  return true;
+}
+
+/** Bearbeitetes Training übernehmen: Übungen ersetzen (nur abgehakte Sätze), Notiz übernehmen. */
+export function finishEdit(state) {
+  const e = state.editing;
+  if (!e) return null;
+  const w = state.workouts.find((x) => x.id === e.id);
+  if (w) {
+    w.exercises = collectExercises(e);
+    w.note = e.note;
+    if (w.exercises.length) delete w.quick;
   }
-  state.active = null;
+  state.editing = null;
   return w;
 }
 

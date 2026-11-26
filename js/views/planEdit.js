@@ -1,8 +1,8 @@
 // Planung bearbeiten: Plan-Teil der Tagesübersicht (Tag ändern, verschieben, Cardio), Split-Editor,
 // Trainings-Editor (Übungen) und fester Cardio-Plan (Wochentage). Wird von Heute, Training und Fortschritt benutzt.
 import { esc, num, today, addDays, icon, I, parseNum, uid, daysBetween } from '../util.js';
-import { t, weekdayShort } from '../i18n.js';
-import { dayPlan, activeSplit, cyclePos, planShort, newPlan, newSplit, planMuscles, MUSCLES, CARDIO_TYPES, splitById, restartAt, removeRestart, markDay, unmarkDay, markRange } from '../plan.js';
+import { t, weekdayShort, longDate } from '../i18n.js';
+import { dayPlan, activeSplit, cyclePos, planShort, newPlan, newSplit, planMuscles, MUSCLES, CARDIO_TYPES, splitById, restartAt, removeRestart, markDay, unmarkDay, markRange, indexOfPlan } from '../plan.js';
 import { sheetHead, seg } from '../ui.js';
 import { splitName } from './today.js';
 import { plannedCardioList } from './cardioEdit.js';
@@ -38,12 +38,13 @@ export function dayPlanCard(state, date) {
   else if (p.chosen) status = t('plan.changed', { name: baseName });
   else if (p.restarted) status = t('plan.restartedHint');
 
-  // Tag ändern (heute und später): wie im Split / Ruhetag / anderes Training
-  const choice = state.dayChoice?.[date] || '';
-  const select = !past && !p.shifted && !p.sick
-    ? `<label class="field">${esc(t('plan.dayLabel'))}<select class="input" data-in="dp-choice" data-d="${esc(date)}">
-        ${opt('', t('plan.asSplit', { name: baseName }), !choice)}${opt('rest', t('plan.rest'), choice === 'rest')}
-        ${state.plans.map((x) => opt(x.id, x.name, choice === x.id)).join('')}</select></label>` : '';
+  // Anderes Training (heute und später): ein Link öffnet die Auswahl – mit Häkchen „Plan danach damit fortsetzen“
+  // (= Neu-Ausrichtung ab hier) oder nur an diesem Tag (dayChoice). Ruhetag geht über die Knöpfe oben.
+  const sp = splitById(state, p.splitId);
+  const other = !past && !p.shifted && !p.sick
+    ? `<button class="link tiny" style="align-self:flex-start" data-act="dp-other" data-d="${esc(date)}">${esc(t('plan.otherLink'))}</button>` : '';
+  const unchoose = p.chosen && p.kind === 'train'
+    ? `<button class="btn sm" data-act="dp-unchoose" data-d="${esc(date)}">${esc(t('plan.unchoose', { name: baseName }))}</button>` : '';
 
   // Ruhetag / krank (auch nachträglich, bis 60 Tage zurück): je zwei Knöpfe – Plan rückt nach oder Training fällt weg.
   // An Ruhetagen laut Split nur „krank“ (es gibt nichts zu verschieben). Bereits eingetragen → aufheben.
@@ -58,6 +59,10 @@ export function dayPlanCard(state, date) {
   } else if (editable) {
     restBtns = b('dp-sick', 'skip', `🤒 ${t('plan.sick')}`, 'sick');
   }
+  // Trainiert, aber nicht aufgezeichnet (vergessen, nur Uhr …) → als erledigt eintragen, Details später über „Bearbeiten“
+  if (editable && !marked && p.kind === 'train' && date <= now) {
+    restBtns = `<button class="btn sm" data-act="dp-quick-done" data-d="${esc(date)}">✓ ${esc(t('plan.quickDone'))}</button>` + restBtns;
+  }
   if (editable || marked) restBtns += `<button class="link tiny" style="align-self:flex-start" data-act="dp-range" data-d="${esc(date)}">${esc(t('plan.rangeOpen'))}</button>`;
 
   // Geplantes Cardio nur für heute und kommende Tage; für vergangene Tage zählt nur, was gemacht wurde
@@ -67,21 +72,37 @@ export function dayPlanCard(state, date) {
       <input class="input" id="dp-cmin" inputmode="numeric" style="width:64px" value="30" aria-label="min"><span class="small muted">min</span>
       <button class="btn sm" data-act="dp-cardio-add" data-d="${esc(date)}">${icon(I.plus)}</button></div>`;
 
-  // Plan ab hier fortsetzen mit Tag X des Splits (z. B. Push 1 ausgelassen → ab heute Pull 1, danach normal weiter)
-  const sp = splitById(state, p.splitId);
-  const cont = !past && sp ? `<label class="field">${esc(t('plan.continueLabel'))}<select class="input" data-in="dp-restart" data-d="${esc(date)}" data-s="${esc(sp.id)}">
-      ${sp.days.map((d, i) => opt(String(i), `${i + 1}. ${d.kind === 'train' ? plans[d.planId]?.name || '?' : t('plan.rest')}`, i === p.pos)).join('')}</select></label>
-      <div class="tiny muted">${esc(t('plan.continueHint'))}</div>` : '';
   const unrestart = p.restarted ? `<button class="btn sm" data-act="dp-unrestart" data-d="${esc(date)}">${esc(t('plan.unrestart'))}</button>` : '';
 
   return `<section class="card tight"><div class="card-head"><h3>${esc(t('plan.title'))}</h3><span class="tiny muted">${esc(splitName(sp || activeSplit(state)))}</span></div>
     <div class="row between"><b>${esc(what || '')}</b>${done ? `<span class="tag accent">${esc(t('training.done'))}</span>` : ''}</div>
     ${status ? `<div class="tiny muted">${esc(status)}</div>` : ''}
     ${restBtns}
-    ${cont}${unrestart}
-    ${select}
+    ${unrestart}${unchoose}
+    ${other}
     ${cardio || addCardio ? `<div class="small" style="font-weight:600">${esc(t('plan.cardio'))}</div>${cardio ? `<div class="list">${cardio}</div>` : ''}${addCardio}` : ''}
   </section>`;
+}
+
+// ---------- Anderes Training an einem Tag ----------
+let otherDraft = null; // { date, cont: true, after }
+
+/** Auswahl „Anderes Training an diesem Tag“; `after` = danach zurück (z. B. Tagesübersicht wieder öffnen). */
+export function openOther(ctx, date, after = null) {
+  otherDraft = { date, cont: true, after };
+  ctx.openSheet(otherSheet, { guard: () => { const a = otherDraft?.after; otherDraft = null; if (a) setTimeout(a, 0); return true; } });
+}
+
+function otherSheet(state) {
+  const o = otherDraft;
+  if (!o) return null;
+  const p = dayPlan(state, o.date);
+  return `${sheetHead(t('plan.otherTitle'))}
+    <div class="small muted">${esc(longDate(o.date))}</div>
+    <label class="row small" style="gap:8px;align-items:flex-start"><input type="checkbox" data-in="dp-other-cont" ${o.cont ? 'checked' : ''} style="margin-top:3px">
+      <span><b>${esc(t('plan.otherCont'))}</b><br><span class="tiny muted">${esc(t(o.cont ? 'plan.otherContHint' : 'plan.otherOnlyHint'))}</span></span></label>
+    <div class="list">${state.plans.map((x) => `<div class="item"><div class="grow"><div style="font-weight:600">${esc(x.name)}</div><div class="meta">${esc(planMuscles(x).map((m) => t('m.' + m)).join(' · '))}</div></div>
+      ${p.kind === 'train' && p.planId === x.id ? `<span class="tag accent">${esc(t('plan.otherPlanned'))}</span>` : `<button class="btn sm" data-act="dp-other-pick" data-plan="${esc(x.id)}">${esc(t('plan.otherPick'))}</button>`}</div>`).join('')}</div>`;
 }
 
 // ---------- Mehrere Tage eintragen (Ruhetag/krank von–bis) ----------
@@ -278,6 +299,34 @@ export const actions = {
     const d = el.dataset.d;
     ctx.update((s) => { delete s.dayChoice[d]; });
   },
+  'dp-other'(el, ctx) { openOther(ctx, el.dataset.d); },
+  'dp-quick-done'(el, ctx) {
+    const d = el.dataset.d;
+    const p = dayPlan(ctx.state, d);
+    if (p.kind !== 'train' || ctx.state.workouts.some((w) => w.date === d)) return;
+    const id = uid();
+    ctx.update((s) => { s.workouts.push({ id, planId: p.planId, date: d, startedAt: null, finishedAt: null, note: '', exercises: [], quick: true }); });
+    ctx.toast(t('plan.quickDoneToast'), () => ctx.update((s) => { s.workouts = s.workouts.filter((w) => w.id !== id); }));
+  },
+  'dp-other-pick'(el, ctx) {
+    const o = otherDraft;
+    if (!o) return;
+    const planId = el.dataset.plan;
+    const p = dayPlan(ctx.state, o.date);
+    const sp = splitById(ctx.state, p.splitId);
+    const idx = o.cont && sp ? indexOfPlan(sp, planId, p.pos ?? 0) : -1;
+    otherDraft = null;
+    ctx.closeSheet();
+    // Plan danach damit fortsetzen → Neu-Ausrichtung ab diesem Tag; Training nicht im Split oder Häkchen aus → nur dieser Tag
+    if (idx >= 0) ctx.update((s) => restartAt(s, o.date, idx, sp.id));
+    else ctx.update((s) => { s.dayChoice[o.date] = planId; });
+    ctx.toast(t(idx >= 0 ? 'plan.restartedToast' : 'plan.onlyDayToast'));
+    o.after?.();
+  },
+  'dp-unchoose'(el, ctx) {
+    const d = el.dataset.d;
+    ctx.update((s) => { delete s.dayChoice[d]; });
+  },
   'dp-unrestart'(el, ctx) {
     const d = el.dataset.d;
     ctx.update((s) => removeRestart(s, d));
@@ -449,16 +498,7 @@ export const inputs = {
 };
 
 export const changes = {
-  'dp-restart'(el, ctx) {
-    const { d, s: sid } = el.dataset;
-    ctx.update((s) => restartAt(s, d, Number(el.value), sid));
-    ctx.toast(t('plan.restartedToast'));
-  },
-  'dp-choice'(el, ctx) {
-    const d = el.dataset.d;
-    const v = el.value;
-    ctx.update((s) => { if (v) s.dayChoice[d] = v; else delete s.dayChoice[d]; });
-  },
+  'dp-other-cont'(el, ctx) { if (otherDraft) { otherDraft.cont = el.checked; ctx.refreshSheet(); } },
   'se-day'(el, ctx) {
     const i = Number(el.dataset.i);
     const old = splitDraft.split.days[i];

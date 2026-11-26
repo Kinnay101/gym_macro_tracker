@@ -61,6 +61,41 @@ export function sheetHead(title) {
 
 /** Kleine Liniengrafik (SVG). points: [{ x: Zahl, y: Zahl, label }] */
 /** Liniengrafik; `points2` = optionale zweite Linie (z. B. rechte Seite), gleiche x-Werte. */
+/** Runde Schrittweite für Achsen (1, 2, 2.5, 5 × 10ⁿ), so dass etwa `target` Abschnitte entstehen. */
+export function niceStep(span, target = 3) {
+  const raw = span / target;
+  const mag = 10 ** Math.floor(Math.log10(raw));
+  return [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw);
+}
+
+/**
+ * Säulen (z. B. pro Woche): bars = [{ v, label, top? }], v = null → keine Daten. goal = waagrechte Ziel-Linie.
+ * fmt formatiert die Achsenwerte. `top` steht klein über der Säule (z. B. Anzahl Trainings).
+ */
+export function barChart(bars, { height = 150, goal = null, fmt = (v) => num(v) } = {}) {
+  const W = 340; const H = height; const pad = { l: 40, r: 6, t: 14, b: 20 };
+  const vals = bars.map((b) => b.v).filter((v) => v != null);
+  if (!vals.length) return '';
+  const max = Math.max(...vals, goal || 0) || 1;
+  const step = niceStep(max, 3);
+  const y1 = Math.ceil(max / step) * step;
+  const sy = (v) => H - pad.b - (v / y1) * (H - pad.t - pad.b);
+  const slot = (W - pad.l - pad.r) / bars.length;
+  const bw = Math.min(26, slot * 0.6);
+  const ticks = [];
+  for (let v = 0; v <= y1 + step / 1000; v += step) ticks.push(v);
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t('progress.chart'))}">
+    ${ticks.map((v) => `<line class="grid" x1="${pad.l}" x2="${W - pad.r}" y1="${sy(v).toFixed(1)}" y2="${sy(v).toFixed(1)}"/><text x="2" y="${(sy(v) + 3).toFixed(1)}">${esc(fmt(v))}</text>`).join('')}
+    ${bars.map((b, i) => {
+      const cx = pad.l + slot * i + slot / 2;
+      const bar = b.v != null && b.v > 0 ? `<rect class="col${b.dim ? ' dim' : ''}" x="${(cx - bw / 2).toFixed(1)}" y="${sy(b.v).toFixed(1)}" width="${bw.toFixed(1)}" height="${(sy(0) - sy(b.v)).toFixed(1)}" rx="3"/>` : '';
+      const top = b.top != null && b.v != null ? `<text x="${cx.toFixed(1)}" y="${(sy(b.v) - 4).toFixed(1)}" text-anchor="middle">${esc(b.top)}</text>` : '';
+      return `${bar}${top}<text x="${cx.toFixed(1)}" y="${H - 4}" text-anchor="middle">${esc(b.label)}</text>`;
+    }).join('')}
+    ${goal ? `<line class="goal" x1="${pad.l}" x2="${W - pad.r}" y1="${sy(goal).toFixed(1)}" y2="${sy(goal).toFixed(1)}"/>` : ''}
+  </svg>`;
+}
+
 export function lineChart(points, { height = 160, unit = '', points2 = null } = {}) {
   if (points.length < 2) return `<div class="empty">${esc(t('progress.needTwo'))}</div>`;
   const W = 340; const H = height; const pad = { l: 34, r: 8, t: 10, b: 20 };
@@ -68,14 +103,18 @@ export function lineChart(points, { height = 160, unit = '', points2 = null } = 
   const x0 = Math.min(...xs); const x1 = Math.max(...xs);
   let y0 = Math.min(...ys); let y1 = Math.max(...ys);
   if (y1 - y0 < 1) { y0 -= 1; y1 += 1; }
-  const span = y1 - y0; y0 -= span * 0.1; y1 += span * 0.1;
+  // Achse auf runde Werte erweitern (z. B. 55 / 60 statt 53.6 / 58.8, Prüfbericht D9)
+  const step = niceStep(y1 - y0);
+  y0 = Math.floor(y0 / step) * step; y1 = Math.ceil(y1 / step) * step;
+  const dec = Number.isInteger(step) ? 0 : 1;
   const sx = (x) => pad.l + ((x - x0) / (x1 - x0 || 1)) * (W - pad.l - pad.r);
   const sy = (y) => H - pad.b - ((y - y0) / (y1 - y0)) * (H - pad.t - pad.b);
   const path = (pts) => pts.map((p, i) => `${i ? 'L' : 'M'}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join(' ');
   const d = path(points);
-  const ticks = [y0 + (y1 - y0) * 0.15, (y0 + y1) / 2, y1 - (y1 - y0) * 0.15];
+  const ticks = [];
+  for (let v = y0; v <= y1 + step / 1000; v += step) ticks.push(Math.round(v * 1000) / 1000);
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t('progress.chart'))}">
-    ${ticks.map((v) => `<line class="grid" x1="${pad.l}" x2="${W - pad.r}" y1="${sy(v).toFixed(1)}" y2="${sy(v).toFixed(1)}"/><text x="2" y="${(sy(v) + 3).toFixed(1)}">${num(v, 1)}${unit}</text>`).join('')}
+    ${ticks.map((v) => `<line class="grid" x1="${pad.l}" x2="${W - pad.r}" y1="${sy(v).toFixed(1)}" y2="${sy(v).toFixed(1)}"/><text x="2" y="${(sy(v) + 3).toFixed(1)}">${num(v, dec)}${unit}</text>`).join('')}
     <path class="line" d="${d}"/>
     ${points.map((p) => `<circle class="pt" cx="${sx(p.x).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3"/>`).join('')}
     ${points2 ? `<path class="line alt" d="${path(points2)}"/>${points2.map((p) => `<circle class="pt alt" cx="${sx(p.x).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3"/>`).join('')}` : ''}
