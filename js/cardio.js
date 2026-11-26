@@ -2,8 +2,9 @@
 //
 // Quellen: von Hand eingetragen (state.cardio) und von der Uhr (Apple Health / Health Connect, state.healthWorkouts).
 // Dieselbe Einheit zählt nur einmal: gleicher Tag + gleiche Art (z. B. beide „Velo“) → angezeigt werden die Uhr-Werte
-// (genaue Zeit, km, kcal, Puls), der Hand-Eintrag hängt als `manual` daran. Hand-Eintrag „Anderes“ gehört zu einem
-// übrigen Uhr-Workout am gleichen Tag. Verschiedene Arten bleiben getrennt. Krafttrainings der Uhr sind kein Cardio.
+// (genaue Zeit, km, kcal, Puls), der Hand-Eintrag hängt als `manual` daran. Laufen und Laufband gelten als gleiche Art
+// (von Hand „Laufen“, Uhr „Laufband“ = eine Einheit). Hand-Eintrag „Anderes“ gehört zu einem übrigen Uhr-Workout
+// „Anderes“/HIIT am gleichen Tag (nicht zu einem Spaziergang). Sonst bleiben Arten getrennt. Krafttrainings der Uhr sind kein Cardio.
 //
 // Plan: Geplantes Cardio (Split, feste Wochentage, einzelner Tag) gilt als erfüllt, sobald an dem Tag eine gemachte
 // Einheit derselben Art da ist (geplant „Anderes“ → irgendeine). Android: kommt automatisch von der Uhr.
@@ -24,13 +25,15 @@ export function cardioSessions(state, from, to) {
     .map((w) => ({ ...w, source: 'watch', type: w.kind, manual: null }));
   const manual = (state.cardio || []).filter((c) => c.date >= from && c.date <= to);
   const rest = [];
+  const family = (x) => (x === 'treadmill' ? 'run' : x);
   for (const c of manual) {
-    const m = watch.find((w) => !w.manual && w.date === c.date && w.type === c.type);
+    const m = watch.find((w) => !w.manual && w.date === c.date && w.type === c.type)
+      || watch.find((w) => !w.manual && w.date === c.date && family(w.type) === family(c.type));
     if (m) m.manual = c; else rest.push(c);
   }
   const out = [...watch];
   for (const c of rest) {
-    const m = c.type === 'other' ? watch.find((w) => !w.manual && w.date === c.date) : null;
+    const m = c.type === 'other' ? watch.find((w) => !w.manual && w.date === c.date && (w.type === 'other' || w.type === 'hiit')) : null;
     if (m) m.manual = c; else out.push({ ...c, source: 'manual' });
   }
   return out.sort((a, b) => (a.date + (a.start || '')).localeCompare(b.date + (b.start || '')));

@@ -13,6 +13,7 @@ import * as recipeView from './views/recipe.js';
 import * as sync from './sync.js';
 import { THEMES } from './theme.js';
 import { segRects, placeSegs } from './ui.js';
+import { today } from './util.js';
 import './health.js'; // verarbeitet Apple-Health-Daten nach jedem Sync
 
 const ROUTES = {
@@ -396,6 +397,21 @@ store.onChange(render);
 window.addEventListener('hashchange', onHashChange);
 route();
 window.__gmtReady = true; // Start geklappt (js/boot.js lädt sonst einmal neu)
+
+// Tageswechsel: Bleibt die App über Mitternacht offen (oder im Hintergrund), zeigen Heute, Ernährung, Kalender usw.
+// sonst weiter den Vortag. Nicht neu zeichnen, während jemand tippt – dann beim nächsten Versuch.
+let shownDay = today();
+function checkDay() {
+  const d = today();
+  if (d === shownDay) return;
+  const a = document.activeElement;
+  if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+  shownDay = d;
+  render();
+}
+setInterval(checkDay, 30000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkDay(); });
+window.addEventListener('focus', checkDay);
 
 // Konto & Sync: Anzeige im Profil aktuell halten, nach Passwort-Link neues Passwort abfragen
 let recoveryShown = false;

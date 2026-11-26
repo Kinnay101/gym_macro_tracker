@@ -9,7 +9,7 @@
 // Gesynct wird beim Start, kurz nach jeder Änderung, beim Zurückkehren in die App und jede Minute.
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 import * as store from './store.js';
-import { toDocs, applyDoc, fingerprint } from './docs.js';
+import { toDocs, applyDoc, finishDocs, fingerprint, SPLIT_KINDS, DOCS_VERSION } from './docs.js';
 
 const SYNC_KEY = 'gmt-sync-v1';
 const OVERLAP_MS = 2 * 60 * 1000; // beim Herunterladen etwas überlappen (gleichzeitige Schreibvorgänge)
@@ -149,7 +149,10 @@ function check({ data, error }) {
 
 async function pull() {
   const meta = metaFor(user.id);
-  const since = meta.cursor ? new Date(new Date(meta.cursor).getTime() - OVERLAP_MS).toISOString() : null;
+  // Einmalige Umstellung auf einzelne Plan-/Split-Dokumente: alles nochmals holen; die neuen Dokumente, die ein anderes
+  // Gerät schon hochgeladen hat, gelten (dieses Gerät kannte sie bisher nicht und hätte sie sonst überschrieben).
+  const upgrade = meta.initialDone && meta.docsV !== DOCS_VERSION;
+  const since = meta.cursor && !upgrade ? new Date(new Date(meta.cursor).getTime() - OVERLAP_MS).toISOString() : null;
   const rows = [];
   for (let from = 0; ; from += PAGE) {
     let q = client.from('docs').select('key,data,deleted,server_ts').eq('user_id', user.id);
@@ -158,7 +161,8 @@ async function pull() {
     rows.push(...page);
     if (page.length < PAGE) break;
   }
-  if (!rows.length) { if (!meta.initialDone) { meta.initialDone = true; saveMeta(meta); } return; }
+  if (!rows.length) { meta.initialDone = true; meta.docsV = DOCS_VERSION; saveMeta(meta); return; }
+  const initial = !meta.initialDone;
 
   const local = toDocs(store.get());
   const apply = [];
@@ -167,7 +171,8 @@ async function pull() {
     if (!cursor || r.server_ts > cursor) cursor = r.server_ts;
     const has = local.has(r.key);
     const localFp = has ? fingerprint(local.get(r.key)) : null;
-    const dirty = meta.initialDone && (localFp !== (meta.synced[r.key] ?? null));
+    const fresh = upgrade && SPLIT_KINDS.has(r.key.split(':')[0]) && !(r.key in meta.synced);
+    const dirty = meta.initialDone && !fresh && (localFp !== (meta.synced[r.key] ?? null));
     if (dirty) continue; // lokale Änderung gewinnt, wird gleich hochgeladen
     // Unverändert (z. B. eigene, gerade hochgeladene Daten) → nichts anwenden. Sonst würde die Seite bei jedem
     // Abgleich neu gezeichnet und am iPhone klappt die Tastatur beim Tippen immer wieder zu.
@@ -178,7 +183,7 @@ async function pull() {
   if (apply.length) {
     applying = true;
     try {
-      store.update((s) => { for (const r of apply) applyDoc(s, r.key, r.deleted ? undefined : r.data); });
+      store.update((s) => { for (const r of apply) applyDoc(s, r.key, r.deleted ? undefined : r.data); finishDocs(s, { initial }); });
     } finally {
       applying = false;
     }
@@ -190,6 +195,7 @@ async function pull() {
   }
   meta.cursor = cursor;
   meta.initialDone = true;
+  meta.docsV = DOCS_VERSION;
   saveMeta(meta);
 }
 

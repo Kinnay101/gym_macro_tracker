@@ -17,7 +17,7 @@
 //    dedupSamples() die Überschneidung heraus wie Apple Health: Uhr bevorzugt, iPhone nur für Zeiten ohne Uhr.)
 //   T;Start;Ende;Name[;kcal[;km[;Puls]]]   Workout (Kurzbefehle kann Workouts derzeit nicht lesen – für später)
 //   P;Start;Ende;Phase         Schlaf (Kern/Tief/REM/Wach/Im Bett/Schlafend)
-import { dayKey, parseNum, round, addDays, today } from './util.js';
+import { dayKey, parseNum, round, today } from './util.js';
 import * as sync from './sync.js';
 import * as store from './store.js';
 import { dayPlan } from './plan.js';
@@ -146,7 +146,8 @@ export function parseHealth(text) {
     } else if (kind === 'T') {
       const s = parseDate(parts[1]); const e = parseDate(parts[2]);
       if (!s || !e || e <= s) { out.unknown++; continue; }
-      const id = minuteKey(s);
+      let id = minuteKey(s);
+      if (out.workouts[id]) id += ':' + String(s.getSeconds()).padStart(2, '0'); // zwei Workouts in derselben Minute
       const kcal = parseNum(parts[4]); const km = parseNum(parts[5]); const hr = parseNum(parts[6]);
       out.workouts[id] = {
         id, date: dayKey(s), start: id, minutes: Math.round((e - s) / 60000), name: parts[3] || '', kind: workoutKind(parts[3]),
@@ -245,6 +246,15 @@ export function applyHealth(state, p) {
   for (const [d, v] of Object.entries(p.distance)) day(d).distanceKm = v;
   // „linked“ (schon als Training übernommen bzw. bewusst gelöscht) beim erneuten Einlesen behalten
   for (const w of Object.values(p.workouts)) { const old = state.healthWorkouts[w.id]; state.healthWorkouts[w.id] = old?.linked ? { ...w, linked: old.linked } : w; }
+  // Health Connect liefert alle Workouts ab `workoutsFrom` → dort gelöschte auch hier entfernen; ein daraus entstandenes
+  // Training „von der Uhr“ ohne nachgetragene Übungen fällt mit weg
+  if (p.workoutsFrom) {
+    for (const [id, w] of Object.entries(state.healthWorkouts)) {
+      if (w.source !== 'hc' || !w.date || w.date < p.workoutsFrom || p.workouts[id]) continue;
+      if (w.linked && w.linked !== 'app') state.workouts = state.workouts.filter((x) => !(x.id === w.linked && x.source === 'watch' && !x.exercises.length));
+      delete state.healthWorkouts[id];
+    }
+  }
   // Nacht nur ersetzen, wenn die neue nicht kürzer ist (spät abends abgeglichen → Lieferung beginnt mitten in der Nacht) (K8)
   for (const [d, n] of Object.entries(sleepNights(p.sleepSamples))) {
     const old = state.healthSleep[d];
@@ -292,10 +302,6 @@ export function processInbox() {
 }
 
 // ---------- Auswertungen für die Anzeige ----------
-export function lastNight(state) {
-  const nights = Object.values(state.healthSleep || {}).sort((a, b) => b.date.localeCompare(a.date));
-  return nights.find((n) => n.date >= addDays(today(), -1)) || null;
-}
 
 /** Health-Workouts im Zeitraum. Krafttraining der Watch nur, wenn an dem Tag kein Training in der App erfasst ist. */
 export function healthWorkoutsBetween(state, from, to) {

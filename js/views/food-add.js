@@ -3,7 +3,7 @@
 import { esc, num, today, uid, icon, I, parseNum, addDays } from '../util.js';
 import { t, shortDate } from '../i18n.js';
 import { MEALS, forGrams, NUTRIENTS, validGrams, per100Error, MAX_GRAMS } from '../nutrition.js';
-import { foodName, loadBlv, blvLoaded, searchLocal, searchOff, lookupBarcode, validBarcode } from '../foods.js';
+import { foodName, loadBlv, blvLoaded, searchLocal, searchOff, lookupBarcode, validBarcode, unitLabel, countText, unitCount } from '../foods.js';
 import { openScanner } from '../scanner.js';
 import { recipeFood, portionsLabel } from '../recipes.js';
 import * as browser from './recipeBrowser.js';
@@ -15,6 +15,7 @@ let online = { q: '', status: 'idle', list: [] }; // Open-Food-Facts-Suche
 let shown = new Map(); // id → Lebensmittel, das gerade angezeigt wird
 let picked = null; // Lebensmittel im Portions-Sheet
 let pickedGrams = 100;
+let pickedUnit = null; // zuletzt angetippte Einheit (Stück, Scheibe …) – wird am Eintrag gespeichert, wenn die Menge passt
 let scan = null; // { status: 'loading' | 'notfound' | 'error', code, name }
 let newFoodPrefill = {};
 
@@ -167,11 +168,16 @@ function portionSheet(state, ctx) {
   const n = forGrams(picked.per100, pickedGrams || 0);
   const portion = picked.portion || 100;
   const inRecipe = recipeMode(ctx.params);
+  const units = picked.units || [];
+  // Portionen aus data/portions.json: erste Einheit mit ½/1/2/3 (½ nur bei grossen Stücken/Scheiben), weitere je 1×
+  const unitChips = units.flatMap((x, i) => (i ? [1] : x.g >= 40 && (x.u === 'piece' || x.u === 'slice') ? [0.5, 1, 2, 3] : [1, 2, 3])
+    .map((k) => { const g = Math.round(k * x.g); return `<button class="chip" data-act="grams" data-v="${g}" data-u="${esc(x.u)}" aria-pressed="${pickedUnit === x.u && g === pickedGrams}">${esc(countText(k))} ${esc(unitLabel(x.u, k))} · ${num(g)} g</button>`; })).join('');
   const chips = picked.source === 'recipe'
     ? [0.5, 1, 1.5, 2].map((k) => `<button class="chip" data-act="grams" data-v="${Math.round(k * portion)}" aria-pressed="${Math.round(k * portion) === pickedGrams}">${esc(portionsLabel(k))}</button>`).join('')
-    : [...new Set([portion, 50, 100, 150, 200])].sort((a, b) => a - b).map((g) => `<button class="chip" data-act="grams" data-v="${g}" aria-pressed="${g === pickedGrams}">${num(g)} g${g === portion && portion !== 100 ? ' · ' + esc(t('food.portionShort')) : ''}</button>`).join('');
+    : [...new Set(units.length ? [50, 100, 150, 200] : [portion, 50, 100, 150, 200])].sort((a, b) => a - b).map((g) => `<button class="chip" data-act="grams" data-v="${g}" aria-pressed="${!pickedUnit && g === pickedGrams}">${num(g)} g${g === portion && portion !== 100 && !units.length ? ' · ' + esc(t('food.portionShort')) : ''}</button>`).join('');
   return `${sheetHead(foodName(picked))}
     <div class="small muted">${picked.brand ? esc(picked.brand) + ' · ' : ''}${inRecipe ? '' : esc(t('meal.' + mealOf(ctx.params))) + ' · '}${esc(t('src.' + picked.source))}${picked.source === 'recipe' ? ' · ' + esc(t('recipe.portionIs', { g: num(portion) })) : ''}</div>
+    ${unitChips ? `<div class="chips">${unitChips}</div><div class="tiny muted">${esc(t('food.unitsHint'))}</div>` : ''}
     <div class="chips">${chips}</div>
     <label class="field">${esc(t('food.amount'))}<input class="input" inputmode="decimal" data-in="grams" value="${esc(pickedGrams)}" autofocus></label>
     <div class="grid2" id="portion-n">${portionNutrients(state, n)}</div>
@@ -238,6 +244,7 @@ const val = (id) => parseNum(document.getElementById(id)?.value);
 function openPortion(ctx, food) {
   picked = food;
   pickedGrams = food.portion || 100;
+  pickedUnit = food.units?.[0]?.u || null;
   ctx.openSheet(portionSheet);
 }
 
@@ -252,7 +259,7 @@ export const actions = {
     const f = findFood(ctx.state, el.dataset.id);
     if (f) openPortion(ctx, f);
   },
-  grams(el, ctx) { pickedGrams = Number(el.dataset.v); ctx.refreshSheet(); },
+  grams(el, ctx) { pickedGrams = Number(el.dataset.v); pickedUnit = el.dataset.u || null; ctx.refreshSheet(); },
   add(el, ctx) {
     if (!picked || !validGrams(pickedGrams)) return;
     if (recipeMode(ctx.params)) {
@@ -276,7 +283,10 @@ export const actions = {
       addEntry(ctx, { foodId: picked.id, name: picked.name, grams: pickedGrams, portions, per100: picked.per100, n: forGrams(picked.per100, pickedGrams) }, picked);
       return;
     }
-    addEntry(ctx, { foodId: picked.id, name: foodName(picked), grams: pickedGrams, per100: picked.per100, n: forGrams(picked.per100, pickedGrams) }, picked);
+    // Einheit merken („2 Scheiben“ im Tagebuch), wenn die Menge dazu passt: angetippte zuerst, sonst die erste passende
+    const units = picked.units || [];
+    const unit = units.find((x) => x.u === pickedUnit && unitCount(pickedGrams, x.g)) || units.find((x) => unitCount(pickedGrams, x.g) && Number.isInteger(unitCount(pickedGrams, x.g) * 2));
+    addEntry(ctx, { foodId: picked.id, name: foodName(picked), grams: pickedGrams, ...(unit ? { unit: { u: unit.u, g: unit.g } } : {}), per100: picked.per100, n: forGrams(picked.per100, pickedGrams) }, picked);
   },
   async 'search-online'(el, ctx) {
     const q = query.trim();

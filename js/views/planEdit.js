@@ -2,7 +2,7 @@
 // Trainings-Editor (Übungen) und fester Cardio-Plan (Wochentage). Wird von Heute, Training und Fortschritt benutzt.
 import { esc, num, today, addDays, icon, I, parseNum, uid, daysBetween } from '../util.js';
 import { t, weekdayShort, longDate } from '../i18n.js';
-import { dayPlan, activeSplit, cyclePos, planShort, newPlan, newSplit, planMuscles, MUSCLES, CARDIO_TYPES, splitById, restartAt, removeRestart, markDay, unmarkDay, markRange, indexOfPlan } from '../plan.js';
+import { dayPlan, activeSplit, cyclePos, planShort, newPlan, newSplit, planMuscles, MUSCLES, CARDIO_TYPES, splitById, restartAt, removeRestart, markDay, unmarkDay, markRange, indexOfPlan, liveSplits, livePlans, editableFrom, reviseSplit, deleteSplit, deletePlan, addWeekly, updateWeekly, removeWeekly, currentWeekly } from '../plan.js';
 import { sheetHead, seg } from '../ui.js';
 import { splitName } from './today.js';
 import { plannedCardioList } from './cardioEdit.js';
@@ -101,7 +101,7 @@ function otherSheet(state) {
     <div class="small muted">${esc(longDate(o.date))}</div>
     <label class="row small" style="gap:8px;align-items:flex-start"><input type="checkbox" data-in="dp-other-cont" ${o.cont ? 'checked' : ''} style="margin-top:3px">
       <span><b>${esc(t('plan.otherCont'))}</b><br><span class="tiny muted">${esc(t(o.cont ? 'plan.otherContHint' : 'plan.otherOnlyHint'))}</span></span></label>
-    <div class="list">${state.plans.map((x) => `<div class="item"><div class="grow"><div style="font-weight:600">${esc(x.name)}</div><div class="meta">${esc(planMuscles(x).map((m) => t('m.' + m)).join(' · '))}</div></div>
+    <div class="list">${livePlans(state).map((x) => `<div class="item"><div class="grow"><div style="font-weight:600">${esc(x.name)}</div><div class="meta">${esc(planMuscles(x).map((m) => t('m.' + m)).join(' · '))}</div></div>
       ${p.kind === 'train' && p.planId === x.id ? `<span class="tag accent">${esc(t('plan.otherPlanned'))}</span>` : `<button class="btn sm" data-act="dp-other-pick" data-plan="${esc(x.id)}">${esc(t('plan.otherPick'))}</button>`}</div>`).join('')}</div>`;
 }
 
@@ -141,7 +141,7 @@ function splitSheet(state) {
   const trainN = sp.days.filter((x) => x.kind === 'train').length;
   const rows = sp.days.map((day, i) => {
     const sel = `<select class="input grow" data-in="se-day" data-i="${i}">${opt('rest', t('plan.rest'), day.kind === 'rest')}
-      ${state.plans.map((x) => opt(x.id, x.name, day.kind === 'train' && day.planId === x.id)).join('')}</select>`;
+      ${livePlans(state).map((x) => opt(x.id, x.name, day.kind === 'train' && day.planId === x.id)).join('')}</select>`;
     const cardio = day.cardio
       ? `<div class="row" style="gap:6px;padding-left:34px"><span class="tiny muted">${icon(I.run)}</span>
           <select class="input grow" data-in="se-ctype" data-i="${i}">${CARDIO_TYPES.map((c) => opt(c, t('cardio.' + c), day.cardio.type === c)).join('')}</select>
@@ -156,15 +156,16 @@ function splitSheet(state) {
       ${cardio}</div>`;
   }).join('');
   const startSel = `<select class="input" data-in="se-start">${sp.days.map((day, i) => opt(String(i), `${i + 1}. ${day.kind === 'train' ? state.plans.find((x) => x.id === day.planId)?.name || '?' : t('plan.rest')}`, i === d.startIdx)).join('')}</select>`;
+  const fromTomorrow = editableFrom(state) > today();
   return `${sheetHead(d.isNew ? t('split.new') : t('split.edit'))}
     <label class="field">${esc(t('split.name'))}<input class="input" data-in="se-name" value="${esc(sp.name ?? splitName(sp))}" maxlength="40"></label>
-    <div class="tiny muted">${esc(t('split.hint'))}</div>
+    <div class="tiny muted">${esc(t('split.hint'))} ${esc(t(fromTomorrow ? 'split.fromTomorrow' : 'split.fromToday'))}</div>
     <div class="small" style="font-weight:600">${esc(t('split.days'))} · ${esc(t('split.cycle', { n: sp.days.length, t: trainN }))}</div>
     <div class="stack" style="gap:0">${rows}</div>
     <div class="grid2"><button class="btn sm" data-act="se-add" data-v="train">${icon(I.plus)} ${esc(t('split.addTrain'))}</button>
       <button class="btn sm" data-act="se-add" data-v="rest">${icon(I.plus)} ${esc(t('split.addRest'))}</button></div>
     <label class="field">${esc(isActive ? t('split.todayIs') : t('split.startWith'))}${startSel}</label>
-    ${!d.isNew && state.training.splits.length > 1 ? `<button class="btn danger" data-act="se-delete">${icon(I.trash)} ${esc(t('split.delete'))}</button>` : ''}
+    ${!d.isNew && liveSplits(state).length > 1 ? `<button class="btn danger" data-act="se-delete">${icon(I.trash)} ${esc(t('split.delete'))}</button>` : ''}
     <div class="sheet-actions"><div class="small" id="se-err" style="color:var(--bad)"></div>
       <button class="btn primary block" data-act="se-save" data-v="${isActive ? 'keep' : 'save'}">${esc(t('common.save'))}</button>
       ${isActive ? '' : `<button class="btn block" data-act="se-save" data-v="use">${esc(t('split.use'))}</button>`}</div>`;
@@ -210,7 +211,7 @@ function planSheet(state) {
     <datalist id="ex-names">${names.map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
     <div class="stack" style="gap:0">${rows || `<div class="small muted">${esc(t('plan.noEx'))}</div>`}</div>
     <button class="btn sm" data-act="pe-add">${icon(I.plus)} ${esc(t('plan.addEx'))}</button>
-    ${!d.isNew && state.plans.length > 1 ? `<button class="btn danger" data-act="pe-delete">${icon(I.trash)} ${esc(t('plan.delete'))}</button>` : ''}
+    ${!d.isNew && livePlans(state).length > 1 ? `<button class="btn danger" data-act="pe-delete">${icon(I.trash)} ${esc(t('plan.delete'))}</button>` : ''}
     <div class="sheet-actions"><div class="small" id="pe-err" style="color:var(--bad)"></div>
       <button class="btn primary block" data-act="pe-save">${esc(t('common.save'))}</button></div>`;
 }
@@ -225,21 +226,21 @@ export function openPlan(ctx, id) {
 
 // ---------- Fester Cardio-Plan (Wochentage) ----------
 function cardioPlanSheet(state) {
-  const list = state.training.weeklyCardio || [];
+  const list = currentWeekly(state);
   const rows = list.map((w) => `<div class="row" style="gap:6px">
       <select class="input" data-in="cw" data-f="weekday" data-id="${esc(w.id)}" style="width:72px">${[0, 1, 2, 3, 4, 5, 6].map((i) => opt(String(i), weekdayName(i), w.weekday === i)).join('')}</select>
       <select class="input grow" data-in="cw" data-f="type" data-id="${esc(w.id)}">${CARDIO_TYPES.map((c) => opt(c, t('cardio.' + c), w.type === c)).join('')}</select>
       <input class="input" inputmode="numeric" style="width:64px" data-in="cw" data-f="minutes" data-id="${esc(w.id)}" value="${esc(w.minutes ?? '')}" aria-label="min"><span class="small muted">min</span>
       <button class="icon-btn" data-act="cw-del" data-id="${esc(w.id)}" aria-label="${esc(t('common.delete'))}">${icon(I.trash)}</button></div>`).join('');
   return `${sheetHead(t('cardio.plan'))}
-    <div class="tiny muted">${esc(t('cardio.planHint'))}</div>
+    <div class="tiny muted">${esc(t('cardio.planHint'))} ${esc(t(editableFrom(state) > today() ? 'split.fromTomorrow' : 'split.fromToday'))}</div>
     <div class="stack" style="gap:8px">${rows || `<div class="small muted">${esc(t('cardio.planNone'))}</div>`}</div>
     <button class="btn sm" data-act="cw-add">${icon(I.plus)} ${esc(t('cardio.planAdd'))}</button>`;
 }
 
 /** Kurzfassung für die Trainingsseite. */
 export function cardioPlanSummary(state) {
-  const list = [...(state.training?.weeklyCardio || [])].sort((a, b) => a.weekday - b.weekday);
+  const list = [...currentWeekly(state)].sort((a, b) => a.weekday - b.weekday);
   return list.map((w) => `${weekdayName(w.weekday)} ${t('cardio.' + w.type)} ${num(w.minutes)} min`).join(' · ');
 }
 
@@ -290,15 +291,6 @@ export const actions = {
     ctx.closeSheet();
     ctx.toast(t('plan.rangeDone', { n }));
   },
-  'dp-rest'(el, ctx) {
-    const d = el.dataset.d;
-    ctx.update((s) => { s.dayChoice[d] = 'rest'; });
-    ctx.toast(t('plan.restSkipToast'));
-  },
-  'dp-unrest'(el, ctx) {
-    const d = el.dataset.d;
-    ctx.update((s) => { delete s.dayChoice[d]; });
-  },
   'dp-other'(el, ctx) { openOther(ctx, el.dataset.d); },
   'dp-quick-done'(el, ctx) {
     const d = el.dataset.d;
@@ -331,10 +323,6 @@ export const actions = {
     const d = el.dataset.d;
     ctx.update((s) => removeRestart(s, d));
   },
-  'dp-unshift'(el, ctx) {
-    const d = el.dataset.d;
-    updTraining(ctx, (tr) => { tr.shifts = (tr.shifts || []).filter((x) => x !== d); });
-  },
   'dp-cardio-add'(el, ctx) {
     const d = el.dataset.d;
     const type = document.getElementById('dp-ctype')?.value || 'run';
@@ -355,7 +343,7 @@ export const actions = {
   'split-new'(el, ctx) { openSplit(ctx, null); },
   'se-add'(el, ctx) {
     const kind = el.dataset.v;
-    splitDraft.split.days.push(kind === 'train' ? { kind: 'train', planId: ctx.state.plans[0]?.id } : { kind: 'rest' });
+    splitDraft.split.days.push(kind === 'train' ? { kind: 'train', planId: livePlans(ctx.state)[0]?.id } : { kind: 'rest' });
     ctx.refreshSheet();
   },
   'se-del'(el, ctx) {
@@ -389,18 +377,18 @@ export const actions = {
     const now = today();
     const sp = { ...d.split, name: (d.split.name || '').trim() || null };
     if (sp.name && (sp.id === 'full' || sp.id === 'light') && sp.name === t('rhythm.' + sp.id)) sp.name = null;
-    updTraining(ctx, (tr) => {
-      const i = tr.splits.findIndex((x) => x.id === sp.id);
-      if (i >= 0) tr.splits[i] = sp; else tr.splits.push(sp);
-    });
-    // Ab heute neu ausrichten (heute = gewählter Tag, frühere Tage bleiben) – beim aktiven Split nur, wenn sich die Tage
-    // oder „Heute ist Tag“ geändert haben. Sonst blieben z. B. eine Verschiebung oder Tagesänderung von heute nicht
-    // erhalten, nur weil man den Namen oder Cardio geändert hat (Prüfbericht K2).
+    // Ab heute neu ausrichten (heute = gewählter Tag; frühere Tage behalten die alte Fassung) – beim aktiven Split nur, wenn
+    // sich die Tage oder „Heute ist Tag“ geändert haben. Sonst blieben z. B. eine Verschiebung oder Tagesänderung von heute
+    // nicht erhalten, nur weil man den Namen oder Cardio geändert hat (Prüfbericht K2). Heute schon trainiert → ab morgen
+    // (morgen = Tag nach „Heute ist Tag“).
     const [initSplit, initIdx] = JSON.parse(d.initial);
     const changed = JSON.stringify(sp.days.map(({ kind, planId }) => [kind, planId])) !== JSON.stringify(initSplit.days.map(({ kind, planId }) => [kind, planId])) || d.startIdx !== initIdx;
-    if (mode === 'use' || (mode === 'keep' && changed)) {
-      ctx.update((s) => restartAt(s, now, Math.min(d.startIdx, sp.days.length - 1), sp.id));
-    }
+    const restart = mode === 'use' || (mode === 'keep' && changed);
+    ctx.update((s) => {
+      const fromTomorrow = editableFrom(s, now) > now;
+      const idx = Math.min(d.startIdx, sp.days.length - 1);
+      reviseSplit(s, sp, { restartIdx: restart ? (fromTomorrow && mode === 'keep' ? (idx + 1) % sp.days.length : idx) : null });
+    });
     splitDraft = null;
     ctx.closeSheet();
     ctx.toast(t('split.saved'));
@@ -408,18 +396,9 @@ export const actions = {
   async 'se-delete'(el, ctx) {
     const id = splitDraft.split.id;
     if (!(await ctx.confirm(t('split.deleteConfirm', { name: splitName(splitDraft.split) || '?' }), t('common.delete')))) return;
-    ctx.update((s) => {
-      const tr = s.training;
-      const wasActive = tr.activeSplit === id;
-      tr.anchor.splitId ||= tr.activeSplit;
-      tr.splits = tr.splits.filter((x) => x.id !== id);
-      if (wasActive) restartAt(s, today(), 0, tr.splits[0].id);
-    });
+    ctx.update((s) => deleteSplit(s, id));
     splitDraft = null;
     ctx.closeSheet();
-  },
-  'split-use'(el, ctx) {
-    openSplit(ctx, el.dataset.id);
   },
 
   // Trainings-Editor
@@ -459,12 +438,8 @@ export const actions = {
   async 'pe-delete'(el, ctx) {
     const id = planDraft.plan.id;
     if (!(await ctx.confirm(t('plan.deleteConfirm', { name: planDraft.plan.name }), t('common.delete')))) return;
-    ctx.update((s) => {
-      s.plans = s.plans.filter((x) => x.id !== id);
-      // In Splits wird der Tag zum Ruhetag, geänderte Tage mit diesem Training gehen zurück zum Split
-      for (const sp of s.training.splits) sp.days = sp.days.map((d) => (d.kind === 'train' && d.planId === id ? { kind: 'rest', ...(d.cardio ? { cardio: d.cardio } : {}) } : d));
-      for (const [k, v] of Object.entries(s.dayChoice)) if (v === id) delete s.dayChoice[k];
-    });
+    // Bleibt archiviert (Verlauf, frühere Kalendertage); in den Splits ab heute/morgen Ruhetag
+    ctx.update((s) => deletePlan(s, id));
     planDraft = null;
     ctx.closeSheet();
   },
@@ -472,10 +447,10 @@ export const actions = {
   // Cardio-Plan
   'cardio-plan'(el, ctx) { ctx.openSheet(cardioPlanSheet); },
   'cw-add'(el, ctx) {
-    updTraining(ctx, (tr) => { (tr.weeklyCardio ||= []).push({ id: uid(), weekday: 2, type: 'run', minutes: 30 }); });
+    ctx.update((s) => addWeekly(s, { weekday: 2, type: 'run', minutes: 30 }));
   },
   'cw-del'(el, ctx) {
-    updTraining(ctx, (tr) => { tr.weeklyCardio = (tr.weeklyCardio || []).filter((w) => w.id !== el.dataset.id); });
+    ctx.update((s) => removeWeekly(s, el.dataset.id));
   },
 };
 
@@ -525,10 +500,7 @@ export const changes = {
       el.value = (ctx.state.training.weeklyCardio || []).find((x) => x.id === id)?.minutes ?? ''; // alten Wert zeigen
       return;
     }
-    updTraining(ctx, (tr) => {
-      const w = (tr.weeklyCardio || []).find((x) => x.id === id);
-      if (w) w[f] = f === 'type' ? v : Math.round(v);
-    });
+    ctx.update((s) => updateWeekly(s, id, { [f]: f === 'type' ? v : Math.round(v) }));
   },
 };
 
@@ -536,7 +508,7 @@ export const changes = {
 export function manageCards(state) {
   const tr = state.training;
   const plans = Object.fromEntries(state.plans.map((p) => [p.id, p]));
-  const splits = tr.splits.map((sp) => {
+  const splits = liveSplits(state).map((sp) => {
     const active = sp.id === tr.activeSplit;
     const seq = sp.days.map((d) => (d.kind === 'train' ? planShort(plans[d.planId]) || '?' : '–') + (d.cardio ? '+C' : '')).join(' · ');
     // Nur der Stift öffnet den Editor (Zeile selbst ist nicht antippbar)
@@ -545,7 +517,7 @@ export function manageCards(state) {
         <div class="meta ellipsis">${esc(seq)}</div></div>
       <button class="icon-btn" data-act="split-edit" data-id="${esc(sp.id)}" aria-label="${esc(t('split.edit'))}">${icon(I.edit)}</button></div>`;
   }).join('');
-  const planRows = state.plans.map((p) => `<div class="item"><div class="grow" style="min-width:0">
+  const planRows = livePlans(state).map((p) => `<div class="item"><div class="grow" style="min-width:0">
       <div style="font-weight:600">${esc(p.name)} <span class="tag">${esc(planShort(p))}</span></div>
       <div class="meta">${esc(planMuscles(p).map((m) => t('m.' + m)).join(' · '))} · ${esc(t('training.exCount', { n: p.ex.length }))}</div></div>
       <button class="icon-btn" data-act="plan-edit" data-id="${esc(p.id)}" aria-label="${esc(t('plan.editTitle'))}">${icon(I.edit)}</button></div>`).join('');

@@ -34,7 +34,7 @@ function blankRaw() {
     workouts: [], // abgeschlossene Trainings
     cardio: [], // { id, date, type, minutes, km, after }
     dayChoice: {}, // { 'JJJJ-MM-TT': 'rest' | planId } – Tag im Plan geändert
-    // Splits & Kalender-Planung (siehe js/plan.js): { splits, activeSplit, anchor: { date, index }, shifts: [Datum], weeklyCardio: [{ id, weekday, type, minutes }] }
+    // Splits & Kalender-Planung (siehe js/plan.js): { splits (auch archivierte Fassungen), activeSplit, anchor: { date, index, splitId }, shifts: [Datum], restarts, weeklyCardio: [{ id, weekday, type, minutes, from?, until? }] }
     training: null,
     plannedCardio: {}, // { 'JJJJ-MM-TT': [{ id, type, minutes }] } – Cardio für einen bestimmten Tag geplant
     sickDays: {}, // { 'JJJJ-MM-TT': 'shift' | 'skip' } – krank (Plan rückt nach bzw. Training fällt weg)

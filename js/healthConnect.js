@@ -71,8 +71,9 @@ const finite = (v) => typeof v === 'number' && Number.isFinite(v);
  *   sleep:    [{ start, end, stages: [{ start, end, stage }] }],
  * }
  */
-export function fromHealthConnect(d = {}) {
-  const out = { weights: {}, bodyFat: {}, steps: {}, active: {}, exercise: {}, distance: {}, workouts: {}, sleepSamples: [], unknown: 0, hasExercise: false, exerciseBad: false };
+export function fromHealthConnect(d = {}, { workoutsFrom = null } = {}) {
+  // workoutsFrom: ab diesem Tag sind alle Workouts geliefert → in Health Connect gelöschte fallen auch in der App weg
+  const out = { weights: {}, bodyFat: {}, steps: {}, active: {}, exercise: {}, distance: {}, workouts: {}, sleepSamples: [], unknown: 0, hasExercise: false, exerciseBad: false, workoutsFrom };
   const latest = (map, time, v) => {
     const at = date(time);
     if (!at || !finite(v)) { out.unknown++; return; }
@@ -94,7 +95,8 @@ export function fromHealthConnect(d = {}) {
   for (const x of d.exercise || []) {
     const s = date(x.start); const e = date(x.end);
     if (!s || !e || e <= s || e - s > 24 * 3600000) { out.unknown++; continue; }
-    const id = minuteKey(s);
+    let id = minuteKey(s);
+    if (out.workouts[id]) id += ':' + String(s.getSeconds()).padStart(2, '0'); // zwei Workouts in derselben Minute
     const minutes = Math.round((e - s) / 60000);
     const type = String(x.type || '').replace(/_/g, ' ');
     out.workouts[id] = {
@@ -139,7 +141,7 @@ export function nutritionRecords(state, from, to) {
       const latest = Date.now() - 16 * 60000;
       const start = new Date(Math.min(new Date(y, mo - 1, da, h, min).getTime(), latest));
       upsert.push({
-        id, date: k, mealType: MEAL_HC[m], name: list.map((e) => e.name).join(', ').slice(0, 200),
+        id, date: k, mealType: MEAL_HC[m], name: list.map((e) => e.name).join(' · ').slice(0, 200),
         start: start.toISOString(), end: new Date(start.getTime() + 15 * 60000).toISOString(),
         kcal: round(n.kcal, 0), proteinG: round(n.p, 1), carbsG: round(n.c, 1), fatG: round(n.f, 1),
         fiberG: round(n.fiber, 1), sugarG: round(n.sugar, 1), sodiumG: round(n.salt / 2.5, 3), // Salz → Natrium
@@ -195,7 +197,7 @@ export function syncNow() {
     const from = last ? addDays(last.slice(0, 10), -2) : addDays(today(), -30); // ohne Zusatzrecht liefert Health Connect max. 30 Tage
     const res = await call('read', { from: new Date(from + 'T00:00:00').toISOString(), to: new Date().toISOString() });
     store.update((s) => {
-      applyHealth(s, fromHealthConnect(res));
+      applyHealth(s, fromHealthConnect(res, { workoutsFrom: granted.includes('read_exercise') && Array.isArray(res?.exercise) ? from : null }));
       s.healthConnect = { ...(s.healthConnect || {}), lastRead: new Date().toISOString() };
     });
     return { written: await pushNutrition() };

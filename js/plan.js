@@ -8,6 +8,12 @@
 // von dieser Position weiter – frühere Tage bleiben, wie sie waren (z. B. Push 1 ausgelassen → ab heute Pull 1).
 // Einzelne Tage lassen sich ändern (dayChoice: 'rest' oder Training), Cardio kommt aus dem Split,
 // aus festen Wochentagen (weeklyCardio) oder ist für einen Tag eingetragen (plannedCardio).
+//
+// Vergangenes bleibt, wie es war: Split, Trainings und Cardio-Plan ändern wirken erst ab `editableFrom` (heute, bzw.
+// morgen, wenn heute schon trainiert wurde). Dafür bekommt ein geänderter Split, der schon benutzt wurde, eine
+// archivierte Kopie (archived: true, of: Original-ID), auf die frühere Neustarts zeigen; gelöschte Trainings bleiben
+// archiviert (für Kalender und Verlauf); feste Cardio-Wochentage haben from/until. Vergangene Tage ändert man nur noch
+// in der Tagesübersicht (Kalender).
 import { addDays, parseKey, daysBetween, today, uid } from './util.js';
 
 const V = (name, target = null, note = null) => ({ name, target, note });
@@ -196,8 +202,20 @@ export function ensureTraining(state, now = today()) {
 
 export function activeSplit(state) {
   const tr = state.training;
-  return tr?.splits?.find((s) => s.id === tr.activeSplit) || tr?.splits?.[0] || null;
+  return tr?.splits?.find((s) => s.id === tr.activeSplit) || liveSplits(state)[0] || tr?.splits?.[0] || null;
 }
+
+/** Splits und Trainings zum Anzeigen/Auswählen (ohne archivierte Fassungen). */
+export function liveSplits(state) { return (state.training?.splits || []).filter((s) => !s.archived); }
+export function livePlans(state) { return (state.plans || []).filter((p) => !p.archived); }
+
+/** Erster Tag, den Änderungen an Split/Trainings/Cardio-Plan betreffen: heute, oder morgen, wenn heute schon trainiert wurde. */
+export function editableFrom(state, now = today()) {
+  return (state.workouts || []).some((w) => w.date === now) ? addDays(now, 1) : now;
+}
+
+/** Fester Cardio-Wochentag gilt an diesem Tag (from/until: ab wann bzw. bis vor welchem Tag). */
+export function weeklyActive(w, date) { return (!w.from || w.from <= date) && (!w.until || date < w.until); }
 
 export function splitById(state, id) {
   return state.training?.splits?.find((s) => s.id === id) || activeSplit(state);
@@ -240,7 +258,101 @@ export function restartAt(state, date, index, splitId) {
   tr.restarts = [...(tr.restarts || []).filter((r) => r.date !== date), { date, index, splitId: sid }].sort((a, b) => a.date.localeCompare(b.date));
   tr.shifts = (tr.shifts || []).filter((s) => s !== date);
   delete state.dayChoice[date];
-  if (date <= today()) tr.activeSplit = sid;
+  if (date <= editableFrom(state)) tr.activeSplit = sid;
+}
+
+/** Wurde der Split vor diesem Tag schon benutzt (Anker oder Neustart davor zeigt auf ihn)? */
+function usedBefore(state, id, date) {
+  const tr = state.training;
+  return (tr.anchor.date < date && (tr.anchor.splitId || tr.activeSplit) === id) || (tr.restarts || []).some((r) => r.date < date && r.splitId === id);
+}
+
+/**
+ * Split speichern, ohne frühere Tage zu ändern. Wurde er schon benutzt und ändern sich die Tage (Reihenfolge, Trainings,
+ * Cardio), zeigen frühere Tage auf eine archivierte Kopie der alten Fassung; gilt er gerade, geht er ab `editableFrom`
+ * an derselben Stelle weiter (Verschiebung/Tagesänderung an dem Tag bleibt). `restartIdx` = „Heute ist Tag“ bzw. Start.
+ */
+export function reviseSplit(state, next, { restartIdx = null } = {}) {
+  const tr = state.training;
+  const cut = editableFrom(state);
+  tr.anchor.splitId ||= tr.activeSplit;
+  const i = tr.splits.findIndex((x) => x.id === next.id);
+  const old = i >= 0 ? tr.splits[i] : null;
+  const inEffect = refFor(state, cut).splitId === next.id;
+  const pos = inEffect ? cyclePos(state, cut) : 0;
+  if (old && JSON.stringify(old.days) !== JSON.stringify(next.days) && usedBefore(state, old.id, cut)) {
+    const arch = { ...structuredClone(old), id: 'a' + uid(), archived: true, of: old.id };
+    tr.splits.push(arch);
+    if (tr.anchor.date < cut && tr.anchor.splitId === old.id) tr.anchor.splitId = arch.id;
+    for (const r of tr.restarts || []) if (r.date < cut && r.splitId === old.id) r.splitId = arch.id;
+    // Gilt gerade → ab cut an derselben Stelle weiter (ohne die Änderungen an diesem Tag zu löschen)
+    if (inEffect && restartIdx == null && !(tr.restarts || []).some((r) => r.date === cut)) {
+      tr.restarts = [...(tr.restarts || []), { date: cut, index: pos, splitId: next.id }].sort((a, b) => a.date.localeCompare(b.date));
+    }
+  }
+  if (i >= 0) tr.splits[i] = next; else tr.splits.push(next);
+  if (restartIdx != null) restartAt(state, cut, Math.min(restartIdx, next.days.length - 1), next.id);
+}
+
+/** Split löschen: schon benutzt → archivieren (frühere Tage bleiben). War er aktiv, geht es mit dem ersten anderen weiter. */
+export function deleteSplit(state, id) {
+  const tr = state.training;
+  const cut = editableFrom(state);
+  tr.anchor.splitId ||= tr.activeSplit;
+  const inEffect = refFor(state, cut).splitId === id || tr.activeSplit === id;
+  const sp = tr.splits.find((x) => x.id === id);
+  if (!sp) return;
+  // Neustarts ab cut mit diesem Split fallen weg
+  tr.restarts = (tr.restarts || []).filter((r) => !(r.date >= cut && r.splitId === id));
+  if (usedBefore(state, id, cut)) sp.archived = true;
+  else tr.splits = tr.splits.filter((x) => x.id !== id);
+  const next = liveSplits(state)[0];
+  if (inEffect && next) restartAt(state, cut, 0, next.id);
+}
+
+/**
+ * Training löschen: bleibt archiviert (Name/Kürzel für Verlauf und frühere Kalendertage), in den Splits wird der Tag
+ * ab `editableFrom` zum Ruhetag, spätere Tagesänderungen auf dieses Training fallen weg.
+ */
+export function deletePlan(state, id) {
+  const cut = editableFrom(state);
+  const p = state.plans.find((x) => x.id === id);
+  if (!p) return;
+  for (const sp of liveSplits(state)) {
+    if (!sp.days.some((d) => d.kind === 'train' && d.planId === id)) continue;
+    reviseSplit(state, { ...structuredClone(sp), days: sp.days.map((d) => (d.kind === 'train' && d.planId === id ? { kind: 'rest', ...(d.cardio ? { cardio: d.cardio } : {}) } : d)) });
+  }
+  for (const [k, v] of Object.entries(state.dayChoice)) if (v === id && k >= cut) delete state.dayChoice[k];
+  p.archived = true;
+}
+
+/** Feste Cardio-Wochentage ändern, ohne frühere Tage zu ändern (alte Fassung endet, neue beginnt ab `editableFrom`). */
+export function addWeekly(state, w) {
+  (state.training.weeklyCardio ||= []).push({ id: uid(), ...w, from: editableFrom(state) });
+}
+export function updateWeekly(state, id, patch) {
+  const tr = state.training;
+  const cut = editableFrom(state);
+  const w = (tr.weeklyCardio || []).find((x) => x.id === id);
+  if (!w) return;
+  if (!w.from || w.from < cut) {
+    w.until = cut;
+    const { until, ...rest } = w;
+    tr.weeklyCardio.push({ ...rest, ...patch, id: uid(), from: cut });
+  } else Object.assign(w, patch);
+}
+export function removeWeekly(state, id) {
+  const tr = state.training;
+  const cut = editableFrom(state);
+  const w = (tr.weeklyCardio || []).find((x) => x.id === id);
+  if (!w) return;
+  if (!w.from || w.from < cut) w.until = cut;
+  else tr.weeklyCardio = tr.weeklyCardio.filter((x) => x.id !== id);
+}
+/** Feste Cardio-Wochentage, die ab jetzt gelten (zum Anzeigen/Bearbeiten). */
+export function currentWeekly(state) {
+  const cut = editableFrom(state);
+  return (state.training?.weeklyCardio || []).filter((w) => !w.until || w.until > cut);
 }
 
 /**
@@ -303,6 +415,11 @@ export function indexOfPlan(sp, planId, fromPos = 0) {
  */
 export function dayPlan(state, date) {
   const tr = state.training || {};
+  // Vor dem Planbeginn (frische Installation, Umstellung auf Splits) gab es keinen Plan → kein „verpasst“ (AA14)
+  if (tr.anchor?.date && date < tr.anchor.date && !(tr.restarts || []).some((r) => r.date <= date)) {
+    const cardio = (state.plannedCardio?.[date] || []).map((c) => ({ ...c, from: 'day' }));
+    return { date, kind: 'rest', planId: null, chosen: false, shifted: false, sick: state.sickDays?.[date] || null, restarted: false, pos: 0, base: { kind: 'rest' }, cardio, splitId: tr.activeSplit, before: true };
+  }
   const sp = splitFor(state, date);
   const planIds = new Set(state.plans.map((p) => p.id));
   const shifted = (tr.shifts || []).includes(date);
@@ -322,7 +439,7 @@ export function dayPlan(state, date) {
   const cardio = [];
   if (!shifted && !chosen && !sick && base.cardio?.minutes) cardio.push({ type: base.cardio.type, minutes: base.cardio.minutes, from: 'split' });
   if (!sick) { // krank: auch kein geplantes Cardio (Prüfbericht K12)
-    for (const w of tr.weeklyCardio || []) if (w.weekday === weekdayIndex(date)) cardio.push({ type: w.type, minutes: w.minutes, from: 'weekly', id: w.id });
+    for (const w of tr.weeklyCardio || []) if (w.weekday === weekdayIndex(date) && weeklyActive(w, date)) cardio.push({ type: w.type, minutes: w.minutes, from: 'weekly', id: w.id });
     for (const c of state.plannedCardio?.[date] || []) cardio.push({ ...c, from: 'day' });
   }
   const restarted = (tr.restarts || []).some((r) => r.date === date);
@@ -331,13 +448,13 @@ export function dayPlan(state, date) {
 
 /** Nächstes Training im Split nach einer Position (für „Trotzdem trainieren“ an einem Ruhetag). */
 function nextTrainAfter(state, pos, sp = activeSplit(state)) {
-  const ids = new Set(state.plans.map((p) => p.id));
+  const ids = new Set(livePlans(state).map((p) => p.id));
   const len = sp?.days?.length || 0;
   for (let i = 1; i <= len; i++) {
     const d = sp.days[(pos + i) % len];
     if (d.kind === 'train' && ids.has(d.planId)) return d.planId;
   }
-  return state.plans[0]?.id;
+  return livePlans(state)[0]?.id;
 }
 
 /**
@@ -370,7 +487,7 @@ export function plannedPerWeek(state) {
   const len = sp?.days?.length || 7;
   const train = (sp?.days || []).filter((d) => d.kind === 'train').length;
   const splitCardio = (sp?.days || []).reduce((s, d) => s + (d.cardio?.minutes || 0), 0);
-  const weekly = (state.training?.weeklyCardio || []).reduce((s, w) => s + (w.minutes || 0), 0);
+  const weekly = currentWeekly(state).reduce((s, w) => s + (w.minutes || 0), 0);
   return { strength: (train / len) * 7, total: ((train + splitCardio / 45) / len) * 7 + weekly / 45 };
 }
 

@@ -1,7 +1,7 @@
 // Training: Rhythmus, heutiger Vorschlag (flexibel), 7-Tage-Vorschau, Cardio, Pläne, Verlauf
 import { esc, num, today, weekStart, addDays, icon, I, parseNum, uid, parseKey } from '../util.js';
 import { t, weekdayShort, shortDate, monthName } from '../i18n.js';
-import { schedule, lastDone, planMuscles, CARDIO_TYPES, splitFor, indexOfPlan, restartAt, removeRestart, markDay } from '../plan.js';
+import { schedule, lastDone, planMuscles, CARDIO_TYPES, splitFor, indexOfPlan, restartAt, removeRestart, markDay, livePlans } from '../plan.js';
 import { startWorkout, volume, workingSets, setText, workoutMinutes } from '../workout.js';
 import * as workoutEdit from './workoutEdit.js';
 import { header, seg, sheetHead, watchSourceName, energy, cardioIcon } from '../ui.js';
@@ -88,7 +88,7 @@ function otherSheet(state) {
   return `${sheetHead(t('training.another'))}
     <label class="row small" style="gap:8px;align-items:flex-start"><input type="checkbox" data-in="other-continue" ${continueOther ? 'checked' : ''} style="margin-top:3px">
       <span><b>${esc(t('training.continueOther'))}</b><br><span class="tiny muted">${esc(t('training.continueOtherHint'))}</span></span></label>
-    <div class="list">${state.plans.map((p) => `<div class="item"><div class="grow"><div style="font-weight:600">${esc(p.name)}</div><div class="meta">${esc(planMuscles(p).map((m) => t('m.' + m)).join(' · '))}</div></div>
+    <div class="list">${livePlans(state).map((p) => `<div class="item"><div class="grow"><div style="font-weight:600">${esc(p.name)}</div><div class="meta">${esc(planMuscles(p).map((m) => t('m.' + m)).join(' · '))}</div></div>
       <span class="tiny muted">${last[p.id] ? esc(shortDate(last[p.id])) : '–'}</span>
       <button class="btn sm primary" data-act="start" data-from="other" data-plan="${esc(p.id)}">${esc(t('training.start'))}</button></div>`).join('')}</div>`;
 }

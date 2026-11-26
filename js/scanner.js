@@ -44,7 +44,7 @@ export function openScanner(onCode) {
   const root = document.createElement('div');
   root.className = 'scanner';
   root.innerHTML = `
-    <video playsinline muted></video>
+    <video playsinline muted poster="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"></video>
     <div class="scan-frame" aria-hidden="true"></div>
     <div class="scan-top"><span>${esc(t('scan.title'))}</span><button class="icon-btn" data-scan="close" aria-label="${esc(t('common.close'))}">${icon(I.x)}</button></div>
     <div class="scan-bottom">
@@ -53,6 +53,8 @@ export function openScanner(onCode) {
     </div>`;
   document.body.append(root);
   const video = root.querySelector('video');
+  // Android-WebView zeigt ohne Bild einen grossen grauen „Play“-Kreis (AA5) → leeres Vorschaubild, Video erst zeigen, wenn es läuft
+  video.addEventListener('playing', () => video.classList.add('on'));
   const msg = root.querySelector('.scan-msg');
   let stream = null;
   let stopped = false;

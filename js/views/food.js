@@ -4,6 +4,7 @@ import { t, longDate, shortDate } from '../i18n.js';
 import { goals, sumEntries, dayEntries, MEALS, forGrams, validGrams } from '../nutrition.js';
 import { header, bar, energy, sheetHead, seg } from '../ui.js';
 import { portionsLabel, recipeFood } from '../recipes.js';
+import { unitText } from '../foods.js';
 import * as browser from './recipeBrowser.js';
 
 let editId = null;
@@ -33,7 +34,7 @@ export function render(state, params, ctx) {
     const kcal = list.reduce((s, e) => s + e.n.kcal, 0);
     const rows = list.map((e) => `<div class="item"><button class="item-btn grow" data-act="edit" data-id="${esc(e.id)}">
         <div class="ellipsis" style="font-weight:600">${esc(e.name)}</div>
-        <div class="meta">${e.portions ? esc(portionsLabel(e.portions)) + ' · ' : ''}${num(e.grams)} g · ${t('n.pShort')} ${num(e.n.p)} · ${t('n.cShort')} ${num(e.n.c)} · ${t('n.fShort')} ${num(e.n.f)}</div></button>
+        <div class="meta">${e.portions ? esc(portionsLabel(e.portions)) + ' · ' : unitText(e) ? esc(unitText(e)) + ' · ' : ''}${num(e.grams)} g · ${t('n.pShort')} ${num(e.n.p)} · ${t('n.cShort')} ${num(e.n.c)} · ${t('n.fShort')} ${num(e.n.f)}</div></button>
         <span class="small muted">${energy(state, e.n.kcal)}</span></div>`).join('');
     return `<section class="card tight">
       <div class="card-head"><h3>${esc(t('meal.' + m))}</h3><span class="small muted">${list.length ? energy(state, kcal) : ''}</span></div>

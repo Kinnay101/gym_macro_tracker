@@ -86,9 +86,9 @@ function exCard(state, ex, i, count) {
       <span class="prev">${prevTxt}${isPr ? ' <span class="tag pr">PR</span>' : ''}</span>
       <input class="input num" inputmode="decimal" enterkeyhint="next" data-in="kg" data-ex="${i}" data-set="${esc(s.id)}" value="${s.kg ?? ''}" placeholder="kg" aria-label="kg">
       ${uni
-        ? `<input class="input num" inputmode="numeric" enterkeyhint="next" data-in="reps" data-ex="${i}" data-set="${esc(s.id)}" value="${s.reps ?? ''}" placeholder="L" aria-label="${esc(t('active.repsLeft'))}">
-      <input class="input num" inputmode="numeric" enterkeyhint="next" data-in="repsR" data-ex="${i}" data-set="${esc(s.id)}" value="${s.repsR ?? ''}" placeholder="R" aria-label="${esc(t('active.repsRight'))}">`
-        : `<input class="input num" inputmode="numeric" enterkeyhint="next" data-in="reps" data-ex="${i}" data-set="${esc(s.id)}" value="${s.reps ?? ''}" placeholder="${esc(t('active.reps'))}" aria-label="${esc(t('active.reps'))}">`}
+        ? `<input class="input num" inputmode="numeric" enterkeyhint="next" data-in="reps" data-ex="${i}" data-set="${esc(s.id)}" value="${s.reps ?? ''}" placeholder="${esc(s.ph?.reps ?? 'L')}" aria-label="${esc(t('active.repsLeft'))}">
+      <input class="input num" inputmode="numeric" enterkeyhint="next" data-in="repsR" data-ex="${i}" data-set="${esc(s.id)}" value="${s.repsR ?? ''}" placeholder="${esc(s.ph?.repsR ?? 'R')}" aria-label="${esc(t('active.repsRight'))}">`
+        : `<input class="input num" inputmode="numeric" enterkeyhint="next" data-in="reps" data-ex="${i}" data-set="${esc(s.id)}" value="${s.reps ?? ''}" placeholder="${esc(s.ph?.reps ?? t('active.reps'))}" aria-label="${esc(t('active.reps'))}">`}
       <button class="check" data-act="check" data-ex="${i}" data-set="${esc(s.id)}" aria-pressed="${!!s.done}" aria-label="${esc(t('active.check'))}">${icon(I.check)}</button></div>`;
   }).join('');
   return `<section class="card tight ex-card">
@@ -167,6 +167,13 @@ export function mounted() {
   }, 1000);
 }
 
+/** Vorgeschlagene Wdh als Platzhalter am Satz (ph), nicht als Wert. */
+function withHint(s, reps, repsR) {
+  if (reps != null || repsR != null) s.ph = { ...(reps != null ? { reps } : {}), ...(repsR != null ? { repsR } : {}) };
+  if (repsR !== null && repsR !== undefined) s.repsR = null;
+  return s;
+}
+
 export const actions = {
   check(el, ctx) {
     let blocked = false;
@@ -180,10 +187,11 @@ export const actions = {
         const reps = parseNum(row.querySelector('[data-in="reps"]').value);
         const prev = prevSetFor(ctx.state, ex, s);
         s.kg = kg ?? s.kg ?? prev?.kg ?? null;
-        s.reps = reps ?? s.reps ?? prev?.reps ?? null;
+        // Vorschlag als Platzhalter (+ Satz / + Aufwärmsatz) gilt beim Abhaken wie eingetippt
+        s.reps = reps ?? s.reps ?? s.ph?.reps ?? prev?.reps ?? null;
         if (ex.uni) {
           const repsR = parseNum(row.querySelector('[data-in="repsR"]')?.value);
-          s.repsR = repsR ?? s.repsR ?? prev?.repsR ?? prev?.reps ?? null;
+          s.repsR = repsR ?? s.repsR ?? s.ph?.repsR ?? prev?.repsR ?? prev?.reps ?? null;
         }
       }
       // Ohne Wiederholungen (und ohne Vorwert) wäre der Satz leer → nicht abhaken, Feld zum Eintragen öffnen (K10)
@@ -220,7 +228,8 @@ export const actions = {
     withEx(ctx, +el.dataset.ex, (ex) => {
       const sets = setsOf(ex);
       const lastWork = [...sets].reverse().find((s) => !s.warmup);
-      sets.push(blankSet(false, lastWork?.kg ?? null, lastWork?.reps ?? null, ex.uni ? (lastWork?.repsR ?? lastWork?.reps ?? null) : null));
+      // Wdh nur als Platzhalter vorschlagen: eingetragene Wdh sähen aus wie ein gemachter Satz
+      sets.push(withHint(blankSet(false, lastWork?.kg ?? null), lastWork?.reps, ex.uni ? (lastWork?.repsR ?? lastWork?.reps) : null));
     });
   },
   'add-warmup'(el, ctx) {
@@ -229,7 +238,7 @@ export const actions = {
       const firstWork = sets.find((s) => !s.warmup);
       const kg = firstWork?.kg ? Math.round(firstWork.kg / 2 / 2.5) * 2.5 : null;
       const lastW = sets.map((s) => s.warmup).lastIndexOf(true);
-      sets.splice(lastW + 1, 0, blankSet(true, kg, firstWork?.reps ?? 10, ex.uni ? (firstWork?.repsR ?? firstWork?.reps ?? 10) : null));
+      sets.splice(lastW + 1, 0, withHint(blankSet(true, kg), firstWork?.reps ?? 10, ex.uni ? (firstWork?.repsR ?? firstWork?.reps ?? 10) : null));
     });
   },
   'set-menu'(el, ctx) { menu = { ex: +el.dataset.ex, set: el.dataset.set }; ctx.openSheet(menuSheet); },

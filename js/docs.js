@@ -1,12 +1,20 @@
 // Zerlegt die App-Daten in kleine "Dokumente" (für den Sync) und setzt sie wieder zusammen.
 // Jeder Tagebuch-Eintrag, jedes Training, jedes Gewicht … ist ein eigenes Dokument.
 // So gehen keine Einträge verloren, wenn PC und iPhone gleichzeitig etwas ändern.
+// Trainings (Pläne) und Splits sind ebenfalls einzelne Dokumente (plan:, split:, shift:, restart:, wcardio:, dazu
+// Reihenfolge/Einstellungen in planorder und tmeta). Früher waren es zwei grosse Dokumente „plans“ und „training“ –
+// die werden von alten App-Versionen noch verstanden und weiterhin übernommen.
+
+/** Dokument-Arten, die es seit der Aufteilung gibt (für die einmalige Umstellung im Sync). */
+export const SPLIT_KINDS = new Set(['plan', 'planorder', 'split', 'tmeta', 'shift', 'restart', 'wcardio']);
+export const DOCS_VERSION = 2;
 
 /** Alle Dokumente des Zustands als Map key → Wert. */
 export function toDocs(state) {
   const m = new Map();
   m.set('profile', state.profile);
-  m.set('plans', state.plans);
+  for (const p of state.plans || []) m.set(`plan:${p.id}`, p);
+  m.set('planorder', (state.plans || []).map((p) => p.id));
   if (state.active) m.set('active', state.active);
   for (const [date, list] of Object.entries(state.diary || {})) {
     for (const e of list) m.set(`entry:${date}:${e.id}`, e);
@@ -19,7 +27,14 @@ export function toDocs(state) {
   for (const w of state.workouts || []) m.set(`workout:${w.id}`, w);
   for (const c of state.cardio || []) m.set(`cardio:${c.id}`, c);
   for (const [date, v] of Object.entries(state.dayChoice || {})) m.set(`choice:${date}`, v);
-  if (state.training) m.set('training', state.training);
+  if (state.training) {
+    const { splits = [], shifts = [], restarts = [], weeklyCardio = [], ...rest } = state.training;
+    m.set('tmeta', { ...rest, splitOrder: splits.map((x) => x.id) });
+    for (const sp of splits) m.set(`split:${sp.id}`, sp);
+    for (const d of shifts) m.set(`shift:${d}`, 1);
+    for (const r of restarts) m.set(`restart:${r.date}`, r);
+    for (const w of weeklyCardio) m.set(`wcardio:${w.id}`, w);
+  }
   for (const [date, v] of Object.entries(state.plannedCardio || {})) if (v?.length) m.set(`pcardio:${date}`, v);
   for (const [date, v] of Object.entries(state.sickDays || {})) if (v) m.set(`sick:${date}`, v);
   for (const [date, v] of Object.entries(state.healthDays || {})) m.set(`hday:${date}`, v);
@@ -41,7 +56,14 @@ export function applyDoc(state, key, value) {
   };
   switch (kind) {
     case 'profile': if (!del) state.profile = { ...state.profile, ...value }; break;
-    case 'plans': if (!del && Array.isArray(value) && value.length) state.plans = value; break;
+    case 'plans': if (!del && Array.isArray(value) && value.length) state.plans = value; break; // alte App-Versionen
+    case 'plan': {
+      if (del && state.plans.length <= 1) break; // nie ganz ohne Trainings
+      upsertBy(state.plans, 'id', a);
+      received.plans.add(a);
+      break;
+    }
+    case 'planorder': if (!del && Array.isArray(value)) { pending.planOrder = value; sortBy(state.plans, value); } break;
     case 'active': state.active = del ? null : value; break;
     case 'entry': {
       const list = (state.diary[a] ||= []);
@@ -57,7 +79,37 @@ export function applyDoc(state, key, value) {
     case 'workout': upsertBy(state.workouts, 'id', a); break;
     case 'cardio': upsertBy(state.cardio, 'id', a); break;
     case 'choice': if (del) delete state.dayChoice[a]; else state.dayChoice[a] = value; break;
-    case 'training': if (!del && value?.splits?.length) state.training = value; break;
+    case 'training': if (!del && value?.splits?.length) state.training = value; break; // alte App-Versionen
+    case 'split': {
+      const tr = trainingOf(state);
+      if (del && tr.splits.length <= 1) break;
+      upsertBy(tr.splits, 'id', a);
+      received.splits.add(a);
+      break;
+    }
+    case 'tmeta': {
+      if (del) break;
+      const tr = trainingOf(state);
+      const { splitOrder, ...rest } = value;
+      Object.assign(tr, rest);
+      if (Array.isArray(splitOrder)) { pending.splitOrder = splitOrder; sortBy(tr.splits, splitOrder); }
+      break;
+    }
+    case 'shift': {
+      const tr = trainingOf(state);
+      const set = new Set(tr.shifts || []);
+      if (del) set.delete(a); else set.add(a);
+      tr.shifts = [...set].sort();
+      break;
+    }
+    case 'restart': {
+      const tr = trainingOf(state);
+      tr.restarts = (tr.restarts || []).filter((r) => r.date !== a);
+      if (!del) tr.restarts.push({ ...value, date: a });
+      tr.restarts.sort((x, y) => x.date.localeCompare(y.date));
+      break;
+    }
+    case 'wcardio': upsertBy((trainingOf(state).weeklyCardio ||= []), 'id', a); break;
     case 'pcardio': state.plannedCardio ||= {}; if (del) delete state.plannedCardio[a]; else state.plannedCardio[a] = value; break;
     case 'sick': state.sickDays ||= {}; if (del) delete state.sickDays[a]; else state.sickDays[a] = value; break;
     case 'hday': state.healthDays ||= {}; if (del) delete state.healthDays[a]; else state.healthDays[a] = value; break;
@@ -67,6 +119,40 @@ export function applyDoc(state, key, value) {
     case 'hmeta': if (!del) { state.healthLastImport = value.lastImport; if (value.weightNew) state.healthWeightNew = value.weightNew; else delete state.healthWeightNew; } break;
     default: console.warn('Unbekanntes Dokument', key);
   }
+}
+
+// Reihenfolge (planorder/tmeta) kann vor oder nach den einzelnen Plänen/Splits ankommen → nach dem Übernehmen nochmals sortieren
+let pending = {};
+let received = { plans: new Set(), splits: new Set() };
+const trainingOf = (state) => (state.training ||= { splits: [], activeSplit: null, anchor: { date: new Date().toISOString().slice(0, 10), index: 0 }, shifts: [], weeklyCardio: [], restarts: [] });
+function sortBy(list, order) {
+  const pos = new Map(order.map((id, i) => [id, i]));
+  list.sort((x, y) => (pos.get(x.id) ?? 1e9) - (pos.get(y.id) ?? 1e9));
+}
+
+/**
+ * Nach einer Reihe von applyDoc: Reihenfolge herstellen. Beim ersten Abgleich eines Geräts (`initial`) fallen lokale
+ * Standard-Trainings/-Splits weg, die es im Konto nicht (mehr) gibt – sonst kämen gelöschte Standard-Trainings zurück.
+ */
+export function finishDocs(state, { initial = false } = {}) {
+  if (pending.planOrder) {
+    if (initial) {
+      const keep = new Set([...pending.planOrder, ...received.plans]);
+      const left = state.plans.filter((p) => keep.has(p.id));
+      if (left.length) state.plans = left;
+    }
+    sortBy(state.plans, pending.planOrder);
+  }
+  if (pending.splitOrder && state.training) {
+    if (initial) {
+      const keep = new Set([...pending.splitOrder, ...received.splits]);
+      const left = state.training.splits.filter((x) => keep.has(x.id));
+      if (left.length) state.training.splits = left;
+    }
+    sortBy(state.training.splits, pending.splitOrder);
+  }
+  pending = {};
+  received = { plans: new Set(), splits: new Set() };
 }
 
 // 'entry:2026-11-22:abc' → ['entry', '2026-11-22', 'abc']; IDs selbst enthalten keine Doppelpunkte

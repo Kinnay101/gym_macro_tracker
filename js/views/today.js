@@ -108,18 +108,19 @@ function healthCard(state, key) {
   const connected = !!state.healthLastImport || hc.available();
   const hasToday = day.steps != null || day.activeKcal != null || day.exerciseMin != null || night || ws.length;
   if (!connected && !hasToday) return '';
-  const h = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')} h`;
+  const hm = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+  const h = (m) => `${hm(m)} h`;
   const tiles = [
     [t('health.steps'), day.steps != null ? num(day.steps) : '–', ''],
     [t('health.active'), day.activeKcal != null ? energy(state, day.activeKcal) : '–', ''],
     [t('health.exercise'), day.exerciseMin != null ? `${num(day.exerciseMin)} min` : '–', day.distanceKm ? `${num(day.distanceKm, 1)} km` : ''],
-    [t('health.sleep'), night ? h(night.minutes) : '–', night && (night.deep || night.rem) ? `${t('health.deep')} ${h(night.deep)} · REM ${h(night.rem)}` : ''],
+    [t('health.sleep'), night ? h(night.minutes) : '–', night && (night.deep || night.rem) ? `${t('health.deep')} ${hm(night.deep)} · REM ${hm(night.rem)}` : ''], // kurz, damit es auch auf Android nicht umbricht
   ];
   // Aktualisieren: Android-App liest Health Connect, iPhone startet den Kurzbefehl
   const canRefresh = hc.available() || (isIOS() && state.healthLastImport);
   const refresh = canRefresh ? `<button class="link tiny" data-act="health-refresh" aria-label="${esc(t('health.refresh'))}">↻ ${esc(healthSourceName())}</button>` : `<span class="tiny muted">${esc(healthSourceName())}</span>`;
   return `<section class="card tight"><div class="card-head"><h3>${esc(t('health.title'))}</h3>${refresh}</div>
-    <div class="grid3">${tiles.map(([l, v, sub], i) => `<div class="stack" style="gap:2px${i === 3 ? ';grid-column:span 2' : ''}"><span class="tiny muted">${esc(l)}</span><b>${esc(v)}</b>${sub ? `<span class="tiny muted">${esc(sub)}</span>` : ''}</div>`).join('')}</div>
+    <div class="grid3">${tiles.map(([l, v, sub], i) => `<div class="stack" style="gap:2px;min-width:0${i === 3 ? ';grid-column:span 2' : ''}"><span class="tiny muted">${esc(l)}</span><b>${esc(v)}</b>${sub ? `<span class="tiny muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(sub)}</span>` : ''}</div>`).join('')}</div>
     ${staleHint(state) || (hasToday ? '' : `<div class="tiny muted">${esc(t(hc.available() && !state.healthLastImport ? 'hc.notConnected' : 'health.noToday'))}</div>`)}
     ${ws.map((w) => `<div class="small muted">⌚ ${esc(t('cardio.' + w.kind))} · ${num(w.minutes)} min${w.kcal ? ` · ${energy(state, w.kcal)}` : ''}${w.avgHr ? ` · Ø ${w.avgHr} bpm` : ''}</div>`).join('')}
   </section>`;
@@ -139,7 +140,8 @@ function mealsCard(state, key, entries) {
   const rows = MEALS.map((m) => {
     const list = entries.filter((e) => e.meal === m);
     const kcal = list.reduce((s, e) => s + e.n.kcal, 0);
-    const names = list.map((e) => e.name).join(', ') || t('food.nothingYet');
+    // „ · “ statt Komma: BLV-Namen enthalten selbst Kommas („Vollmilch, UHT“) – sonst lesen sich 3 Einträge wie 5
+    const names = list.map((e) => e.name).join(' · ') || t('food.nothingYet');
     return `<div class="item"><a class="grow" href="#/food" style="color:inherit"><div style="font-weight:600">${esc(t('meal.' + m))}</div><div class="meta ellipsis">${esc(names)}</div></a>
       <span class="small muted">${list.length ? energy(state, kcal) : '–'}</span>
       <a class="icon-btn" href="#/food/add?meal=${m}" aria-label="${esc(t('food.addTo', { meal: t('meal.' + m) }))}">${icon(I.plus)}</a></div>`;

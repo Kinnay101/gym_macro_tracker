@@ -11,10 +11,14 @@ import * as hcSetup from './healthConnectSetup.js';
 let status = { loaded: false, row: null, error: null };
 let newToken = null; // nur direkt nach dem Erstellen sichtbar
 
-export async function loadStatus(ctx) {
-  if (!sync.getUser()) return;
-  try { status = { loaded: true, row: await health.connectionStatus(), error: null }; } catch (e) { status = { loaded: true, row: null, error: e.message }; }
-  ctx.render();
+let loading = null; // läuft schon eine Abfrage? (jedes Neuzeichnen mit Spinner würde sonst eine weitere starten)
+export function loadStatus(ctx) {
+  if (!sync.getUser()) return Promise.resolve();
+  loading ||= (async () => {
+    try { status = { loaded: true, row: await health.connectionStatus(), error: null }; } catch (e) { status = { loaded: true, row: null, error: e.message }; }
+    ctx.render();
+  })().finally(() => { loading = null; });
+  return loading;
 }
 
 // Datum und Uhrzeit in Ortszeit (iso.slice(0, 10) wäre UTC → kurz nach Mitternacht der falsche Tag)

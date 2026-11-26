@@ -77,6 +77,40 @@ export function schedulePublish(ms = 1500) {
   timer = setTimeout(() => publishRecipes().catch((e) => console.warn('Rezepte veröffentlichen fehlgeschlagen', e)), ms);
 }
 
+// ---- Fremddaten absichern: Rezepte anderer kommen ungeprüft vom Server (andere App-Version, kaputte oder absichtlich
+// falsche Daten). Nur bekannte Felder mit gültigen Werten übernehmen, fehlende Werte ausrechnen, sonst Rezept weglassen.
+const NUTR = ['kcal', 'p', 'c', 'f', 'fiber', 'sugar', 'salt', 'sfa'];
+const num = (v, max) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= max ? v : null);
+const str = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
+function nutrients(o, max) {
+  if (!o || typeof o !== 'object') return null;
+  const out = {};
+  for (const k of NUTR) out[k] = num(o[k], max);
+  if (out.kcal == null) return null;
+  for (const k of NUTR) if (k !== 'sfa') out[k] ??= 0; // gesättigt: null = unbekannt
+  return out;
+}
+const scaled = (n, f) => Object.fromEntries(NUTR.map((k) => [k, n[k] == null ? null : n[k] * f]));
+
+/** Öffentliches Rezept eines anderen prüfen → bereinigte Kopie oder null (wird nicht angezeigt). */
+export function cleanPublic(r) {
+  const d = r?.data;
+  if (!r || typeof r.id !== 'string' || !d || typeof d !== 'object') return null;
+  const items = (Array.isArray(d.items) ? d.items.slice(0, 100) : [])
+    .map((it) => ({ name: str(it?.name, 120), grams: num(it?.grams, 100000), per100: nutrients(it?.per100, 1000) }))
+    .filter((it) => it.name && it.grams && it.per100);
+  const per100 = nutrients(d.per100, 1000);
+  if (!per100) return null;
+  const totalWeight = num(d.totalWeight, 100000) || items.reduce((s, it) => s + it.grams, 0) || null;
+  const servings = Math.max(1, Math.round(num(d.servings, 1000) || 1));
+  const portionGrams = num(d.portionGrams, 100000) || (totalWeight ? totalWeight / servings : 100);
+  const perPortion = nutrients(d.perPortion, 100000) || scaled(per100, portionGrams / 100);
+  return {
+    id: r.id, user_id: str(r.user_id, 64), author_name: str(r.author_name, 40) || null, name: str(r.name, 60).trim() || '?', updated_at: str(r.updated_at, 40),
+    data: { servings, cookedWeight: num(d.cookedWeight, 100000), instructions: str(d.instructions, 5000), items, per100, perPortion, portionGrams, totalWeight },
+  };
+}
+
 /** Öffentliche Rezepte der anderen (neueste zuerst). */
 export async function loadPublic() {
   const c = sync.getClient();
@@ -85,7 +119,7 @@ export async function loadPublic() {
   const q = c.from('public_recipes').select('id,user_id,author_name,name,data,updated_at').order('updated_at', { ascending: false }).range(0, 199);
   const { data, error } = await q;
   if (error) throw error;
-  return data.filter((r) => r.user_id !== user.id);
+  return data.filter((r) => r.user_id !== user.id).map(cleanPublic).filter(Boolean);
 }
 
 // Nach jedem Sync abgleichen (z. B. wenn ein Rezept auf einem anderen Gerät geändert wurde)

@@ -119,7 +119,38 @@ export async function loadGroups() {
   const members = check(await c.from('group_members').select('group_id,user_id,display_name,joined_at').in('group_id', groups.map((g) => g.id)));
   const ids = [...new Set(members.map((m) => m.user_id))];
   const rows = check(await c.from('shared_stats').select('user_id,display_name,stats,updated_at').in('user_id', ids));
-  return { groups, members, stats: Object.fromEntries(rows.map((r) => [r.user_id, r])) };
+  const str = (v, n) => (typeof v === 'string' ? v.slice(0, n) : '');
+  return {
+    groups: groups.map((g) => ({ ...g, name: str(g.name, 60) })),
+    members: members.map((m) => ({ ...m, display_name: str(m.display_name, 40) || '?' })),
+    stats: Object.fromEntries(rows.map((r) => [r.user_id, { ...r, display_name: str(r.display_name, 40), stats: cleanStats(r.stats) }])),
+  };
+}
+
+/**
+ * Geteilte Werte anderer prüfen (Fremddaten, evtl. von einer anderen App-Version): nur bekannte Felder mit Zahlen,
+ * sonst fällt der Bereich weg (Rangliste zeigt dann „keine Daten“) statt dass die Seite abstürzt.
+ */
+export function cleanStats(s) {
+  const n = (v, max = 1e7) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= max ? v : null);
+  const out = {};
+  if (!s || typeof s !== 'object') return out;
+  if (s.strength && typeof s.strength === 'object') {
+    const st = {};
+    for (const [k, v] of Object.entries(s.strength).slice(0, 60)) if (typeof k === 'string' && k.length <= 120 && n(v, 20) != null) st[k] = v;
+    if (Object.keys(st).length) out.strength = st;
+  }
+  const c = s.consistency;
+  if (c && n(c.pct, 100) != null && n(c.workouts28, 28) != null) out.consistency = { pct: c.pct, workouts28: c.workouts28, weekStreak: n(c.weekStreak, 10000) ?? 0 };
+  const v = s.volume;
+  if (v && n(v.kg7) != null) out.volume = { kg7: v.kg7, sets7: n(v.sets7, 10000) ?? 0 };
+  const p = s.prs;
+  if (p && n(p.prs30, 10000) != null) {
+    const recent = (Array.isArray(p.recent) ? p.recent : []).slice(0, 3)
+      .filter((x) => x && typeof x.name === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x.date || '')).map((x) => ({ name: x.name.slice(0, 120), date: x.date }));
+    out.prs = { prs30: p.prs30, recent };
+  }
+  return out;
 }
 
 export async function createGroup(groupName) {

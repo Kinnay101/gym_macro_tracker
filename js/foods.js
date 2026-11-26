@@ -1,6 +1,6 @@
 // Lebensmittel-Quellen: eigene, Schweizer Nährwertdatenbank (BLV, lokal) und Open Food Facts (online).
 import { round } from './util.js';
-import { lang } from './i18n.js';
+import { lang, t } from './i18n.js';
 import { recipeFood } from './recipes.js';
 
 // ---------- Suche: Text vereinheitlichen ("Müesli" = "muesli" = "Muesli") ----------
@@ -22,20 +22,50 @@ let blv = null;
 let blvPromise = null;
 export function loadBlv() {
   if (blv) return Promise.resolve(blv);
-  blvPromise ??= fetch('data/blv.json')
-    .then((r) => r.json())
-    .then((d) => {
-      blv = d.rows.map(([id, de, en, syn, kind, kcal, p, c, f, fiber, sugar, salt, sfa]) => ({
-        id: 'blv-' + id, source: kind === 2 ? 'blvBrand' : 'blv', name: { de, en }, syn,
-        per100: { kcal, p: p ?? 0, c: c ?? 0, f: f ?? 0, fiber: fiber ?? 0, sugar: sugar ?? 0, salt: salt ?? 0, sfa: sfa ?? null },
-        portion: 100,
-      }));
+  // Portionen (data/portions.json, Richtwerte für häufige Lebensmittel): fehlt die Datei, geht es mit Gramm weiter
+  const portions = fetch('data/portions.json').then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  blvPromise ??= Promise.all([fetch('data/blv.json').then((r) => r.json()), portions])
+    .then(([d, por]) => {
+      const table = por?.rows || {};
+      blv = d.rows.map(([id, de, en, syn, kind, kcal, p, c, f, fiber, sugar, salt, sfa]) => {
+        const units = (table[id] || []).map(([u, g]) => ({ u, g }));
+        return {
+          id: 'blv-' + id, source: kind === 2 ? 'blvBrand' : 'blv', name: { de, en }, syn,
+          per100: { kcal, p: p ?? 0, c: c ?? 0, f: f ?? 0, fiber: fiber ?? 0, sugar: sugar ?? 0, salt: salt ?? 0, sfa: sfa ?? null },
+          portion: units[0]?.g || 100, // Vorschlag beim Öffnen: 1 Stück/Scheibe/EL …
+          ...(units.length ? { units } : {}),
+        };
+      });
       return blv;
     })
     .catch((e) => { blvPromise = null; throw e; });
   return blvPromise;
 }
 export function blvLoaded() { return blv; }
+
+// ---------- Portionen (Stück, Scheibe, EL …) ----------
+/** „Stück“/„Scheiben“ … je nach Anzahl. */
+export function unitLabel(u, n = 1) {
+  const [one, many] = t('unit.' + u).split('|');
+  return n > 1 ? (many || one) : one;
+}
+/** Anzahl mit Bruch: 0.5 → „½“, 1.5 → „1½“, 2 → „2“. */
+export function countText(n) {
+  const w = Math.floor(n + 1e-9);
+  const f = Math.round((n - w) * 4) / 4;
+  return `${w || f === 0 ? w : ''}${{ 0.25: '¼', 0.5: '½', 0.75: '¾' }[f] || ''}`;
+}
+/** Passt die Menge auf ganze/halbe/viertel Einheiten? → Anzahl, sonst null. */
+export function unitCount(grams, g) {
+  if (!g || !grams) return null;
+  const n = grams / g;
+  return n >= 0.25 && n <= 50 && Math.abs(n * 4 - Math.round(n * 4)) < 0.04 ? Math.round(n * 4) / 4 : null;
+}
+/** Text für einen Tagebuch-Eintrag mit Einheit, z. B. „2 Scheiben“ (sonst ''). */
+export function unitText(e) {
+  const n = e?.unit ? unitCount(e.grams, e.unit.g) : null;
+  return n ? `${countText(n)} ${unitLabel(e.unit.u, n)}` : '';
+}
 
 // ---------- lokale Suche ----------
 // Suchindex pro Lebensmittel – in einer WeakMap, nicht am Objekt (sonst landet er in gespeicherten Produkten
