@@ -1,7 +1,7 @@
 // Training: Rhythmus, heutiger Vorschlag (flexibel), 7-Tage-Vorschau, Cardio, Pläne, Verlauf
 import { esc, num, today, weekStart, addDays, icon, I, parseNum, uid } from '../util.js';
 import { t, weekdayShort, shortDate } from '../i18n.js';
-import { schedule, lastDone, planMuscles, CARDIO_TYPES, splitFor, indexOfPlan, restartAt } from '../plan.js';
+import { schedule, lastDone, planMuscles, CARDIO_TYPES, splitFor, indexOfPlan, restartAt, removeRestart, markDay } from '../plan.js';
 import { startWorkout, volume, workingSets, setText } from '../workout.js';
 import { header, seg, sheetHead, watchSourceName } from '../ui.js';
 import { healthWorkoutsBetween, watchStatsFor } from '../health.js';
@@ -50,9 +50,11 @@ function todayCard(state, d, plans) {
   const isRest = d.kind === 'rest';
   const p = plans[d.planId];
   let restBtn;
-  if (!isRest && !d.chosen) restBtn = `<button class="btn" data-act="rest-today">${esc(t('training.restToday'))}</button>`;
-  else if (isRest && !d.chosen) restBtn = `<button class="btn" data-act="choose" data-v="${esc(d.firstOpen)}">${esc(t('training.trainAnyway'))}</button>`;
-  else if (d.shifted) restBtn = `<button class="btn" data-act="dp-unshift" data-d="${esc(d.date)}">${esc(t('plan.unshift'))}</button>`;
+  // Pause (verschoben) oder krank: „Trotzdem trainieren“ hebt das auf → das verschobene Training ist heute dran (K3)
+  if (d.shifted || d.sick) restBtn = `<button class="btn" data-act="dp-unmark" data-d="${esc(d.date)}">${esc(t('training.trainAnyway'))}</button>`;
+  else if (!isRest && !d.chosen) restBtn = `<button class="btn" data-act="rest-today">${esc(t('training.restToday'))}</button>`;
+  // Ruhetag laut Split: Plan rückt vor (heute das nächste Training, danach normal weiter) statt es morgen zu wiederholen (B1)
+  else if (isRest && !d.chosen) restBtn = `<button class="btn" data-act="train-anyway">${esc(t('training.trainAnyway'))}</button>`;
   else restBtn = `<button class="btn" data-act="choose" data-v="">${esc(t('training.backToSuggestion'))}</button>`;
   return `<section class="card">
     <div class="tiny muted">${esc(d.chosen ? t('training.yourChoice') : t('today.suggested'))} · ${esc(rhythmName(state))}</div>
@@ -72,7 +74,7 @@ function restTodaySheet(state) {
   return `${sheetHead(t('training.restToday'))}
     <button class="btn block" data-act="choose" data-v="rest">${esc(t('training.skipToday', { name }))}</button>
     <div class="tiny muted">${esc(t('training.skipTodayHint'))}</div>
-    <button class="btn block" data-act="dp-shift" data-d="${esc(d.date)}">${esc(t('plan.shiftHere'))}</button>
+    <button class="btn block" data-act="rest-shift" data-d="${esc(d.date)}">${esc(t('plan.shiftHere'))}</button>
     <div class="tiny muted">${esc(t('training.shiftTodayHint', { name }))}</div>`;
 }
 
@@ -154,6 +156,28 @@ export const actions = {
     ctx.update((s) => { if (v) s.dayChoice[today()] = v; else delete s.dayChoice[today()]; });
   },
   'rest-today'(el, ctx) { ctx.openSheet(restTodaySheet); },
+  // Heute Pause, Plan rückt nach – Fenster schliessen (Prüfbericht K7)
+  'rest-shift'(el, ctx) {
+    const d = el.dataset.d;
+    ctx.closeSheet();
+    ctx.update((s) => markDay(s, d, 'rest', 'shift'));
+    ctx.toast(t('plan.shiftedToast'));
+  },
+  // Ruhetag, trotzdem trainieren: Plan ab heute mit dem nächsten Training fortsetzen (Rückgängig = Neu-Ausrichtung weg)
+  'train-anyway'(el, ctx) {
+    const key = today();
+    const [d] = schedule(ctx.state, key, 1);
+    const sp = splitFor(ctx.state, key);
+    const idx = indexOfPlan(sp, d.firstOpen, d.pos);
+    if (idx < 0) { ctx.update((s) => { s.dayChoice[key] = d.firstOpen; }); return; }
+    const hadRestart = (ctx.state.training.restarts || []).find((r) => r.date === key) || null;
+    ctx.update((s) => restartAt(s, key, idx, sp.id));
+    const name = ctx.state.plans.find((p) => p.id === d.firstOpen)?.name || '';
+    ctx.toast(t('training.pulledForward', { name }), () => ctx.update((s) => {
+      removeRestart(s, key);
+      if (hadRestart) restartAt(s, key, hadRestart.index, hadRestart.splitId);
+    }));
+  },
   other(el, ctx) { ctx.openSheet(otherSheet); },
   detail(el, ctx) { detailId = el.dataset.id; ctx.openSheet(detailSheet); },
   'del-workout'(el, ctx) {

@@ -40,7 +40,7 @@ export function dayPlanCard(state, date) {
 
   // Tag ändern (heute und später): wie im Split / Ruhetag / anderes Training
   const choice = state.dayChoice?.[date] || '';
-  const select = !past && !p.shifted
+  const select = !past && !p.shifted && !p.sick
     ? `<label class="field">${esc(t('plan.dayLabel'))}<select class="input" data-in="dp-choice" data-d="${esc(date)}">
         ${opt('', t('plan.asSplit', { name: baseName }), !choice)}${opt('rest', t('plan.rest'), choice === 'rest')}
         ${state.plans.map((x) => opt(x.id, x.name, choice === x.id)).join('')}</select></label>` : '';
@@ -70,7 +70,7 @@ export function dayPlanCard(state, date) {
   // Plan ab hier fortsetzen mit Tag X des Splits (z. B. Push 1 ausgelassen → ab heute Pull 1, danach normal weiter)
   const sp = splitById(state, p.splitId);
   const cont = !past && sp ? `<label class="field">${esc(t('plan.continueLabel'))}<select class="input" data-in="dp-restart" data-d="${esc(date)}" data-s="${esc(sp.id)}">
-      ${sp.days.map((d, i) => opt(String(i), `${i + 1}. ${d.kind === 'train' ? plans[d.planId]?.name || '?' : t('plan.rest')}`, !p.shifted && i === p.pos)).join('')}</select></label>
+      ${sp.days.map((d, i) => opt(String(i), `${i + 1}. ${d.kind === 'train' ? plans[d.planId]?.name || '?' : t('plan.rest')}`, i === p.pos)).join('')}</select></label>
       <div class="tiny muted">${esc(t('plan.continueHint'))}</div>` : '';
   const unrestart = p.restarted ? `<button class="btn sm" data-act="dp-unrestart" data-d="${esc(date)}">${esc(t('plan.unrestart'))}</button>` : '';
 
@@ -312,6 +312,8 @@ export const actions = {
   'se-del'(el, ctx) {
     const i = Number(el.dataset.i);
     splitDraft.split.days.splice(i, 1);
+    // „Heute ist Tag“ zeigt weiter auf denselben Tag (Prüfbericht K5): Tag davor gelöscht → eins nach vorne
+    if (i < splitDraft.startIdx) splitDraft.startIdx--;
     splitDraft.startIdx = Math.min(splitDraft.startIdx, Math.max(0, splitDraft.split.days.length - 1));
     ctx.refreshSheet();
   },
@@ -320,6 +322,8 @@ export const actions = {
     const days = splitDraft.split.days;
     if (j < 0 || j >= days.length) return;
     [days[i], days[j]] = [days[j], days[i]];
+    // „Heute ist Tag“ wandert mit dem verschobenen Tag (Prüfbericht K5)
+    if (splitDraft.startIdx === i) splitDraft.startIdx = j; else if (splitDraft.startIdx === j) splitDraft.startIdx = i;
     ctx.refreshSheet();
   },
   'se-cardio'(el, ctx) {
@@ -340,8 +344,12 @@ export const actions = {
       const i = tr.splits.findIndex((x) => x.id === sp.id);
       if (i >= 0) tr.splits[i] = sp; else tr.splits.push(sp);
     });
-    if (mode === 'keep' || mode === 'use') {
-      // Ab heute neu ausrichten: heute = gewählter Tag des Splits, frühere Tage bleiben wie sie waren
+    // Ab heute neu ausrichten (heute = gewählter Tag, frühere Tage bleiben) – beim aktiven Split nur, wenn sich die Tage
+    // oder „Heute ist Tag“ geändert haben. Sonst blieben z. B. eine Verschiebung oder Tagesänderung von heute nicht
+    // erhalten, nur weil man den Namen oder Cardio geändert hat (Prüfbericht K2).
+    const [initSplit, initIdx] = JSON.parse(d.initial);
+    const changed = JSON.stringify(sp.days.map(({ kind, planId }) => [kind, planId])) !== JSON.stringify(initSplit.days.map(({ kind, planId }) => [kind, planId])) || d.startIdx !== initIdx;
+    if (mode === 'use' || (mode === 'keep' && changed)) {
       ctx.update((s) => restartAt(s, now, Math.min(d.startIdx, sp.days.length - 1), sp.id));
     }
     splitDraft = null;

@@ -250,6 +250,9 @@ export function restartAt(state, date, index, splitId) {
 export function markDay(state, date, type, mode) {
   if (state.workouts.some((w) => w.date === date)) return false;
   const tr = state.training;
+  // Schon als Ruhetag/krank markiert (z. B. „Mehrere Tage“ darüber)? Erst aufheben, sonst gilt der Tag als Ruhetag
+  // und „Plan rückt nach“ greift nicht (Prüfbericht K6)
+  unmarkDay(state, date);
   const planned = dayPlan(state, date);
   const wasTrain = planned.kind === 'train' || planned.shifted;
   if (type === 'sick') state.sickDays[date] = mode;
@@ -318,8 +321,10 @@ export function dayPlan(state, date) {
   if (sick && !shifted) { kind = 'rest'; planId = null; }
   const cardio = [];
   if (!shifted && !chosen && !sick && base.cardio?.minutes) cardio.push({ type: base.cardio.type, minutes: base.cardio.minutes, from: 'split' });
-  for (const w of tr.weeklyCardio || []) if (w.weekday === weekdayIndex(date)) cardio.push({ type: w.type, minutes: w.minutes, from: 'weekly', id: w.id });
-  for (const c of state.plannedCardio?.[date] || []) cardio.push({ ...c, from: 'day' });
+  if (!sick) { // krank: auch kein geplantes Cardio (Prüfbericht K12)
+    for (const w of tr.weeklyCardio || []) if (w.weekday === weekdayIndex(date)) cardio.push({ type: w.type, minutes: w.minutes, from: 'weekly', id: w.id });
+    for (const c of state.plannedCardio?.[date] || []) cardio.push({ ...c, from: 'day' });
+  }
   const restarted = (tr.restarts || []).some((r) => r.date === date);
   return { date, kind, planId, chosen, shifted, sick, restarted, pos, base, cardio, splitId: sp?.id };
 }
