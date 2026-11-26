@@ -1,6 +1,6 @@
 # Android / Health Connect
 
-Stand: 26.11.2026 (App 1.4). Web-Seite: `js/healthConnect.js`, `js/views/healthConnectSetup.js`.
+Stand: 26.11.2026 (App 1.5). Web-Seite: `js/healthConnect.js`, `js/views/healthConnectSetup.js`.
 Android-Hülle: `android/app-shell` (Kotlin, WebView + Brücke `GymHC`), im Emulator (Android 17) getestet:
 Rechte-Dialog, Lesen aller Datenarten, Mahlzeiten schreiben.
 
@@ -36,6 +36,11 @@ cd android\app-shell; .\gradlew.bat assembleDebug
   Neue Brücken-Methode `saveFile({ name, text })` → Android-Dialog „Speichern unter“ (`ActivityResultContracts.CreateDocument`),
   Antwort `{ saved: true|false }`. Die Web-App nutzt sie in Profil → Daten → Exportieren; ältere Hüllen melden „braucht App 1.4“.
   Im Emulator geprüft (Debug gegen lokale Vorschau: speichern, abbrechen, Datei vollständig), 1.4 als Update über 1.3 installiert.
+- **Version 1.5 (26.11.):** Zurück-Taste fragt zuerst die Web-App (`window.__gmtBack()`): offenes Bestätigungsfenster →
+  abbrechen, offenes Fenster → schliessen (Editoren fragen bei ungespeicherten Änderungen). Erst wenn nichts offen ist:
+  Seite zurück bzw. App verlassen. Vorher verwarf Zurück Editor-Änderungen ohne Nachfrage (Prüfbericht AA2).
+  Web-Seite fängt dasselbe auch ohne 1.5 ab (Hash-Wechsel ohne App-Auslöser → wieder vor + schliessen), nur auf der
+  ersten Seite ohne Verlauf beendete Zurück dort die App.
 - Emulator-Fenster zu gross für den Bildschirm: `window.scale = 0.3` in `%USERPROFILE%\.android\avd\Medium_Phone.avd\emulator-user.ini`.
   Samsung-ähnlich testen: `adb shell cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.threebutton`.
 

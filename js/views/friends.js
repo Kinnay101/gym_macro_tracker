@@ -133,7 +133,7 @@ function board(state, members) {
   const without = ranked.filter((r) => r.v == null);
   const max = Math.max(...withVal.map((r) => r.v), 0) || 1;
   const medal = (i) => ['🥇', '🥈', '🥉'][i] || String(i + 1);
-  const list = withVal.map((r, i) => `<div class="item" style="${r.me ? 'background:rgba(198,244,50,.06);margin:0 -8px;padding:12px 8px;border-radius:12px' : ''}">
+  const list = withVal.map((r, i) => `<div class="item" style="${r.me ? 'background:color-mix(in srgb, var(--accent) 8%, transparent);margin:0 -8px;padding:12px 8px;border-radius:12px' : ''}">
       <span style="width:28px;text-align:center;font-weight:700">${medal(i)}</span>
       <div class="grow"><div class="row between"><span class="ellipsis" style="font-weight:600">${esc(r.me ? t('friends.you') : r.m.display_name)}</span><b>${esc(r.label)}</b></div>
         <div class="bar" style="margin:6px 0 4px"><i style="width:${Math.max(4, (r.v / max) * 100).toFixed(1)}%;background:${r.me ? 'var(--accent)' : 'var(--muted-2)'}"></i></div>

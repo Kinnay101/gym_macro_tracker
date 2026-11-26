@@ -162,11 +162,18 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+        // Zurück-Taste: zuerst die Web-App fragen (schliesst offenes Bestätigungsfenster bzw. Fenster, Editoren fragen nach).
+        // Nur wenn dort nichts offen ist: Seite zurück bzw. App verlassen. (Vorher verwarf Zurück Editor-Änderungen.)
+        val backCallback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (web.canGoBack()) web.goBack() else { isEnabled = false; onBackPressedDispatcher.onBackPressed() }
+                web.evaluateJavascript("(function(){try{return !!(window.__gmtBack && window.__gmtBack());}catch(e){return false;}})()") { result ->
+                    if (BuildConfig.DEBUG) android.util.Log.i("GymBack", "web=$result canGoBack=${web.canGoBack()} url=${web.url}")
+                    if (result == "true") return@evaluateJavascript
+                    if (web.canGoBack()) web.goBack() else { isEnabled = false; onBackPressedDispatcher.onBackPressed(); isEnabled = true }
+                }
             }
-        })
+        }
+        onBackPressedDispatcher.addCallback(this, backCallback)
 
         // Debug-Build: andere Start-Adresse zum Testen (adb shell am start ... --es url http://localhost:8010/)
         if (BuildConfig.DEBUG) intent.getStringExtra("url")?.let { if (isOwnPage(Uri.parse(it))) startUrl = it }

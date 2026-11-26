@@ -1,5 +1,5 @@
 /* Gym Macro Tracker – dunkles, sportliches Design (Farben wie im Prototyp) */
-/* Farbwelten: Standard „Kreide“ (warmes Graphit + Signal-Orange), dazu „Tinte“ (Nachtblau + Messing) und
+/* Farbwelten: Standard „Kreide“ (warmes Graphit + Signal-Orange), dazu „Sand“ (hell: Papierweiss, dunkleres Orange) und
    „Limette“ (bisheriges Design). Umschalten: Profil → Darstellung (setzt <html data-theme>). */
 :root {
   --bg: #121110;
@@ -31,30 +31,31 @@
   --font-display: var(--font);
   color-scheme: dark;
 }
-:root[data-theme="tinte"] {
-  --bg: #0B1020;
-  --bg-nav: #0F1528;
-  --card: #141B30;
-  --card-2: #1C2541;
-  --line: #233050;
-  --line-2: #2F3C62;
-  --field-line: #5A6890;
-  --track: #222C48;
-  --text: #EEF1F8;
-  --muted: #AAB3C8;
-  --muted-2: #98A2BA;
-  --faint: #7D88A3;
-  --accent: #F2B544;
-  --accent-hi: #FFC966;
-  --on-accent: #1A1203;
-  --protein: #7FB4FF;
-  --carbs: #A6DB72;
-  --fat: #D29BFF;
-  --cardio: #45CFE0;
-  --good: #4FD1A5;
-  --warn: #FF9466;
-  --bad: #FF6B81;
-  --on-bad: #1A0508;
+:root[data-theme="sand"] {
+  --bg: #F4F1EA;
+  --bg-nav: #FBFAF6;
+  --card: #FFFFFF;
+  --card-2: #F2EEE6;
+  --line: #E6E0D5;
+  --line-2: #D6CFC2;
+  --field-line: #8F8679;
+  --track: #EAE5DB;
+  --text: #1C1A17;
+  --muted: #5E574D;
+  --muted-2: #6A6357;
+  --faint: #847B6E;
+  --accent: #B8410C;
+  --accent-hi: #CC4E16;
+  --on-accent: #FFFFFF;
+  --protein: #2F7BD9;
+  --carbs: #4E9A26;
+  --fat: #8B4FD6;
+  --cardio: #0B7D90;
+  --good: #1B8656;
+  --warn: #9A6408;
+  --bad: #CC2F4C;
+  --on-bad: #FFFFFF;
+  color-scheme: light;
 }
 :root[data-theme="lime"] {
   --bg: #0E0F11;
@@ -84,6 +85,7 @@
 /* „Kontrast erhöhen“ (iPhone/Android-Einstellung): Linien und Nebentext heller */
 @media (prefers-contrast: more) {
   :root, :root[data-theme] { --line: #5A5650; --line-2: #7A756D; --field-line: #9A948A; --muted: #D6D0C6; --muted-2: #CBC5BA; --faint: #B5AFA5; }
+  :root[data-theme="sand"] { --line: #B8B0A3; --line-2: #9C9386; --field-line: #6A6357; --muted: #3F3A33; --muted-2: #47423A; --faint: #5E574D; }
 }
 
 * { box-sizing: border-box; }
@@ -306,16 +308,16 @@ button.preview-day { width: 100%; background: none; border: 0; border-top: 1px s
 .day-head { position: sticky; top: -16px; z-index: 1; background: var(--card); margin: -8px 0 0; padding: 8px 0; }
 
 .toast { position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 12px; font-weight: 600; font-size: .824rem; z-index: 30; display: flex; gap: 12px; align-items: center; max-width: calc(100% - 32px); }
-.toast button { background: none; border: 0; color: color-mix(in srgb, var(--accent) 55%, #000); font-weight: 700; cursor: pointer; padding: 0; }
+.toast button { background: none; border: 0; color: color-mix(in srgb, var(--accent) 55%, var(--bg)); font-weight: 700; cursor: pointer; padding: 0; }
 
 /* Barcode-Scanner (Vollbild) */
-.scanner { position: fixed; inset: 0; z-index: 40; background: #000; display: flex; flex-direction: column; }
+.scanner { position: fixed; inset: 0; z-index: 40; background: #000; color: #fff; display: flex; flex-direction: column; }
 .scanner video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .scan-frame { position: absolute; left: 10%; right: 10%; top: 32%; height: 22%; border: 3px solid var(--accent); border-radius: 18px; box-shadow: 0 0 0 9999px rgba(0,0,0,.45); }
 .scan-top, .scan-bottom { position: relative; z-index: 1; padding: 16px; display: flex; gap: 12px; }
 .scan-top { padding-top: calc(16px + env(safe-area-inset-top)); justify-content: space-between; align-items: center; font-weight: 700; }
 .scan-bottom { margin-top: auto; flex-direction: column; padding-bottom: calc(20px + env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(0,0,0,.85) 30%); }
-.scan-msg { text-align: center; color: var(--text); min-height: 20px; }
+.scan-msg { text-align: center; color: #fff; min-height: 20px; }
 .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line-2); border-top-color: var(--accent); animation: spin .8s linear infinite; display: inline-block; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .credit { font-size: .706rem; color: var(--muted-2); text-align: center; line-height: 1.5; }

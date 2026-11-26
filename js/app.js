@@ -43,7 +43,15 @@ function parseHash() {
   return { name: ROUTES[path] ? path : 'today', params };
 }
 
-export function go(path) { location.hash = '#/' + path; }
+// Seitenwechsel, die die App selbst auslöst (Knöpfe, Links) – alles andere ist „Zurück“ (Browser, Android-Taste)
+let expectedHash = null;
+let expectTimer;
+function expect(hash) { expectedHash = hash; clearTimeout(expectTimer); expectTimer = setTimeout(() => { expectedHash = null; }, 1000); }
+export function go(path) { expect('#/' + path); location.hash = '#/' + path; }
+document.addEventListener('click', (e) => {
+  const a = e.target.closest?.('a[href^="#/"]');
+  if (a) expect(a.getAttribute('href'));
+}, true);
 
 const ctx = {
   get state() { return store.get(); },
@@ -129,6 +137,7 @@ function route() {
   const { name, params } = parseHash();
   const changed = name !== current.name;
   current = { name, mod: ROUTES[name], params };
+  activeConfirm?.(false); // offenes Bestätigungsfenster gehört zur alten Seite (Prüfbericht AA3)
   closeSheet();
   render();
   if (changed) $view.scrollTop = 0;
@@ -173,7 +182,9 @@ function closeSheet() {
 
 // ---- Bestätigen (eigenes Fenster statt window.confirm: das wird in manchen Umgebungen unterdrückt
 // und liefert dann still „Nein“ – z. B. passierte bei „Training verwerfen“ nichts) ----
+let activeConfirm = null; // schliesst das offene Bestätigungsfenster (Antwort „Nein“)
 function confirmDialog(message, okLabel = t('common.ok'), { destructive = true } = {}) {
+  activeConfirm?.(false);
   return new Promise((resolve) => {
     const bg = document.createElement('div');
     bg.className = 'confirm-bg';
@@ -182,7 +193,8 @@ function confirmDialog(message, okLabel = t('common.ok'), { destructive = true }
     bg.querySelector('.confirm-text').textContent = message;
     bg.querySelector('[data-c="0"]').textContent = t('common.cancel');
     bg.querySelector('[data-c="1"]').textContent = okLabel;
-    const done = (v) => { bg.remove(); document.removeEventListener('keydown', onKey, true); resolve(v); };
+    const done = (v) => { bg.remove(); document.removeEventListener('keydown', onKey, true); if (activeConfirm === done) activeConfirm = null; resolve(v); };
+    activeConfirm = done;
     const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); done(false); } };
     bg.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -347,8 +359,33 @@ $sheetRoot.addEventListener('touchend', async () => {
   }
 });
 
+// „Zurück“ (Android-Taste, Browser): zuerst ein offenes Bestätigungsfenster, dann ein offenes Fenster schliessen –
+// die Seite bleibt (Prüfbericht AA2/AA3/K4). Editoren fragen dabei wie beim ✕ nach ungespeicherten Änderungen.
+/** Zurück in der App behandeln → true, wenn etwas geschlossen wurde (sonst normal zurück). Auch für die Android-Hülle. */
+function handleBack() {
+  if (activeConfirm) { activeConfirm(false); return true; }
+  if (sheetRender) { closeSheetGuarded(); return true; }
+  return false;
+}
+window.__gmtBack = handleBack; // Android-App ab 1.5 fragt zuerst hier
+let skipHashchange = 0;
+function onHashChange() {
+  if (skipHashchange) { skipHashchange--; return; }
+  const intended = expectedHash === location.hash;
+  expectedHash = null;
+  if (!intended && (activeConfirm || sheetRender)) {
+    // Browser/ältere App ist schon zurückgegangen → wieder vor (Seite bleibt), dann nur schliessen
+    skipHashchange++;
+    setTimeout(() => { skipHashchange = 0; }, 800); // falls es kein „vor“ gibt (Adresse von Hand geändert)
+    history.forward();
+    handleBack();
+    return;
+  }
+  route();
+}
+
 store.onChange(render);
-window.addEventListener('hashchange', route);
+window.addEventListener('hashchange', onHashChange);
 route();
 
 // Konto & Sync: Anzeige im Profil aktuell halten, nach Passwort-Link neues Passwort abfragen

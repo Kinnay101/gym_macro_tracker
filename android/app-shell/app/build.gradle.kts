@@ -20,8 +20,8 @@ android {
         applicationId = "io.github.kinnay101.gymmacro"
         minSdk = 28 // Health Connect gibt es ab Android 9
         targetSdk = 37
-        versionCode = 5
-        versionName = "1.4"
+        versionCode = 6
+        versionName = "1.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
