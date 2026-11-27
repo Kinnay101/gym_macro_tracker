@@ -27,10 +27,11 @@ let pendingSave = null; // gespeicherte Eingaben, während nach dem Gewicht gefr
 export function card(state) {
   const list = sorted(state);
   const last = list[list.length - 1];
-  const head = `<div class="card-head"><h3>${esc(t('body.measures'))}</h3><button class="link" data-act="m-new">${esc(t('body.addMeasures'))}</button></div>`;
+  // Hauptknopf = Masse eintragen; „Aus Notizen übernehmen“ nur klein oben rechts
+  const head = `<div class="card-head"><h3>${esc(t('body.measures'))}</h3><button class="link small" data-act="m-import">${esc(t('measure.import'))}</button></div>`;
+  const addBtn = `<button class="btn primary block" data-act="m-new">${icon(I.plus)} ${esc(t('body.addMeasures'))}</button>`;
   if (!last) {
-    return `<section class="card tight">${head}<div class="small muted">${esc(t('body.noMeasures'))}</div>
-      <button class="btn sm ghost" data-act="m-import">${esc(t('measure.import'))}</button></section>`;
+    return `<section class="card tight">${head}<div class="small muted">${esc(t('body.noMeasures'))}</div>${addBtn}</section>`;
   }
   const prevOf = (key) => [...list].reverse().find((e) => e.date < last.date && typeof e[key] === 'number')?.[key];
   const delta = (key) => {
@@ -50,8 +51,8 @@ export function card(state) {
     ${last.bf != null && prevOf('bf') != null ? `<div class="tiny muted">${esc(t('measure.bf'))}: ${num(last.bf, 1)} % (${last.bf - prevOf('bf') > 0 ? '+' : '−'}${num(Math.abs(last.bf - prevOf('bf')), 1)})</div>` : ''}
     <div>${rows}</div>
     ${list.length > 1 ? `<div class="tiny muted">${esc(t('measure.deltaHint', { date: shortDate(list[list.length - 2].date) }))}</div>` : ''}
+    ${addBtn}
     <div class="grid2"><button class="btn sm" data-act="m-history">${esc(t('measure.history'))}</button><button class="btn sm" data-act="m-edit" data-date="${esc(last.date)}">${esc(t('measure.edit'))}</button></div>
-    <button class="btn sm ghost" data-act="m-import">${esc(t('measure.import'))}</button>
   </section>`;
 }
 

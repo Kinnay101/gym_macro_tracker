@@ -1,5 +1,6 @@
 // Training: laufendes Training starten/beenden, frühere Sätze, Bestwerte (PRs), Volumen.
 import { uid, today, e1rm, num } from './util.js';
+import { exCfg, loadOf, hasLoadRule } from './exercises.js';
 
 // ---- Einseitige Ausführung (links/rechts) ----
 // Eine Übung kann einseitig gemacht werden (Knopf „L/R“ im Training, Standard im Trainings-Editor). Dann gibt es pro Satz
@@ -9,12 +10,17 @@ export const UNI = '|uni';
 export const trackOf = (ex) => (ex.uni ? ex.name + UNI : ex.name);
 export const isUniTrack = (key) => typeof key === 'string' && key.endsWith(UNI);
 export const trackBase = (key) => (isUniTrack(key) ? key.slice(0, -UNI.length) : key);
+/** Bewegtes Gewicht eines Satzes: `load` (kg pro Seite ×2 bzw. + Stange, siehe js/exercises.js), sonst kg. */
+export const setLoad = (s) => s.load ?? s.kg;
 /** Geschätztes 1RM eines Satzes; einseitig: die schwächere Seite. */
 export function setE1rm(s) {
-  return s.repsR != null ? Math.min(e1rm(s.kg, s.reps), e1rm(s.kg, s.repsR)) : e1rm(s.kg, s.reps);
+  const kg = setLoad(s);
+  return s.repsR != null ? Math.min(e1rm(kg, s.reps), e1rm(kg, s.repsR)) : e1rm(kg, s.reps);
 }
-/** Bewegtes Gewicht eines Satzes (einseitig: beide Seiten zusammen). */
-export const setVolume = (s) => s.kg * ((s.reps || 0) + (s.repsR || 0));
+/** Volumen eines Satzes (einseitig: beide Seiten zusammen). */
+export const setVolume = (s) => setLoad(s) * ((s.reps || 0) + (s.repsR || 0));
+/** Satz im laufenden Training mit bewegtem Gewicht (für den PR-Vergleich). */
+export const liveSet = (ex, s) => (hasLoadRule(ex) ? { ...s, load: loadOf(ex, s.kg) } : s);
 /** Satz als Text: „30 kg × 10“ bzw. einseitig „30 kg × 10 L · 9 R“. */
 export function setText(s, { unit = ' kg', x = ' × ' } = {}) {
   const w = s.warmup ? 'W ' : '';
@@ -71,8 +77,8 @@ export function historyFor(state, key) {
     if (!sets.length) continue;
     const row = { date: w.date, e1rm: Math.max(...sets.map(setE1rm)) };
     if (ex.uni) {
-      row.l = Math.max(...sets.map((s) => e1rm(s.kg, s.reps)));
-      row.r = Math.max(...sets.map((s) => e1rm(s.kg, s.repsR)));
+      row.l = Math.max(...sets.map((s) => e1rm(setLoad(s), s.reps)));
+      row.r = Math.max(...sets.map((s) => e1rm(setLoad(s), s.repsR)));
     }
     out.push(row);
   }
@@ -91,7 +97,7 @@ export function volume(w) {
  * und werden selbst eingetragen – damit gilt der Satz als gemacht (siehe views/active.js). „Zuletzt“ zeigt kg×Wdh.
  */
 export const DEFAULT_SETS = 3;
-function prefill(state, name, uni = false, opt = {}) {
+export function prefill(state, name, uni = false, opt = {}) {
   const last = lastSetsFor(state, name, uni, opt);
   const work = last ? last.sets.filter((s) => !s.warmup) : [];
   return Array.from({ length: DEFAULT_SETS }, (_, i) => {
@@ -137,11 +143,28 @@ export function startWorkout(state, planId) {
       variant: e.variant,
       optional: e.optional,
       uni: !!e.uni, // im Trainings-Editor als „einseitig“ vorgemerkt
+      ...loadRule(state, e.name),
       useVar: false,
       skipped: e.optional, // optionale Übungen sind erst mal übersprungen
       sets: prefill(state, e.name, !!e.uni),
       varSets: e.variant ? prefill(state, e.variant.name, !!e.uni) : null,
     })),
+  };
+}
+
+/** kg pro Seite (×2) und Grundgewicht aus der Übungsliste – nur gesetzte Felder. */
+function loadRule(state, name) {
+  const c = exCfg(state, name);
+  return { ...(c.x2 ? { x2: true } : {}), ...(c.base ? { base: c.base } : {}) };
+}
+
+/** Übung im laufenden (oder bearbeiteten) Training anhängen – z. B. eine Extra-Übung, die nicht im Plan ist. */
+export function extraExercise(state, name, muscle, opt = {}) {
+  const c = exCfg(state, name);
+  return {
+    key: uid(), name, target: c.target, muscle: muscle || c.muscle || 'core', variant: null, optional: false,
+    uni: c.uni, ...loadRule(state, name), useVar: false, skipped: false, extra: true,
+    sets: prefill(state, name, c.uni, opt), varSets: null,
   };
 }
 
@@ -180,8 +203,12 @@ function collectExercises(a) {
     .filter((ex) => !ex.skipped)
     .map((ex) => {
       const c = current(ex);
-      const sets = c.sets.filter((s) => s.done).map(({ kg, reps, repsR, warmup }) => (ex.uni ? { kg, reps, repsR: repsR ?? reps, warmup, done: true } : { kg, reps, warmup, done: true }));
-      return { name: c.name, muscle: ex.muscle, variant: !!ex.useVar, ...(ex.uni ? { uni: true } : {}), sets };
+      // kg pro Seite / Grundgewicht: eingetippter Wert bleibt kg, bewegtes Gewicht steht als load daneben
+      const rule = hasLoadRule(ex);
+      const sets = c.sets.filter((s) => s.done).map(({ kg, reps, repsR, warmup }) => ({
+        kg, reps, ...(ex.uni ? { repsR: repsR ?? reps } : {}), warmup, done: true, ...(rule && kg != null ? { load: loadOf(ex, kg) } : {}),
+      }));
+      return { name: c.name, muscle: ex.muscle, variant: !!ex.useVar, ...(ex.uni ? { uni: true } : {}), ...(ex.x2 ? { x2: true } : {}), ...(ex.base > 0 ? { base: ex.base } : {}), sets };
     })
     .filter((ex) => ex.sets.length);
 }
@@ -198,18 +225,18 @@ export function startEdit(state, id, back = 'training') {
   const opt = { exclude: w.id, before: w.date };
   const bare = !w.exercises.length;
   const fromPlan = (e) => ({
-    key: e.id, name: e.name, target: e.target, muscle: e.muscle, variant: e.variant, optional: e.optional, uni: !!e.uni, useVar: false,
+    key: e.id, name: e.name, target: e.target, muscle: e.muscle, variant: e.variant, optional: e.optional, uni: !!e.uni, ...loadRule(state, e.name), useVar: false,
     skipped: bare ? e.optional : true,
     sets: prefill(state, e.name, !!e.uni, opt),
     varSets: e.variant ? prefill(state, e.variant.name, !!e.uni, opt) : null,
   });
   const saved = w.exercises.map((ex) => {
     const pe = plan?.ex.find((e) => e.name === ex.name || e.variant?.name === ex.name);
-    const sets = ex.sets.map((s) => ({ ...s, id: uid(), done: true }));
+    const sets = ex.sets.map(({ load, ...s }) => ({ ...s, id: uid(), done: true }));
     const isVar = !!pe?.variant && pe.variant.name === ex.name && pe.name !== ex.name;
     return {
       key: pe?.id || uid(), name: isVar ? pe.name : ex.name, target: pe?.target || '', muscle: ex.muscle, variant: pe?.variant || null,
-      optional: false, uni: !!ex.uni, useVar: isVar, skipped: false,
+      optional: false, uni: !!ex.uni, ...(ex.x2 ? { x2: true } : {}), ...(ex.base > 0 ? { base: ex.base } : {}), useVar: isVar, skipped: false,
       sets: isVar ? prefill(state, pe.name, !!ex.uni, opt) : sets,
       varSets: isVar ? sets : (pe?.variant ? prefill(state, pe.variant.name, !!ex.uni, opt) : null),
     };

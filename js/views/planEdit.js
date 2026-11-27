@@ -4,6 +4,7 @@ import { esc, num, today, addDays, icon, I, parseNum, uid, daysBetween } from '.
 import { t, weekdayShort, longDate } from '../i18n.js';
 import { dayPlan, activeSplit, cyclePos, planShort, newPlan, newSplit, planMuscles, MUSCLES, CARDIO_TYPES, splitById, restartAt, removeRestart, markDay, unmarkDay, markRange, indexOfPlan, liveSplits, livePlans, editableFrom, reviseSplit, deleteSplit, deletePlan, addWeekly, updateWeekly, removeWeekly, currentWeekly } from '../plan.js';
 import { sheetHead, seg } from '../ui.js';
+import { exCfg, libEntry, setLib, historyCount, reapplyHistory, targetList } from '../exercises.js';
 import { splitName } from './today.js';
 import { plannedCardioList } from './cardioEdit.js';
 
@@ -198,17 +199,21 @@ function planSheet(state) {
         <button class="icon-btn" data-act="pe-del" data-i="${i}" aria-label="${esc(t('common.delete'))}">${icon(I.trash)}</button></div>
       <div class="row" style="gap:6px;padding-left:28px">
         <select class="input" data-in="pe-ex" data-f="muscle" data-i="${i}" style="width:42%">${MUSCLES.map((m) => opt(m, t('m.' + m), e.muscle === m)).join('')}</select>
-        <input class="input grow" data-in="pe-ex" data-f="target" data-i="${i}" value="${esc(e.target ?? '')}" placeholder="${esc(t('plan.target'))}"></div>
-      <div class="row" style="gap:6px;padding-left:28px">
-        <input class="input grow" data-in="pe-ex" data-f="variant" data-i="${i}" value="${esc(e.variant?.name ?? '')}" list="ex-names" placeholder="${esc(t('plan.variant'))}">
+        <input class="input grow" data-in="pe-ex" data-f="target" data-i="${i}" data-combo="ex-targets" autocomplete="off" value="${esc(e.target ?? '')}" placeholder="${esc(t('plan.target'))}"></div>
+      <div class="row" style="gap:6px 10px;padding-left:28px;flex-wrap:wrap">
+        <input class="input grow" style="flex:1 1 100%" data-in="pe-ex" data-f="variant" data-i="${i}" value="${esc(e.variant?.name ?? '')}" list="ex-names" placeholder="${esc(t('plan.variant'))}">
         <label class="row tiny" style="gap:4px"><input type="checkbox" data-in="pe-ex" data-f="optional" data-i="${i}" ${e.optional ? 'checked' : ''}>${esc(t('training.optional'))}</label>
         <label class="row tiny" style="gap:4px"><input type="checkbox" data-in="pe-ex" data-f="uni" data-i="${i}" ${e.uni ? 'checked' : ''}>${esc(t('plan.uni'))}</label></div>
+      <div class="row" style="gap:6px;padding-left:28px">
+        <label class="row tiny" style="gap:4px"><input type="checkbox" data-in="pe-ex" data-f="x2" data-i="${i}" ${e.x2 ? 'checked' : ''}>${esc(t('plan.x2'))}</label>
+        <input class="input grow" data-in="pe-ex" data-f="base" data-i="${i}" inputmode="decimal" value="${e.base ?? ''}" placeholder="${esc(t('plan.base'))}" aria-label="${esc(t('plan.base'))}"></div>
     </div>`).join('');
   return `${sheetHead(d.isNew ? t('plan.newTitle') : t('plan.editTitle'))}
     <div class="grid2"><label class="field">${esc(t('plan.name'))}<input class="input" data-in="pe-name" value="${esc(p.name)}" maxlength="40"></label>
       <label class="field">${esc(t('plan.short'))}<input class="input" data-in="pe-short" value="${esc(p.short ?? '')}" maxlength="4" placeholder="${esc(t('common.std', { v: planShort({ ...p, short: null, name: p.name || '?' }) }))}"></label></div>
     <div class="small" style="font-weight:600">${esc(t('plan.exercises'))} · ${esc(t('training.exCount', { n: p.ex.length }))}</div>
     <datalist id="ex-names">${names.map((n) => `<option value="${esc(n)}">`).join('')}</datalist>
+    ${targetList(state, p.ex.map((e) => e.target))}
     <div class="stack" style="gap:0">${rows || `<div class="small muted">${esc(t('plan.noEx'))}</div>`}</div>
     <button class="btn sm" data-act="pe-add">${icon(I.plus)} ${esc(t('plan.addEx'))}</button>
     ${!d.isNew && livePlans(state).length > 1 ? `<button class="btn danger" data-act="pe-delete">${icon(I.trash)} ${esc(t('plan.delete'))}</button>` : ''}
@@ -220,6 +225,8 @@ export function openPlan(ctx, id) {
   const p = id ? ctx.state.plans.find((x) => x.id === id) : newPlan('');
   if (!p) return;
   planDraft = { plan: structuredClone(p), isNew: !id };
+  // kg pro Seite / Grundgewicht gehören zur Übung (Übungsliste), nicht zum Training – hier nur zum Bearbeiten angezeigt
+  for (const e of planDraft.plan.ex) { const c = exCfg(ctx.state, e.name); if (c.x2) e.x2 = true; if (c.base) e.base = c.base; }
   planDraft.initial = JSON.stringify(planDraft.plan);
   ctx.openSheet(planSheet, { modal: true, guard: () => JSON.stringify(planDraft?.plan) === planDraft?.initial || ctx.confirm(t('common.discardChanges'), t('common.discard')) });
 }
@@ -418,7 +425,7 @@ export const actions = {
     [ex[i], ex[j]] = [ex[j], ex[i]];
     ctx.refreshSheet();
   },
-  'pe-save'(el, ctx) {
+  async 'pe-save'(el, ctx) {
     const p = planDraft.plan;
     const err = document.getElementById('pe-err');
     p.name = (p.name || '').trim();
@@ -427,9 +434,23 @@ export const actions = {
     if (!p.ex.length) { err.textContent = t('plan.needEx'); return; }
     p.short = (p.short || '').trim() || null;
     const isNew = planDraft.isNew;
+    // kg pro Seite / Grundgewicht in die Übungsliste schreiben (gilt überall, wo die Übung vorkommt), nicht ins Training
+    const rules = p.ex.map((e) => ({ name: e.name, muscle: e.muscle, x2: !!e.x2, base: e.base > 0 ? e.base : null }));
+    // Geänderte Regel bei Übungen mit Verlauf: frühere Trainings auch so rechnen? (eine Frage für alle)
+    const changedRule = (r) => { const h = libEntry(ctx.state, r.name); return !!h?.x2 !== r.x2 || (h?.base || null) !== r.base; };
+    const withHistory = rules.filter((r) => changedRule(r) && historyCount(ctx.state, r.name));
+    const reapply = withHistory.length
+      ? await ctx.confirm(t('ex.historyAskMany', { list: withHistory.map((r) => r.name).join(', ') }), t('ex.historyYes'), { destructive: false, cancelLabel: t('ex.historyNo') })
+      : false;
+    p.ex = p.ex.map(({ x2, base, ...e }) => e);
     ctx.update((s) => {
       const i = s.plans.findIndex((x) => x.id === p.id);
       if (i >= 0) s.plans[i] = p; else s.plans.push(p);
+      for (const r of rules) {
+        const had = libEntry(s, r.name);
+        if (r.x2 || r.base || (had && changedRule(r))) setLib(s, r.name, { x2: r.x2, base: r.base, ...(had?.muscle ? {} : { muscle: r.muscle }) });
+      }
+      if (reapply) for (const r of withHistory) reapplyHistory(s, r.name, r);
     });
     planDraft = null;
     ctx.closeSheet();
@@ -463,6 +484,7 @@ export const inputs = {
     const e = planDraft.plan.ex[Number(el.dataset.i)];
     if (!e) return;
     const f = el.dataset.f;
+    if (f === 'base') { e.base = parseNum(el.value); return; }
     if (f === 'variant') e.variant = el.value.trim() ? { ...(e.variant || {}), name: el.value, target: e.variant?.target ?? null, note: e.variant?.note ?? null } : null;
     else e[f] = el.value;
   },
@@ -489,7 +511,7 @@ export const changes = {
     if (!planDraft) return;
     const e = planDraft.plan.ex[Number(el.dataset.i)];
     if (!e) return;
-    if (el.type === 'checkbox') e[el.dataset.f === 'uni' ? 'uni' : 'optional'] = el.checked;
+    if (el.type === 'checkbox') e[['uni', 'x2'].includes(el.dataset.f) ? el.dataset.f : 'optional'] = el.checked;
     else if (el.tagName === 'SELECT') e[el.dataset.f] = el.value;
   },
   cw(el, ctx) {

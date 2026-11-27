@@ -15,6 +15,7 @@ import { THEMES } from './theme.js';
 import { segRects, placeSegs } from './ui.js';
 import { today } from './util.js';
 import './health.js'; // verarbeitet Apple-Health-Daten nach jedem Sync
+import './combo.js'; // eigene Auswahlliste für Felder mit data-combo (z. B. Ziel)
 
 const ROUTES = {
   today: todayView,
@@ -206,7 +207,7 @@ function closeSheet() {
 // ---- Bestätigen (eigenes Fenster statt window.confirm: das wird in manchen Umgebungen unterdrückt
 // und liefert dann still „Nein“ – z. B. passierte bei „Training verwerfen“ nichts) ----
 let activeConfirm = null; // schliesst das offene Bestätigungsfenster (Antwort „Nein“)
-function confirmDialog(message, okLabel = t('common.ok'), { destructive = true } = {}) {
+function confirmDialog(message, okLabel = t('common.ok'), { destructive = true, cancelLabel = null } = {}) {
   activeConfirm?.(false);
   return new Promise((resolve) => {
     const bg = document.createElement('div');
@@ -214,7 +215,7 @@ function confirmDialog(message, okLabel = t('common.ok'), { destructive = true }
     bg.innerHTML = '<div class="confirm" role="alertdialog" aria-modal="true"><div class="confirm-text"></div>'
       + '<div class="grid2"><button type="button" class="btn" data-c="0"></button><button type="button" class="btn ' + (destructive ? 'danger-fill' : 'primary') + '" data-c="1"></button></div></div>';
     bg.querySelector('.confirm-text').textContent = message;
-    bg.querySelector('[data-c="0"]').textContent = t('common.cancel');
+    bg.querySelector('[data-c="0"]').textContent = cancelLabel || t('common.cancel');
     bg.querySelector('[data-c="1"]').textContent = okLabel;
     const done = (v) => { bg.remove(); document.removeEventListener('keydown', onKey, true); if (activeConfirm === done) activeConfirm = null; resolve(v); };
     activeConfirm = done;

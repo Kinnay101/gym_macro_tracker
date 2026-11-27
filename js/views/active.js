@@ -2,9 +2,10 @@
 // Übungen verschieben (nur für dieses Training), Aufwärmsätze, PRs, Cardio anhängen
 import { esc, num, icon, I, parseNum, e1rm } from '../util.js';
 import { t, targetText, shortDate } from '../i18n.js';
-import { current, blankSet, lastSetsFor, bestFor, finishWorkout, finishEdit, workingSets, setE1rm, refillFor, UNI } from '../workout.js';
+import { current, blankSet, lastSetsFor, bestFor, finishWorkout, finishEdit, workingSets, setE1rm, refillFor, UNI, liveSet, extraExercise } from '../workout.js';
 import { sheetHead } from '../ui.js';
 import { CARDIO_TYPES } from './training.js';
+import * as exLib from './exLib.js';
 
 export const immersive = true; // ohne untere Navigation
 
@@ -31,7 +32,8 @@ export function render(state, params) {
       <div class="grow"><div class="tiny muted timer" id="timer">${elapsed(a.startedAt)}</div><h1 class="ellipsis" style="font-size:1.412rem">${esc(plan?.name || '')}</h1></div></div>
       <button class="btn primary" data-act="finish">${esc(t('active.finish'))}</button></header>
     ${a.exercises.map((ex, i) => exCard(state, ex, i, a.exercises.length)).join('')}
-    ${cardioCard(a)}
+    ${a.cardio ? `${cardioCard(a)}<button class="btn ghost" data-act="add-ex">${icon(I.plus)} ${esc(t('active.addEx'))}</button>`
+      : `<div class="grid2"><button class="btn ghost" data-act="add-ex">${icon(I.plus)} ${esc(t('active.addEx'))}</button>${cardioCard(a)}</div>`}
     <label class="field">${esc(t('active.note'))}<textarea class="input" style="min-height:70px;padding:10px 12px" data-in="note">${esc(a.note || '')}</textarea></label>
     <button class="btn primary block" data-act="finish">${esc(t('active.finish'))}</button>
   `;
@@ -46,6 +48,7 @@ function renderEdit(state, a) {
       <button class="btn primary" data-act="edit-save">${esc(t('common.save'))}</button></header>
     <div class="tiny muted">${esc(t('wedit.liveHint'))}</div>
     ${a.exercises.map((ex, i) => exCard(state, ex, i, a.exercises.length)).join('')}
+    <button class="btn ghost" data-act="add-ex">${icon(I.plus)} ${esc(t('active.addEx'))}</button>
     <label class="field">${esc(t('active.note'))}<textarea class="input" style="min-height:70px;padding:10px 12px" data-in="note">${esc(a.note || '')}</textarea></label>
     <button class="btn primary block" data-act="edit-save">${esc(t('common.save'))}</button>
   `;
@@ -79,12 +82,12 @@ function exCard(state, ex, i, count) {
   const rows = c.sets.map((s) => {
     const label = s.warmup ? 'W' : String(++workNo);
     const prevSet = s.warmup ? lastWork.filter((x) => x.warmup)[0] : lastWork.filter((x) => !x.warmup)[workNo - 1];
-    const isPr = s.done && !s.warmup && best && s.reps && (!uni || s.repsR) && setE1rm(s) > best.e1rm;
+    const isPr = s.done && !s.warmup && best && s.reps && (!uni || s.repsR) && setE1rm(liveSet(ex, s)) > best.e1rm;
     const prevTxt = prevSet ? (uni && prevSet.repsR != null ? `${num(prevSet.kg, 2)}×${num(prevSet.reps)}/${num(prevSet.repsR)}` : `${num(prevSet.kg, 2)}×${num(prevSet.reps)}`) : '–';
     return `<div class="set-row ${uni ? 'uni' : ''} ${s.done ? 'done' : ''}">
       <button class="no ${s.warmup ? 'w' : ''}" data-act="set-menu" data-ex="${i}" data-set="${esc(s.id)}" aria-label="${esc(t('active.setMenu'))}">${label}</button>
       <span class="prev">${prevTxt}${isPr ? ' <span class="tag pr">PR</span>' : ''}</span>
-      <input class="input num" inputmode="decimal" enterkeyhint="next" data-in="kg" data-ex="${i}" data-set="${esc(s.id)}" value="${s.kg ?? ''}" placeholder="kg" aria-label="kg">
+      <input class="input num" inputmode="decimal" enterkeyhint="next" data-in="kg" data-ex="${i}" data-set="${esc(s.id)}" value="${s.kg ?? ''}" placeholder="${ex.x2 ? esc(t('ex.kgSide')) : 'kg'}" aria-label="${ex.x2 ? esc(t('ex.x2Toggle')) : 'kg'}">
       ${uni
         ? `<input class="input num" inputmode="numeric" enterkeyhint="next" data-in="reps" data-ex="${i}" data-set="${esc(s.id)}" value="${s.reps ?? ''}" placeholder="${esc(s.ph?.reps ?? 'L')}" aria-label="${esc(t('active.repsLeft'))}">
       <input class="input num" inputmode="numeric" enterkeyhint="next" data-in="repsR" data-ex="${i}" data-set="${esc(s.id)}" value="${s.repsR ?? ''}" placeholder="${esc(s.ph?.repsR ?? 'R')}" aria-label="${esc(t('active.repsRight'))}">`
@@ -93,7 +96,10 @@ function exCard(state, ex, i, count) {
   }).join('');
   return `<section class="card tight ex-card">
     <div class="row between" style="align-items:flex-start"><div class="grow"><h3>${esc(c.name)}</h3>
-      <div class="meta small muted">${uni ? `<span class="tag accent">${esc(t('active.uniShort'))}</span> ` : ''}${c.target ? `${esc(targetText(c.target))} · ` : ''}${esc(t('m.' + ex.muscle))}${c.note ? ` · ${esc(c.note)}` : ''}</div>
+      <div class="meta small muted">${uni ? `<span class="tag accent">${esc(t('active.uniShort'))}</span> ` : ''}${ex.extra ? `<span class="tag">${esc(t('active.extra'))}</span> ` : ''}${c.target ? `${esc(targetText(c.target))} · ` : ''}${esc(t('m.' + ex.muscle))}${c.note ? ` · ${esc(c.note)}` : ''}</div>
+      <div class="row" style="gap:6px;margin-top:4px;flex-wrap:wrap">
+        <button class="mini-pill" data-act="x2" data-ex="${i}" aria-pressed="${!!ex.x2}" title="${esc(t('ex.x2Toggle'))}">${esc(ex.x2 ? t('ex.x2Tag') : '×2')}</button>
+        ${ex.base > 0 ? `<span class="tag">${esc(t('ex.baseTag', { kg: num(ex.base, 2) }))}</span>` : ''}</div>
       <div class="tiny muted" style="margin-top:2px">${best ? esc(t('active.best', { v: num(best.e1rm, 1) })) : esc(t('active.firstTime'))}</div></div>
       <div class="row" style="gap:6px">
         ${ex.variant ? `<button class="icon-btn" data-act="swap" data-ex="${i}" aria-label="${esc(t('active.swap', { name: ex.useVar ? ex.name : ex.variant.name }))}" title="${esc(ex.useVar ? ex.name : ex.variant.name)}">${icon(I.swap)}</button>` : ''}
@@ -223,7 +229,26 @@ export const actions = {
       if (ex.variant && ex.varSets) ex.varSets = refillFor(s, ex.variant.name, ex.uni, ex.varSets);
     });
   },
-  skip(el, ctx) { withEx(ctx, +el.dataset.ex, (ex) => { ex.skipped = !ex.skipped; }); },
+  // Extra-Übung (im Training hinzugefügt): ✕ nimmt sie ganz weg, Plan-Übungen werden übersprungen
+  skip(el, ctx) {
+    const i = +el.dataset.ex;
+    const ex = sess(ctx.state)?.exercises[i];
+    if (ex?.extra && !current(ex).sets.some((s) => s.done)) { ctx.update((s) => { s[KEY()].exercises.splice(i, 1); }); return; }
+    withEx(ctx, i, (x) => { x.skipped = !x.skipped; });
+  },
+  // Gewicht pro Seite (×2) für diese Übung in diesem Training an/aus – z. B. Kabelzug mal mit einer, mal mit zwei Rollen
+  x2(el, ctx) { withEx(ctx, +el.dataset.ex, (ex) => { if (ex.x2) delete ex.x2; else ex.x2 = true; }); },
+  'add-ex'(el, ctx) {
+    const editing = mode === 'edit';
+    exLib.openPicker(ctx, (name, muscle) => {
+      const st = ctx.state;
+      const opt = editing && st.editing ? { exclude: st.editing.id, before: st.editing.date } : {};
+      ctx.update((s) => { s[editing ? 'editing' : 'active']?.exercises.push(extraExercise(s, name, muscle, opt)); });
+      ctx.toast(t('ex.added', { name }));
+      setTimeout(() => document.querySelector('#view .ex-card:last-of-type')?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 50);
+    });
+  },
+  ...exLib.actions,
   'add-set'(el, ctx) {
     withEx(ctx, +el.dataset.ex, (ex) => {
       const sets = setsOf(ex);
@@ -283,7 +308,7 @@ export const actions = {
     // PRs vor dem Speichern bestimmen (Vergleich mit bisherigen Bestwerten)
     const prs = before.exercises.filter((e) => !e.skipped).filter((e) => {
       const c = current(e); const best = bestFor(ctx.state, e.uni ? c.name + UNI : c.name);
-      return best && workingSets({ sets: c.sets, uni: e.uni }).some((s) => setE1rm(s) > best.e1rm);
+      return best && workingSets({ sets: c.sets, uni: e.uni }).some((s) => setE1rm(liveSet(e, s)) > best.e1rm);
     }).length;
     ctx.closeSheet();
     ctx.update((s) => { finishWorkout(s); }, { silent: true });
@@ -298,7 +323,10 @@ export const actions = {
   },
 };
 
+export const changes = { ...exLib.changes };
+
 export const inputs = {
+  ...exLib.inputs,
   kg(el, ctx) { patchSet(ctx, el, 'kg'); },
   reps(el, ctx) { patchSet(ctx, el, 'reps'); },
   repsR(el, ctx) { patchSet(ctx, el, 'repsR'); },

@@ -52,9 +52,9 @@ export function render(state, ctx) {
     ${`<div class="chips">${groups.map((x) => `<button class="chip" data-act="fr-group" data-v="${esc(x.id)}" aria-pressed="${x.id === g.id}">${esc(x.name)}</button>`).join('')}
       <button class="chip" data-act="fr-show-join">${icon(I.plus, 'icon tag-icon')} ${esc(t('friends.addGroup'))}</button></div>`}
     <section class="card tight">
-      <div class="row between"><div class="grow" style="min-width:0"><div class="row" style="gap:6px"><h2 class="ellipsis">${esc(g.name)}</h2>
+      <div class="row between" style="align-items:flex-start"><div class="grow" style="min-width:0"><div class="row" style="gap:6px"><h2 class="ellipsis">${esc(g.name)}</h2>
           <button class="icon-btn" data-act="fr-rename" data-v="${esc(g.id)}" aria-label="${esc(t('friends.rename'))}">${icon(I.edit)}</button></div>
-        <div class="tiny muted">${esc(t('friends.members', { n: members.length }))}</div></div>
+        <div class="tiny muted" style="margin-top:6px">${esc(t('friends.members', { n: members.length }))}</div></div>
         ${loading ? '<span class="spinner"></span>' : `<button class="icon-btn" data-act="fr-reload" aria-label="${esc(t('friends.refresh'))}">${icon('<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>')}</button>`}</div>
       <div class="row between" style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px">
         <div><div class="tiny muted">${esc(t('friends.inviteCode'))}</div><div style="font-family:var(--font-display);font-weight:700;letter-spacing:.06em">${esc(g.invite_code)}</div></div>

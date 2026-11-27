@@ -12,6 +12,8 @@ import * as planEdit from './planEdit.js';
 import { calendar, calendarActions } from './progress.js';
 import * as cardioEdit from './cardioEdit.js';
 import { cardioSessions, cardioMinutes } from '../cardio.js';
+import * as planPreview from './planPreview.js';
+import * as exLib from './exLib.js';
 
 export { CARDIO_TYPES };
 
@@ -23,14 +25,18 @@ const HIST_SHOWN = 5; // auf der Seite nur die letzten Einträge
 
 // Oben „Übersicht | Plan“: täglich Gebrauchtes (Vorschlag, Kalender, Cardio, Verlauf) getrennt von selten Bearbeitetem
 // (Splits, Cardio-Plan, Trainings)
-const tabOf = (params) => (params?.tab === 'plan' ? 'plan' : 'overview');
+// „Übungen“: alle Übungen mit ihren Einstellungen (js/views/exLib.js)
+const tabOf = (params) => (params?.tab === 'plan' || params?.tab === 'ex' ? params.tab : 'overview');
 
 export function render(state, params) {
   const key = today();
   const plans = Object.fromEntries(state.plans.map((p) => [p.id, p]));
-  const tabs = seg('training-tab', [['overview', t('training.tabOverview')], ['plan', t('training.tabPlan')]], tabOf(params));
+  const tabs = seg('training-tab', [['overview', t('training.tabOverview')], ['plan', t('training.tabPlan')], ['ex', t('training.tabEx')]], tabOf(params));
   if (tabOf(params) === 'plan') {
     return `${header(t('nav.training'))}${tabs}${planEdit.manageCards(state)}`;
+  }
+  if (tabOf(params) === 'ex') {
+    return `${header(t('nav.training'))}${tabs}${exLib.libCards(state)}`;
   }
   const sched = schedule(state, key, 1);
   return `
@@ -64,7 +70,8 @@ function todayCard(state, d, plans) {
     <div class="tiny muted">${esc(d.chosen ? t('training.yourChoice') : t('today.suggested'))} · ${esc(rhythmName(state))}</div>
     ${isRest
       ? `<h2>${esc(d.sick ? `🤒 ${t('plan.sick')}` : d.shifted ? t('plan.pause') : t('training.rest'))}</h2><div class="small muted">${esc(d.sick ? t('today.sickHint') : d.shifted ? t('plan.shiftedHint') : t('training.restHint'))}</div>`
-      : `<div class="card-head"><div class="grow"><h2>${esc(p.name)}</h2><div class="small muted">${esc(planMuscles(p).map((m) => t('m.' + m)).join(' · '))}</div></div>
+      : `<div class="card-head"><div class="grow"><h2>${esc(p.name)}</h2><div class="small muted">${esc(planMuscles(p).map((m) => t('m.' + m)).join(' · '))} · ${esc(t('training.exCount', { n: p.ex.length }))}</div>
+         <button type="button" class="link small plan-peek" data-act="plan-preview" data-plan="${esc(p.id)}">${esc(t('preview.show'))}</button></div>
          <button class="btn primary" data-act="start" data-plan="${esc(p.id)}">${esc(t('training.start'))}</button></div>`}
     ${cardioEdit.cardioLine(state, d.date)}
     <div class="grid2"><button class="btn" data-act="other">${esc(t('training.another'))}</button>${restBtn}</div>
@@ -177,7 +184,9 @@ function detailSheet(state) {
 export const actions = {
   ...daySheet.actions,
   ...calendarActions,
-  'training-tab'(el, ctx) { ctx.go(el.dataset.v === 'plan' ? 'training?tab=plan' : 'training'); },
+  ...planPreview.actions,
+  ...exLib.actions,
+  'training-tab'(el, ctx) { ctx.go(el.dataset.v === 'overview' ? 'training' : `training?tab=${el.dataset.v}`); },
   start(el, ctx) {
     if (ctx.state.active) { ctx.go('active'); return; }
     // Aus „Anderes Training“ mit Häkchen: Plan ab heute von diesem Training aus fortsetzen (z. B. Push 1 ausgelassen)
@@ -242,9 +251,9 @@ export const actions = {
   },
 };
 
-export const inputs = { ...daySheet.inputs };
+export const inputs = { ...daySheet.inputs, ...exLib.inputs };
 
 function openDetail(ctx) {
   ctx.openSheet(detailSheet, detailFromHistory ? { guard: () => { setTimeout(() => ctx.openSheet(historySheet), 0); return true; } } : {});
 }
-export const changes = { ...daySheet.changes, 'other-continue'(el) { continueOther = el.checked; } };
+export const changes = { ...daySheet.changes, ...exLib.changes, 'other-continue'(el) { continueOther = el.checked; } };

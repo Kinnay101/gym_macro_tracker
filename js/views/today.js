@@ -9,6 +9,7 @@ import * as hc from '../healthConnect.js';
 import { header, ring, bar, energy, energyUnit, healthSourceName } from '../ui.js';
 import * as daySheet from './daySheet.js';
 import * as cardioEdit from './cardioEdit.js';
+import * as planPreview from './planPreview.js';
 import { weekRow } from './progress.js';
 
 let showEaten = false;
@@ -81,7 +82,8 @@ function trainingCard(state, key) {
   return `<section class="card">
     <div class="tiny muted">${esc(t('today.suggested'))} · ${esc(rhythmName(state))}</div>
     <div class="card-head"><div class="grow"><h2>${esc(p.name)}</h2><div class="small muted">${esc(muscles)}</div>
-      <div class="tiny muted" style="margin-top:4px">${esc(t('training.exCount', { n: p.ex.length }))}${optional ? ' · ' + esc(t('training.optCount', { n: optional })) : ''}</div></div>
+      <div class="tiny muted" style="margin-top:4px">${esc(t('training.exCount', { n: p.ex.length }))}${optional ? ' · ' + esc(t('training.optCount', { n: optional })) : ''}</div>
+      <button type="button" class="link small plan-peek" data-act="plan-preview" data-plan="${esc(p.id)}">${esc(t('preview.show'))}</button></div>
       <button class="btn primary" data-act="start" data-plan="${esc(p.id)}">${esc(t('training.start'))}</button></div>
     ${cardioLine}
   </section>`;
@@ -160,6 +162,7 @@ export const changes = { ...daySheet.changes };
 
 export const actions = {
   ...daySheet.actions,
+  ...planPreview.actions,
   'toggle-ring'(el, ctx) { showEaten = !showEaten; ctx.render(); },
   'weight-notice-ok'(el, ctx) { ctx.update((s) => { delete s.healthWeightNew; }); },
   async 'health-refresh'(el, ctx) {

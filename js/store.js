@@ -32,6 +32,7 @@ function blankRaw() {
     weights: [], // { date, kg }
     measures: [], // { date, status?, bf?, shoulders, chest, waist, hips, bicepsR/L, bicepsR/LFlex, forearmR/LFlex, thighR/L, calfR/L … } in cm, siehe js/measures.js
     workouts: [], // abgeschlossene Trainings
+    exLib: [], // eigene Übungsliste mit Einstellungen: { id, name, muscle, x2, base, uni } – siehe js/exercises.js
     cardio: [], // { id, date, type, minutes, km, after }
     dayChoice: {}, // { 'JJJJ-MM-TT': 'rest' | planId } – Tag im Plan geändert
     // Splits & Kalender-Planung (siehe js/plan.js): { splits (auch archivierte Fassungen), activeSplit, anchor: { date, index, splitId }, shifts: [Datum], restarts, weeklyCardio: [{ id, weekday, type, minutes, from?, until? }] }

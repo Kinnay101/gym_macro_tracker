@@ -25,6 +25,7 @@ export function toDocs(state) {
   for (const w of state.weights || []) m.set(`weight:${w.date}`, w);
   for (const x of state.measures || []) m.set(`measure:${x.date}`, x);
   for (const w of state.workouts || []) m.set(`workout:${w.id}`, w);
+  for (const x of state.exLib || []) m.set(`exlib:${x.id}`, x);
   for (const c of state.cardio || []) m.set(`cardio:${c.id}`, c);
   for (const [date, v] of Object.entries(state.dayChoice || {})) m.set(`choice:${date}`, v);
   if (state.training) {
@@ -77,6 +78,7 @@ export function applyDoc(state, key, value) {
     case 'weight': upsertBy(state.weights, 'date', a); break;
     case 'measure': upsertBy(state.measures, 'date', a); break;
     case 'workout': upsertBy(state.workouts, 'id', a); break;
+    case 'exlib': upsertBy((state.exLib ||= []), 'id', a); break;
     case 'cardio': upsertBy(state.cardio, 'id', a); break;
     case 'choice': if (del) delete state.dayChoice[a]; else state.dayChoice[a] = value; break;
     case 'training': if (!del && value?.splits?.length) state.training = value; break; // alte App-Versionen
