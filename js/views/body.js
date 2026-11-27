@@ -11,6 +11,7 @@ import * as social from '../social.js';
 import * as measuresView from './measures.js';
 import * as healthSetup from './healthSetup.js';
 import * as feedbackView from './feedback.js';
+import * as howCalc from './howCalc.js';
 import { rhythmName } from './today.js';
 import * as version from '../version.js';
 import * as hc from '../healthConnect.js';
@@ -96,6 +97,7 @@ export function renderProfile(state, params, ctx) {
       <button class="btn danger" data-act="reset">${esc(t('settings.reset'))}</button>
     </section>
 
+    ${howCalc.card()}
     ${feedbackView.card(state, ctx)}
     <div class="tiny muted" style="text-align:center">Gym Macro Tracker · ${esc(t('settings.version'))} ${esc(versionText(ctx))}</div>`;
 }
@@ -281,6 +283,7 @@ export const actions = {
   ...measuresView.actions,
   ...healthSetup.actions,
   ...feedbackView.actions,
+  ...howCalc.actions,
   'add-weight'(el, ctx) {
     const kg = parseNum(document.getElementById('w-in').value);
     if (!kg || kg < 20 || kg > 400) { ctx.toast(t('body.invalidWeight')); return; }

@@ -74,11 +74,19 @@ document.addEventListener('focusin', (e) => {
 document.addEventListener('input', (e) => {
   if (!selecting && e.target.matches?.('input[data-combo]')) draw(e.target);
 });
-// pointerdown statt click: so verliert das Feld den Fokus nicht (sonst schliesst die Tastatur und die Liste vorher)
+// Auswahl erst beim Klick (= Loslassen ohne Wischen): so lässt sich die Liste mit dem Finger scrollen, und der Tipp
+// landet nicht auf dem, was unter der Liste liegt (früher: Auswahl beim Berühren → Liste weg → Klick traf „Speichern“).
 document.addEventListener('pointerdown', (e) => {
-  const opt = e.target.closest?.('.combo-opt');
-  if (opt && box?.contains(opt)) { e.preventDefault(); pick(opt); return; }
   if (box && !box.contains(e.target) && e.target !== cur) close();
+}, true);
+// Maus: Feld behält den Fokus, wenn man in die Liste klickt
+document.addEventListener('mousedown', (e) => { if (box?.contains(e.target)) e.preventDefault(); }, true);
+document.addEventListener('click', (e) => {
+  const opt = e.target.closest?.('.combo-opt');
+  if (!opt || !box?.contains(opt)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  pick(opt);
 }, true);
 document.addEventListener('focusout', (e) => {
   if (e.target !== cur) return;

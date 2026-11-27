@@ -62,7 +62,9 @@ function openEdit(ctx, name, { onPick = null, prefill = '', muscle = 'chest' } =
   const lib = name ? libEntry(ctx.state, name) : null;
   draft = { from: name || null, name: name || prefill, muscle: info?.muscle || muscle, target: lib?.target || (name ? planTarget(ctx.state, name) : ''), x2: !!lib?.x2, base: lib?.base ?? null, uni: !!lib?.uni, onPick };
   draft.targetBefore = draft.target;
-  ctx.openSheet(editSheet);
+  const initial = JSON.stringify({ ...draft, onPick: null });
+  // Wie die Trainings-Bearbeitung: nur ✕ oder Speichern schliessen; mit Änderungen erst nachfragen
+  ctx.openSheet(editSheet, { modal: true, guard: () => !draft || JSON.stringify({ ...draft, onPick: null }) === initial || ctx.confirm(t('common.discardChanges'), t('common.discard')) });
 }
 
 /** Ziel der Übung aus den Trainings (erstes gefundenes, auch als Variante). */
