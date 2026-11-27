@@ -4,7 +4,7 @@
 // (js/nutrition.js, js/workout.js, js/exercises.js, js/social.js, js/plan.js, js/health.js, js/cardio.js).
 import { esc, num, icon, I } from '../util.js';
 import { t } from '../i18n.js';
-import { calcGoals, activityLevel, goalAmount } from '../nutrition.js';
+import { calcGoals, activityLevel, goalAmount, goals } from '../nutrition.js';
 import { plannedPerWeek } from '../plan.js';
 import { sheetHead } from '../ui.js';
 
@@ -15,17 +15,24 @@ const paras = (text) => String(text).split('\n').map((p) => `<p class="small" st
 /** Eigene Werte als kleine Box (nur wo sinnvoll). */
 function mine(state, id) {
   const rows = [];
+  let note = '';
   if (id === 'kcal') {
     const g = calcGoals(state);
     if (!g) return `<div class="hint small">${esc(t('calc.needProfile'))}</div>`;
-    const adj = goalAmount(state.profile);
-    rows.push([t('calc.v.bmr'), `${num(g.bmr)} kcal`], [t('calc.v.factor'), `× ${num(g.act.factor, 3)}`], [t('calc.v.tdee'), `${num(g.tdee)} kcal`]);
-    if (adj) rows.push([t(state.profile.goal === 'cut' ? 'calc.v.cut' : 'calc.v.bulk'), `${state.profile.goal === 'cut' ? '−' : '+'}${num(adj)} kcal`]);
-    rows.push([t('calc.v.goal'), `${num(g.kcal)} kcal`]);
+    const pr = state.profile;
+    const adj = goalAmount(pr);
+    // Rechnung Schritt für Schritt: Grundumsatz × Faktor = Erhaltungsbedarf, ± Ziel, auf 10 kcal gerundet
+    rows.push([t('calc.v.bmr'), `${num(g.bmr)} kcal`], [t('calc.v.factor'), `× ${num(g.act.factor, 3)}`], [`= ${t('calc.v.tdee')}`, `${num(g.tdee)} kcal`]);
+    rows.push([t(pr.goal === 'cut' ? 'calc.v.cut' : pr.goal === 'bulk' ? 'calc.v.bulk' : 'calc.v.maintain'), adj ? `${pr.goal === 'cut' ? '−' : '+'}${num(adj)} kcal` : '±0 kcal']);
+    rows.push([`= ${t('calc.v.goal')}`, `${num(g.kcal)} kcal`]);
+    if (pr.goalOverride) note = t('calc.v.overrideNote', { kcal: num(pr.goalOverride.kcal) });
   } else if (id === 'macros') {
-    const g = calcGoals(state);
-    if (!g) return '';
-    rows.push([t('n.p'), `${num(g.p)} g`], [t('n.f'), `${num(g.f)} g`], [t('n.c'), `${num(g.c)} g`]);
+    const g = goals(state);
+    if (g.isDefault) return `<div class="hint small">${esc(t('calc.needProfile'))}</div>`;
+    rows.push([t('n.p'), `${num(g.p)} g`], [t('n.f'), `${num(g.f)} g`], [t('n.c'), `${num(g.c)} g`],
+      [t('n.fiber'), `${num(g.fiber)} g`], [`${t('n.sugar')} (${t('calc.v.max')})`, `${num(g.sugar)} g`], [`${t('n.salt')} (${t('calc.v.max')})`, `${num(g.salt, 1)} g`],
+      [`${t('n.sfa')} (${t('calc.v.max')})`, `${num(g.sfa)} g`]);
+    if (state.profile.goalOverride) note = t('calc.v.macroOverride');
   } else if (id === 'activity') {
     const a = activityLevel(state);
     rows.push([t('calc.v.perWeek'), num(a.perWeek, 1)], [t('calc.v.factor'), `× ${num(a.factor, 3)}`], [t('calc.v.source'), t(a.source === 'rhythm' ? 'calc.v.fromPlan' : 'calc.v.fromLog')]);
@@ -33,7 +40,8 @@ function mine(state, id) {
     rows.push([t('calc.v.weekTarget'), num(plannedPerWeek(state).strength || 1, 1)]);
   }
   if (!rows.length) return '';
-  return `<div class="calc-mine"><div class="tiny muted" style="margin-bottom:4px">${esc(t('calc.yours'))}</div>${rows.map(([l, v]) => `<div class="row between small"><span class="muted">${esc(l)}</span><b>${esc(v)}</b></div>`).join('')}</div>`;
+  return `<div class="calc-mine"><div class="tiny muted" style="margin-bottom:4px">${esc(t('calc.yours'))}</div>${rows.map(([l, v]) => `<div class="row between small"><span class="muted">${esc(l)}</span><b>${esc(v)}</b></div>`).join('')}
+    ${note ? `<div class="tiny muted" style="margin-top:4px">${esc(note)}</div>` : ''}</div>`;
 }
 
 // Akkordeon: immer nur ein Abschnitt offen; Öffnen/Schliessen animiert (CSS grid-template-rows 0fr ↔ 1fr)

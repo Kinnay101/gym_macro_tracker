@@ -1,7 +1,8 @@
 // Fortschritt: 1RM-Verlauf, Bestwerte, Sätze pro Muskel; Umschalter zu Freunde & Rangliste. Der Kalender (calendar) wird von der Trainingsseite angezeigt.
 import { esc, num, today, addDays, parseKey, dayKey, daysBetween, icon, I, weekStart } from '../util.js';
 import { t, monthName, shortDate, weekdayHeaders, longDate, weekdayShort, dayMonth } from '../i18n.js';
-import { historyFor, bestFor, setsPerMuscle, trackOf, isUniTrack, volume } from '../workout.js';
+import { historyFor, bestFor, setsPerMuscle, trackOf, isUniTrack, trackBase, volume } from '../workout.js';
+import { allExercises } from '../exercises.js';
 import { goals, sumEntries, dayEntries, kcalToKj } from '../nutrition.js';
 import { MUSCLES, dayPlan, planShort } from '../plan.js';
 import { header, seg, lineChart, barChart, trackLabel, energy } from '../ui.js';
@@ -20,6 +21,23 @@ function exerciseNames(state) {
   const names = new Set();
   for (const w of state.workouts) for (const e of w.exercises) names.add(trackOf(e)); // einseitig = eigene Spur
   return [...names].sort((a, b) => trackLabel(a).localeCompare(trackLabel(b)));
+}
+
+/**
+ * Auswahl der Übung nach Muskelgruppe gegliedert (Feedback Janis: nicht alle Übungen in einer Liste) – als <optgroup>,
+ * am Handy erscheinen die Gruppen als Zwischentitel. Muskel aus der Übungsliste bzw. dem letzten Training.
+ */
+function exerciseOptions(state, names) {
+  const muscleOf = new Map(allExercises(state).map((x) => [x.name.toLowerCase(), x.muscle]));
+  const groups = new Map(MUSCLES.map((m) => [m, []]));
+  const other = [];
+  for (const n of names) {
+    const m = muscleOf.get(trackBase(n).toLowerCase());
+    (groups.get(m) || other).push(n);
+  }
+  const opt = (n) => `<option value="${esc(n)}" ${n === exName ? 'selected' : ''}>${esc(trackLabel(n))}</option>`;
+  return [...groups].filter(([, xs]) => xs.length).map(([m, xs]) => `<optgroup label="${esc(t('m.' + m))}">${xs.map(opt).join('')}</optgroup>`).join('')
+    + (other.length ? `<optgroup label="${esc(t('progress.otherMuscle'))}">${other.map(opt).join('')}</optgroup>` : '');
 }
 
 export function render(state, params, ctx) {
@@ -117,7 +135,42 @@ function bodyStats(state) {
 
   return `<section class="card tight"><h3>${esc(t('progress.weightTrend'))}</h3>${weight}</section>
     <section class="card tight"><h3>${esc(t('progress.kcalWeek'))}</h3>${kcal}</section>
+    ${activityCard(state)}
     <section class="card tight"><h3>${esc(t('progress.daysTitle'))}</h3>${days}</section>`;
+}
+
+// ---- Aktivität & Schlaf aus Apple Health / Health Connect (Feedback Janis: Schritt-Verlauf der letzten Tage) ----
+let actMetric = 'steps'; // 'steps' | 'sleep' | 'exercise' | 'active'
+const ACT_DAYS = 14;
+function activityCard(state) {
+  const key = today();
+  const days = Array.from({ length: ACT_DAYS }, (_, i) => addDays(key, i - ACT_DAYS + 1));
+  const hd = state.healthDays || {};
+  const sl = state.healthSleep || {};
+  const kj = state.profile.energyUnit === 'kj';
+  const val = (d) => {
+    if (actMetric === 'sleep') return sl[d]?.minutes != null ? sl[d].minutes / 60 : null;
+    const v = hd[d]?.[{ steps: 'steps', exercise: 'exerciseMin', active: 'activeKcal' }[actMetric]];
+    return v == null ? null : (actMetric === 'active' && kj ? kcalToKj(v) : v);
+  };
+  const has = days.some((d) => val(d) != null) || Object.keys(hd).length || Object.keys(sl).length;
+  if (!has) return `<section class="card tight"><h3>${esc(t('health.title'))}</h3><div class="small muted">${esc(t('progress.needHealth'))}</div></section>`;
+  const unit = { steps: '', sleep: ' h', exercise: ' min', active: kj ? ' kJ' : ' kcal' }[actMetric];
+  const hm = (v) => { const m = Math.round(v * 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')} h`; };
+  const fmtV = (v) => (actMetric === 'sleep' ? hm(v) : `${num(Math.round(v))}${unit}`);
+  // Schnitt der letzten 7 Tage (heute zählt beim Schlaf mit – die Nacht ist vorbei –, sonst nicht: der Tag läuft noch)
+  const avgOf = (list) => { const v = list.map(val).filter((x) => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+  const endIdx = actMetric === 'sleep' ? ACT_DAYS : ACT_DAYS - 1;
+  const last7 = days.slice(endIdx - 7, endIdx); const prev7 = days.slice(endIdx - 14 < 0 ? 0 : endIdx - 14, endIdx - 7);
+  const a = avgOf(last7); const b = avgOf(prev7);
+  const sum = a != null ? `${t(actMetric === 'sleep' ? 'progress.actAvgSleep' : 'progress.actAvg', { v: fmtV(a) })}${b != null ? ` · ${t('progress.actPrev', { v: fmtV(b) })}` : ''}` : '';
+  const chart = barChart(days.map((d) => ({ v: val(d), label: String(parseKey(d).getDate()), dim: d === key && actMetric !== 'sleep' })),
+    { fmt: actMetric === 'sleep' ? (v) => `${num(v)}h` : kFmt });
+  const tabs = seg('act-metric', [['steps', t('health.steps')], ['sleep', t('health.sleep')], ['exercise', t('health.exercise')], ['active', kj ? 'kJ' : 'kcal']], actMetric);
+  return `<section class="card tight"><h3>${esc(t('health.title'))}</h3>${tabs}
+    ${sum ? `<div class="small">${esc(sum)}</div>` : ''}
+    ${chart || `<div class="small muted">${esc(t('progress.actNone'))}</div>`}
+    <div class="tiny muted">${esc(t(actMetric === 'sleep' ? 'progress.actHintSleep' : 'progress.actHint'))}</div></section>`;
 }
 
 function strength(state) {
@@ -135,7 +188,7 @@ function strength(state) {
   const pts = hist.map((h) => pt(h, uni ? h.l : h.e1rm));
   const pts2 = uni ? hist.map((h) => pt(h, h.r)) : null;
   const chart = names.length
-    ? `<select class="input" data-in="ex" aria-label="${esc(t('progress.exercise'))}">${names.map((n) => `<option value="${esc(n)}" ${n === exName ? 'selected' : ''}>${esc(trackLabel(n))}</option>`).join('')}</select>
+    ? `<select class="input" data-in="ex" aria-label="${esc(t('progress.exercise'))}">${exerciseOptions(state, names)}</select>
        ${lineChart(pts, { unit: '', points2: pts2 })}
        ${uni && hist.length >= 2 ? `<div class="chart-legend tiny muted"><span><i class="lgline"></i>${esc(t('progress.left'))}</span><span><i class="lgline alt"></i>${esc(t('progress.right'))}</span></div>${sideHint(hist)}` : ''}
        <div class="tiny muted">${esc(t(uni ? 'progress.uniHint' : 'progress.e1rmHint'))}</div>`
@@ -152,16 +205,17 @@ function strength(state) {
   const spm = setsPerMuscle(state, addDays(key, -6), key);
   const maxSets = Math.max(10, ...Object.values(spm));
 
+  // Reihenfolge nach Vorschlag Janis (Feedback 27.11.): Sätze pro Muskel, Volumen, 1RM, Bestwerte
   return `
+    <section class="card tight"><div class="card-head"><h3>${esc(t('progress.setsPerMuscle'))}</h3><span class="tiny muted">${esc(t('progress.last7'))}</span></div>
+      ${MUSCLES.map((m) => `<div class="bar-row"><div class="top"><span>${esc(t('m.' + m))}</span><span class="muted">${num(spm[m] || 0)}</span></div><div class="bar"><i style="width:${((spm[m] || 0) / maxSets) * 100}%;background:var(--accent)"></i></div></div>`).join('')}
+    </section>
+    ${volumeCards(state)}
     <section class="card"><h3>${esc(t('progress.e1rm'))}</h3>${chart}</section>
     <section class="card tight"><h3>${esc(t(allPrs || allPr.length <= PR_SHOWN ? 'progress.prs' : 'progress.prsRecent'))}</h3>
       ${prs.length ? `<div class="list">${prs.map(({ n, b }) => `<div class="item"><div class="grow"><div class="ellipsis" style="font-weight:600">${esc(trackLabel(n))}</div>
         <div class="meta">${num(b.kg, 2)} kg × ${b.repsR != null ? `${num(b.reps)} L · ${num(b.repsR)} R` : num(b.reps)} · ${esc(shortDate(b.date))}</div></div><span style="font-weight:700">${num(b.e1rm, 1)} kg</span></div>`).join('')}</div>`
         : `<div class="small muted">${esc(t('progress.noData'))}</div>`}${more}
-    </section>
-    ${volumeCards(state)}
-    <section class="card tight"><div class="card-head"><h3>${esc(t('progress.setsPerMuscle'))}</h3><span class="tiny muted">${esc(t('progress.last7'))}</span></div>
-      ${MUSCLES.map((m) => `<div class="bar-row"><div class="top"><span>${esc(t('m.' + m))}</span><span class="muted">${num(spm[m] || 0)}</span></div><div class="bar"><i style="width:${((spm[m] || 0) / maxSets) * 100}%;background:var(--accent)"></i></div></div>`).join('')}
     </section>`;
   // Kalender steht unter Training (calendar() wird dort benutzt)
 }
@@ -268,6 +322,7 @@ export const actions = {
   ...daySheet.actions,
   'prs-all'(el, ctx) { allPrs = !allPrs; ctx.render(); },
   'me-tab'(el, ctx) { meTab = el.dataset.v; ctx.render(); },
+  'act-metric'(el, ctx) { actMetric = el.dataset.v; ctx.render(); },
   tab(el, ctx) {
     tab = el.dataset.v;
     if (tab === 'friends') friendsView.load(ctx, { quiet: true });

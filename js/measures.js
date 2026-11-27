@@ -6,7 +6,7 @@
 import { t } from './i18n.js';
 import { dayKey, parseNum } from './util.js';
 
-export const PARTS = ['shoulders', 'chest', 'waist', 'hips', 'neck', 'biceps', 'forearm', 'thigh', 'calf'];
+export const PARTS = ['shoulders', 'chest', 'waist', 'hips', 'glutes', 'neck', 'biceps', 'forearm', 'thigh', 'calf'];
 
 /** Zeilen im Formular: [Zeilenname, [Schlüssel…]] – Paare = links | rechts */
 export const FORM_ROWS = [
@@ -14,6 +14,7 @@ export const FORM_ROWS = [
   ['chest', ['chest']],
   ['waist', ['waist']],
   ['hips', ['hips']],
+  ['glutes', ['glutes']],
   ['biceps', ['bicepsL', 'bicepsR']],
   ['bicepsFlex', ['bicepsLFlex', 'bicepsRFlex']],
   ['forearmFlex', ['forearmLFlex', 'forearmRFlex']],
@@ -21,7 +22,9 @@ export const FORM_ROWS = [
   ['calf', ['calfL', 'calfR']],
 ];
 
-export const STATUS_SUGGESTIONS = ['Start of Cut', 'End of Cut', 'Start of Bulk', 'End of Bulk', 'Maintain'];
+export const STATUS_SUGGESTIONS = ['Cut', 'Bulk', 'Maintain', 'Start of Cut', 'End of Cut', 'Start of Bulk', 'End of Bulk'];
+/** Status für neue Einträge aus dem Ziel unter Körper (Diät → Cut, Aufbau → Bulk, Halten → Maintain). */
+export const STATUS_FROM_GOAL = { cut: 'Cut', bulk: 'Bulk', maintain: 'Maintain' };
 
 const KEY_RE = /^([a-z]+?)(R|L)?(Flex)?$/;
 
@@ -52,7 +55,8 @@ const PART_WORDS = [
   [/bizep|bicep|oberarm|upper arm|\barm\b/, 'biceps'],
   [/brust|chest/, 'chest'],
   [/taille|bauch|waist|belly|abdomen/, 'waist'],
-  [/h(ü|ue|u)fte|hip|po\b|glute/, 'hips'],
+  [/ges(ä|ae|a)ss|glute|\bpo\b|butt/, 'glutes'],
+  [/h(ü|ue|u)fte|hip/, 'hips'],
   [/hals|neck/, 'neck'],
   [/oberschenkel|thigh|thight|leg\b/, 'thigh'],
   [/wade|waden|calf|calves/, 'calf'],

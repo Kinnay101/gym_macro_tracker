@@ -350,15 +350,41 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Fenster nach unten wegwischen (wie am iPhone). Nur wenn das Fenster ganz oben ist; Editoren fragen über die Sperre nach.
+// Weniger empfindlich (Nutzer 27.11.: schloss sich schon beim Scrollen): Das Fenster folgt erst nach 12 px klar senkrechter
+// Bewegung, nicht direkt nach einem Scroll (Schwung, der oben ankommt), nicht aus Listen, die selbst scrollen (Ziel-Liste).
+// Schliessen ab gut einem Drittel der Fensterhöhe (mind. 140 px) oder mit kräftigem Wisch – sonst federt es zurück.
+// Apple gibt dafür keine Zahlen vor (sheets.md: «Support swiping to dismiss a sheet»); Werte nach dem Verhalten von iOS.
+const DRAG_START = 12; // px, bevor das Fenster dem Finger folgt
 let drag = null;
+let sheetScrolledAt = 0;
+$sheetRoot.addEventListener('scroll', () => { sheetScrolledAt = Date.now(); }, true);
+/** Liegt unter dem Finger ein eigener Scrollbereich (z. B. Ziel-Liste)? Dann gehört die Geste ihm. */
+function innerScroller(target, sh) {
+  for (let el = target; el && el !== sh; el = el.parentElement) {
+    if (el.classList?.contains('combo-list')) return true;
+    if (el.scrollHeight > el.clientHeight + 1 && /(auto|scroll)/.test(getComputedStyle(el).overflowY)) return true;
+  }
+  return false;
+}
 $sheetRoot.addEventListener('touchstart', (e) => {
   const sh = e.target.closest('.sheet');
-  if (!sh || e.touches.length !== 1 || sh.scrollTop > 0 || e.target.closest('input, textarea, select, .fat-bar')) { drag = null; return; }
-  drag = { sh, y0: e.touches[0].clientY, t0: Date.now(), dy: 0 };
+  if (!sh || e.touches.length !== 1 || sh.scrollTop > 0 || e.target.closest('input, textarea, select, .fat-bar') || innerScroller(e.target, sh)
+    || Date.now() - sheetScrolledAt < 350) { drag = null; return; }
+  drag = { sh, x0: e.touches[0].clientX, y0: e.touches[0].clientY, t0: 0, dy: 0, on: false };
 }, { passive: true });
 $sheetRoot.addEventListener('touchmove', (e) => {
   if (!drag) return;
-  const dy = e.touches[0].clientY - drag.y0;
+  const t = e.touches[0];
+  let dy = t.clientY - drag.y0;
+  if (!drag.on) {
+    // erst bei klar senkrechter Bewegung nach unten übernehmen; seitlich oder nach oben → normales Scrollen
+    if (Math.abs(t.clientX - drag.x0) > Math.abs(dy) || dy < -4 || drag.sh.scrollTop > 0) { drag = null; return; }
+    if (dy < DRAG_START) return;
+    drag.on = true;
+    drag.y0 = t.clientY; // ab hier folgen, ohne Sprung
+    drag.t0 = Date.now();
+    dy = 0;
+  }
   if (dy <= 0 || drag.sh.scrollTop > 0) { if (drag.dy) drag.sh.style.transform = ''; drag.dy = 0; return; }
   drag.dy = dy;
   drag.sh.classList.add('dragging');
@@ -367,13 +393,14 @@ $sheetRoot.addEventListener('touchmove', (e) => {
 }, { passive: false });
 $sheetRoot.addEventListener('touchend', async () => {
   if (!drag) return;
-  const { sh, dy, t0 } = drag;
+  const { sh, dy, t0, on } = drag;
   drag = null;
   sh.classList.remove('dragging');
-  if (!dy) return;
-  const fast = dy > 40 && dy / Math.max(1, Date.now() - t0) > 0.6;
+  if (!on || !dy) return;
+  const fast = dy > 80 && dy / Math.max(1, Date.now() - t0) > 1.1;
+  const far = dy > Math.max(140, sh.offsetHeight * 0.35);
   sh.classList.add('settle');
-  if (dy > 120 || fast) {
+  if (far || fast) {
     sh.style.transform = 'translateY(100%)';
     const g = sheetGuard;
     if (g && !(await g())) { sh.style.transform = ''; return; }

@@ -1,7 +1,7 @@
 // Körpermasse im Körper-Tab: Übersicht mit Veränderung, Eintragen/Bearbeiten, Verlauf mit Kurve, Übernahme aus Notizen
 import { esc, num, today, daysBetween, icon, I, parseNum } from '../util.js';
 import { t, shortDate } from '../i18n.js';
-import { FORM_ROWS, STATUS_SUGGESTIONS, measureKeys, measureLabel, parseNotes } from '../measures.js';
+import { FORM_ROWS, STATUS_SUGGESTIONS, STATUS_FROM_GOAL, measureKeys, measureLabel, parseNotes } from '../measures.js';
 import { sheetHead, lineChart } from '../ui.js';
 
 let editDate = null; // Datum des Eintrags im Formular (null = neu)
@@ -60,7 +60,12 @@ export function card(state) {
 function formSheet(state) {
   const e = (editDate && state.measures.find((x) => x.date === editDate)) || {};
   const date = editDate || today();
-  const kg = weightOn(state, date);
+  // Neuer Eintrag: Gewicht der Tage rundherum (±3 Tage, wird beim Speichern nicht doppelt eingetragen) und Status aus
+  // dem Ziel vorausfüllen (Feedback Janis). Älteres Gewicht nur als Hinweis, sonst landete es mit heutigem Datum.
+  const near = editDate ? null : nearbyWeight(state, date);
+  const kg = weightOn(state, date) ?? near?.kg ?? null;
+  const lastW = !kg && !editDate ? [...state.weights].sort((a, b) => b.date.localeCompare(a.date))[0] : null;
+  const status = e.status || (editDate ? '' : STATUS_FROM_GOAL[state.profile.goal] || '');
   const v = (k) => (typeof e[k] === 'number' ? e[k] : '');
   const input = (k, ph) => `<input class="input num" inputmode="decimal" id="m-${k}" value="${esc(v(k))}" placeholder="${esc(ph)}" aria-label="${esc(measureLabel(k))}">`;
   const rows = FORM_ROWS.map(([name, keys]) => `<div class="row" style="gap:8px">
@@ -70,9 +75,9 @@ function formSheet(state) {
   return `${sheetHead(editDate ? t('measure.editTitle') : t('body.addMeasures'))}
     <div class="grid2">
       <label class="field">${esc(t('common.date'))}<input class="input" type="date" id="m-date" value="${esc(date)}" max="${today()}"></label>
-      <label class="field">${esc(t('body.weight'))} (kg)<input class="input" inputmode="decimal" id="m-weight" value="${esc(kg ?? '')}"></label>
+      <label class="field">${esc(t('body.weight'))} (kg)<input class="input" inputmode="decimal" id="m-weight" value="${esc(kg ?? '')}" placeholder="${esc(lastW ? t('measure.weightLast', { kg: num(lastW.kg, 1), date: shortDate(lastW.date) }) : '')}"></label>
       <label class="field">${esc(t('measure.bf'))} (%)<input class="input" inputmode="decimal" id="m-bf" value="${esc(v('bf'))}"></label>
-      <label class="field">${esc(t('measure.status'))}<input class="input" id="m-status" list="m-status-list" value="${esc(e.status || '')}" placeholder="${esc(t('measure.statusPh'))}"></label>
+      <label class="field">${esc(t('measure.status'))}<input class="input" id="m-status" list="m-status-list" value="${esc(status)}" placeholder="${esc(t('measure.statusPh'))}"></label>
     </div>
     <datalist id="m-status-list">${STATUS_SUGGESTIONS.map((s) => `<option value="${esc(s)}">`).join('')}</datalist>
     <div class="row tiny muted" style="gap:8px"><span class="grow">${esc(t('measure.inCm'))}</span><span style="width:84px;text-align:center">${esc(t('measure.left'))}</span><span style="width:84px;text-align:center">${esc(t('measure.right'))}</span></div>
