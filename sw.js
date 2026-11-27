@@ -1,7 +1,7 @@
 // Service Worker: macht die App offline-fähig.
 // "Netzwerk zuerst": Änderungen kommen sofort an, ohne Internet greift der Zwischenspeicher.
 // Bei Änderungen am App-Code APP_CACHE hochzählen.
-const APP_CACHE = 'gym-v105';
+const APP_CACHE = 'gym-v106';
 const SHELL = [
   './', 'index.html', 'styles.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png',
   'js/app.js', 'js/store.js', 'js/i18n.js', 'js/util.js', 'js/ui.js', 'js/plan.js', 'js/nutrition.js', 'js/workout.js',

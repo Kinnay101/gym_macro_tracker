@@ -62,8 +62,8 @@ function toggle(id) {
 
 /** Karte im Profil */
 export function card() {
-  return `<section class="card tight"><button type="button" class="item item-btn" data-act="calc-open">
-      <div class="grow"><div style="font-weight:600">${esc(t('calc.title'))}</div><div class="meta">${esc(t('calc.cardHint'))}</div></div>${icon(I.chevron)}</button></section>`;
+  return `<section class="card tight"><button type="button" class="card-head item-btn" data-act="calc-open" style="width:100%;text-align:left">
+      <h3>${esc(t('calc.title'))}</h3>${icon(I.chevron)}</button></section>`;
 }
 
 export const actions = {
