@@ -5,7 +5,7 @@ import { historyFor, bestFor, setsPerMuscle, trackOf, isUniTrack, trackBase, vol
 import { allExercises } from '../exercises.js';
 import { goals, sumEntries, dayEntries, kcalToKj } from '../nutrition.js';
 import { MUSCLES, dayPlan, planShort } from '../plan.js';
-import { header, seg, lineChart, barChart, trackLabel, energy } from '../ui.js';
+import { header, seg, lineChart, barChart, trackLabel, energy, sheetHead } from '../ui.js';
 import * as friendsView from './friends.js';
 import { healthWorkoutsBetween } from '../health.js';
 import * as daySheet from './daySheet.js';
@@ -24,20 +24,31 @@ function exerciseNames(state) {
 }
 
 /**
- * Auswahl der Übung nach Muskelgruppe gegliedert (Feedback Janis: nicht alle Übungen in einer Liste) – als <optgroup>,
- * am Handy erscheinen die Gruppen als Zwischentitel. Muskel aus der Übungsliste bzw. dem letzten Training.
+ * Übungen nach Muskelgruppe gegliedert (Feedback Janis: nicht alle Übungen in einer Liste) → [[Titel, [Spuren]]].
+ * Muskel aus der Übungsliste, sonst aus dem letzten Training mit der Übung (auch gelöschte Übungen im Verlauf).
  */
-function exerciseOptions(state, names) {
-  const muscleOf = new Map(allExercises(state).map((x) => [x.name.toLowerCase(), x.muscle]));
+function groupedExercises(state, names) {
+  const muscleOf = new Map();
+  for (const w of [...state.workouts].sort((a, b) => a.date.localeCompare(b.date))) for (const e of w.exercises) if (e.muscle) muscleOf.set(e.name.toLowerCase(), e.muscle);
+  for (const x of allExercises(state)) if (x.muscle) muscleOf.set(x.name.toLowerCase(), x.muscle);
   const groups = new Map(MUSCLES.map((m) => [m, []]));
   const other = [];
-  for (const n of names) {
-    const m = muscleOf.get(trackBase(n).toLowerCase());
-    (groups.get(m) || other).push(n);
-  }
-  const opt = (n) => `<option value="${esc(n)}" ${n === exName ? 'selected' : ''}>${esc(trackLabel(n))}</option>`;
-  return [...groups].filter(([, xs]) => xs.length).map(([m, xs]) => `<optgroup label="${esc(t('m.' + m))}">${xs.map(opt).join('')}</optgroup>`).join('')
-    + (other.length ? `<optgroup label="${esc(t('progress.otherMuscle'))}">${other.map(opt).join('')}</optgroup>` : '');
+  for (const n of names) (groups.get(muscleOf.get(trackBase(n).toLowerCase())) || other).push(n);
+  return [...[...groups].filter(([, xs]) => xs.length).map(([m, xs]) => [t('m.' + m), xs]), ...(other.length ? [[t('progress.otherMuscle'), other]] : [])];
+}
+
+// Eigene Auswahl statt <select>: Android zeigte die Liste mit eingerückter erster und nicht eingerückter zweiter Zeile
+let exQuery = '';
+function exPickSheet(state) {
+  const q = exQuery.trim().toLowerCase();
+  const groups = groupedExercises(state, exerciseNames(state))
+    .map(([title, xs]) => [title, xs.filter((n) => !q || trackLabel(n).toLowerCase().includes(q))]).filter(([, xs]) => xs.length);
+  return `${sheetHead(t('progress.exercise'))}
+    <input class="input" data-in="ex-q" value="${esc(exQuery)}" placeholder="${esc(t('ex.searchOnly'))}" autocomplete="off">
+    ${groups.map(([title, xs]) => `<div class="tiny muted pick-head">${esc(title)}</div>
+      <div class="list">${xs.map((n) => `<button type="button" class="item item-btn" data-act="ex-choose" data-v="${esc(n)}" aria-pressed="${n === exName}">
+        <span class="grow" style="${n === exName ? 'color:var(--accent);font-weight:700' : 'font-weight:600'}">${esc(trackLabel(n))}</span>${n === exName ? icon(I.check) : ''}</button>`).join('')}</div>`).join('')
+    || `<div class="small muted">${esc(t('ex.noMatchShort'))}</div>`}`;
 }
 
 export function render(state, params, ctx) {
@@ -189,7 +200,7 @@ function strength(state) {
   const pts = hist.map((h) => pt(h, uni ? h.l : h.e1rm));
   const pts2 = uni ? hist.map((h) => pt(h, h.r)) : null;
   const chart = names.length
-    ? `<select class="input" data-in="ex" aria-label="${esc(t('progress.exercise'))}">${exerciseOptions(state, names)}</select>
+    ? `<button type="button" class="input pick-btn" data-act="ex-pick" aria-label="${esc(t('progress.exercise'))}"><span class="grow ellipsis">${esc(trackLabel(exName))}</span>${icon(I.down)}</button>
        ${lineChart(pts, { unit: '', points2: pts2, valFmt: (v) => `${num(v, 1)} kg` })}
        ${uni && hist.length >= 2 ? `<div class="chart-legend tiny muted"><span><i class="lgline"></i>${esc(t('progress.left'))}</span><span><i class="lgline alt"></i>${esc(t('progress.right'))}</span></div>${sideHint(hist)}` : ''}
        <div class="tiny muted">${esc(t(uni ? 'progress.uniHint' : 'progress.e1rmHint'))}</div>`
@@ -324,6 +335,13 @@ export const actions = {
   'prs-all'(el, ctx) { allPrs = !allPrs; ctx.render(); },
   'me-tab'(el, ctx) { meTab = el.dataset.v; ctx.render(); },
   'act-metric'(el, ctx) { actMetric = el.dataset.v; ctx.render(); },
+  'ex-pick'(el, ctx) {
+    exQuery = '';
+    ctx.openSheet(exPickSheet);
+    // zur gewählten Übung springen (sie steht oft weit unten, z. B. bei Core)
+    setTimeout(() => document.querySelector('#sheet-root [data-act="ex-choose"][aria-pressed="true"]')?.scrollIntoView({ block: 'center' }), 60);
+  },
+  'ex-choose'(el, ctx) { exName = el.dataset.v; ctx.closeSheet(); ctx.render(); },
   tab(el, ctx) {
     tab = el.dataset.v;
     if (tab === 'friends') friendsView.load(ctx, { quiet: true });
@@ -331,7 +349,7 @@ export const actions = {
   },
   ...calendarActions,
 };
-export const inputs = { ...daySheet.inputs };
+export const inputs = { ...daySheet.inputs, 'ex-q'(el, ctx) { exQuery = el.value; ctx.refreshSheet(); } };
 export const changes = {
   ...daySheet.changes,
   ex(el, ctx) { exName = el.value; ctx.render(); },

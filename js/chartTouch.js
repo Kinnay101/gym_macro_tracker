@@ -1,4 +1,4 @@
-// Werte in Diagrammen ablesen (wie in Apple Health): Diagramm antippen → senkrechte Linie beim nächsten Punkt/Balken
+// Werte in Diagrammen ablesen (wie in Apple Health): kurz halten oder antippen → senkrechte Linie beim nächsten Punkt/Balken
 // mit genauem Wert und Datum; Finger seitlich ziehen → Linie springt mit von Punkt zu Punkt. Senkrecht wischen scrollt
 // weiterhin die Seite (touch-action: pan-y). Die Anzeige bleibt stehen, bis man ausserhalb tippt oder ein anderes
 // Diagramm wählt. Daten: Attribut data-pts am <svg class="chart"> (siehe barChart/lineChart in js/ui.js).
@@ -59,20 +59,46 @@ function show(svg, pts, clientX) {
   tt.setAttribute('x', bx + 7); tt.setAttribute('y', by + 25);
 }
 
-let dragging = null;
+// Finger (Nutzer 28.11.: beim Scrollen wurde sofort ein Wert gewählt): erst nach kurzem Halten (HOLD ms ohne Bewegung)
+// oder bei einem kurzen Tipp ohne Bewegung. Bewegt sich der Finger vorher, ist es Scrollen → nichts anzeigen.
+// Nach dem Halten folgt die Anzeige dem Finger (seitlich ziehen). Maus: sofort wie bisher.
+const HOLD = 300; // ms
+const SLOP = 8; // px Bewegung, die noch als «ruhig» gilt
+let press = null; // { svg, pts, id, x0, y0, t0, on, timer, touch }
 document.addEventListener('pointerdown', (e) => {
   const svg = e.target.closest?.('svg.chart[data-pts]');
   if (!svg) { if (active && !e.target.closest?.('svg.chart')) clear(); return; }
   let pts;
   try { pts = JSON.parse(svg.dataset.pts); } catch { return; }
-  dragging = { svg, pts, id: e.pointerId };
-  show(svg, pts, e.clientX);
+  const touch = e.pointerType !== 'mouse';
+  press = { svg, pts, id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, t0: Date.now(), on: !touch, touch, timer: null };
+  if (!touch) { show(svg, pts, e.clientX); return; }
+  const p = press;
+  p.timer = setTimeout(() => {
+    if (press !== p) return;
+    p.on = true;
+    show(p.svg, p.pts, p.x);
+    navigator.vibrate?.(8); // kleines Feedback auf Android, wenn es die Anzeige gibt
+  }, HOLD);
 });
 document.addEventListener('pointermove', (e) => {
-  if (!dragging || e.pointerId !== dragging.id) return;
-  show(dragging.svg, dragging.pts, e.clientX);
+  if (!press || e.pointerId !== press.id) return;
+  press.x = e.clientX;
+  if (press.on) { show(press.svg, press.pts, e.clientX); return; }
+  if (Math.hypot(e.clientX - press.x0, e.clientY - press.y0) > SLOP) { clearTimeout(press.timer); press = null; }
 });
-const end = (e) => { if (dragging && e.pointerId === dragging.id) dragging = null; };
-document.addEventListener('pointerup', end);
-// Seite wird gescrollt (senkrecht gewischt) → der Browser bricht ab; die Anzeige bleibt beim letzten Punkt
-document.addEventListener('pointercancel', end);
+document.addEventListener('pointerup', (e) => {
+  if (!press || e.pointerId !== press.id) return;
+  clearTimeout(press.timer);
+  // kurzer Tipp ohne Bewegung zeigt den Wert auch
+  if (!press.on && press.touch && Date.now() - press.t0 < HOLD) show(press.svg, press.pts, press.x0);
+  press = null;
+});
+// Seite wird gescrollt (senkrecht gewischt) → der Browser bricht ab; eine schon gezeigte Anzeige bleibt stehen
+document.addEventListener('pointercancel', (e) => {
+  if (!press || e.pointerId !== press.id) return;
+  clearTimeout(press.timer);
+  press = null;
+});
+// langes Drücken soll kein Menü öffnen
+document.addEventListener('contextmenu', (e) => { if (e.target.closest?.('svg.chart[data-pts]')) e.preventDefault(); });

@@ -519,3 +519,8 @@ a.icon-btn, a.head-btn { color: var(--text); }
 .act-chart { aspect-ratio: 340 / 150; display: flex; align-items: center; justify-content: center; }
 .act-chart > .chart { width: 100%; }
 .act-hint { min-height: 2.6em; }
+
+/* Übungsauswahl bei 1RM (eigene Liste statt <select>) */
+.pick-btn { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; cursor: pointer; color: var(--text); font: inherit; font-weight: 600; }
+.pick-btn .icon { width: 18px; height: 18px; color: var(--muted); flex-shrink: 0; }
+.pick-head { padding: 12px 0 2px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
