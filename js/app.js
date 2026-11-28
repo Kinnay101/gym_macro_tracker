@@ -15,7 +15,8 @@ import { THEMES } from './theme.js';
 import { segRects, placeSegs } from './ui.js';
 import { today } from './util.js';
 import './health.js'; // verarbeitet Apple-Health-Daten nach jedem Sync
-import './combo.js'; // eigene Auswahlliste für Felder mit data-combo (z. B. Ziel)
+import './combo.js';
+import './chartTouch.js'; // Werte in Diagrammen antippen/ziehen // eigene Auswahlliste für Felder mit data-combo (z. B. Ziel)
 
 const ROUTES = {
   today: todayView,

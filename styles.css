@@ -503,3 +503,19 @@ a.icon-btn, a.head-btn { color: var(--text); }
 .calc-sec.open .calc-body { opacity: 1; transform: none; transition-delay: .05s; }
 @media (prefers-reduced-motion: reduce) { .calc-wrap, .calc-body, .calc-ico { transition: none; } }
 .calc-mine { background: var(--card-2); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
+
+/* Werte in Diagrammen ablesen (js/chartTouch.js) */
+.chart[data-pts] { touch-action: pan-y; cursor: crosshair; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.chart .scrub-line { stroke: var(--text); stroke-width: 1; opacity: .55; }
+.chart .scrub-dot { fill: var(--accent); stroke: var(--card); stroke-width: 2; }
+.chart .scrub-dot.alt { fill: var(--cardio); }
+.chart .scrub-box { fill: var(--card-2); stroke: var(--line-2); stroke-width: 1; }
+.chart text.scrub-v { fill: var(--text); font-size: .706rem; font-weight: 700; }
+.chart text.scrub-t { fill: var(--muted); font-size: .588rem; }
+.chart .col.sel { fill: var(--text); }
+
+/* Aktivität & Schlaf: gleiche Höhe in allen vier Ansichten */
+.act-sum { min-height: 2.9em; }
+.act-chart { aspect-ratio: 340 / 150; display: flex; align-items: center; justify-content: center; }
+.act-chart > .chart { width: 100%; }
+.act-hint { min-height: 2.6em; }

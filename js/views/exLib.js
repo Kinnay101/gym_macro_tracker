@@ -3,7 +3,7 @@
 import { esc, num, icon, I, parseNum } from '../util.js';
 import { t, shortDate } from '../i18n.js';
 import { MUSCLES, livePlans } from '../plan.js';
-import { allExercises, libEntry, setLib, renameExercise, loadOf, historyCount, reapplyHistory, targetList } from '../exercises.js';
+import { allExercises, libEntry, setLib, renameExercise, loadOf, historyCount, reapplyHistory, targetList, deleteExercise } from '../exercises.js';
 import { bestFor } from '../workout.js';
 import { sheetHead } from '../ui.js';
 
@@ -39,7 +39,7 @@ function editSheet(state) {
   const best = draft.from ? bestFor(state, draft.from) : null;
   const ex = { x2: draft.x2, base: draft.base };
   const sample = draft.x2 || draft.base > 0 ? t('ex.example', { typed: num(20, 2), load: num(loadOf(ex, 20), 2) }) : '';
-  const canDelete = info?.lib && !info.plans.length;
+  const canDelete = !!draft.from && !draft.onPick;
   return `${sheetHead(draft.from ? t('ex.editTitle') : t('ex.new'))}
     <label class="field">${esc(t('ex.name'))}<input class="input" data-in="xl-name" value="${esc(draft.name)}" maxlength="60" autocomplete="off" ${draft.from ? '' : 'autofocus'}></label>
     <div class="grid2"><label class="field">${esc(t('ex.muscle'))}${muscleSelect('data-in="xl-muscle"', draft.muscle)}</label>
@@ -153,13 +153,17 @@ export const actions = {
     // Im Training „Neue Übung“: gleich anhängen
     if (d.onPick) d.onPick(name, d.muscle); else ctx.toast(t('ex.saved'));
   },
+  // Löschen: aus der Liste und aus allen Trainings; gespeicherte Trainings/Bestwerte bleiben (mit Rückgängig)
   async 'xl-delete'(el, ctx) {
     const name = draft.from;
-    if (!(await ctx.confirm(t('ex.deleteConfirm', { name }), t('common.delete')))) return;
-    ctx.update((s) => { s.exLib = (s.exLib || []).filter((x) => x.name.toLowerCase() !== name.toLowerCase()); });
+    const info = allExercises(ctx.state).find((x) => x.name.toLowerCase() === name.toLowerCase());
+    const msg = info?.plans.length ? t('ex.deleteConfirmPlans', { name, list: info.plans.join(', ') }) : t('ex.deleteConfirm', { name });
+    if (!(await ctx.confirm(msg, t('common.delete')))) return;
+    const before = { plans: structuredClone(ctx.state.plans), exLib: structuredClone(ctx.state.exLib || []) };
+    ctx.update((s) => deleteExercise(s, name));
     draft = null;
     ctx.closeSheet();
-    ctx.toast(t('ex.deleted'));
+    ctx.toast(t('ex.deleted'), () => ctx.update((s) => { s.plans = before.plans; s.exLib = before.exLib; }));
   },
   'xp-pick'(el, ctx) {
     const name = el.dataset.name;

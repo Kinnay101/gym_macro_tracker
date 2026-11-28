@@ -72,7 +72,17 @@ export function niceStep(span, target = 3) {
  * Säulen (z. B. pro Woche): bars = [{ v, label, top? }], v = null → keine Daten. goal = waagrechte Ziel-Linie.
  * fmt formatiert die Achsenwerte. `top` steht klein über der Säule (z. B. Anzahl Trainings).
  */
-export function barChart(bars, { height = 150, goal = null, fmt = (v) => num(v) } = {}) {
+/**
+ * Daten für die Werte-Anzeige beim Antippen/Ziehen (js/chartTouch.js): pro Punkt x/y im SVG, Titel, Wert(e).
+ * Steht als JSON im Attribut data-pts am <svg>.
+ */
+const ptsAttr = (list) => esc(JSON.stringify(list.map((p) => ({ x: +p.x.toFixed(1), y: +p.y.toFixed(1), t: p.t, v: p.v, ...(p.y2 != null ? { y2: +p.y2.toFixed(1), v2: p.v2 } : {}) }))));
+
+/**
+ * Balkendiagramm. bars: [{ v, label, top?, dim?, tip? (Titel beim Antippen, sonst label), sub? (Zusatz) }].
+ * valFmt = genauer Wert beim Antippen (die Achse zeigt gerundet, z. B. 8k).
+ */
+export function barChart(bars, { height = 150, goal = null, fmt = (v) => num(v), valFmt = null } = {}) {
   const W = 340; const H = height; const pad = { l: 40, r: 6, t: 14, b: 20 };
   const vals = bars.map((b) => b.v).filter((v) => v != null);
   if (!vals.length) return '';
@@ -84,11 +94,13 @@ export function barChart(bars, { height = 150, goal = null, fmt = (v) => num(v) 
   const bw = Math.min(26, slot * 0.6);
   const ticks = [];
   for (let v = 0; v <= y1 + step / 1000; v += step) ticks.push(v);
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t('progress.chart'))}">
+  const vf = valFmt || fmt;
+  const pts = bars.map((b, i) => (b.v != null ? { x: pad.l + slot * i + slot / 2, y: sy(Math.max(0, b.v)), t: b.tip || b.label, v: vf(b.v) + (b.sub ? ` · ${b.sub}` : '') } : null)).filter(Boolean);
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t('progress.chart'))}" data-pts="${ptsAttr(pts)}" data-top="${pad.t}" data-bottom="${H - pad.b}">
     ${ticks.map((v) => `<line class="grid" x1="${pad.l}" x2="${W - pad.r}" y1="${sy(v).toFixed(1)}" y2="${sy(v).toFixed(1)}"/><text x="2" y="${(sy(v) + 3).toFixed(1)}">${esc(fmt(v))}</text>`).join('')}
     ${bars.map((b, i) => {
       const cx = pad.l + slot * i + slot / 2;
-      const bar = b.v != null && b.v > 0 ? `<rect class="col${b.dim ? ' dim' : ''}" x="${(cx - bw / 2).toFixed(1)}" y="${sy(b.v).toFixed(1)}" width="${bw.toFixed(1)}" height="${(sy(0) - sy(b.v)).toFixed(1)}" rx="3"/>` : '';
+      const bar = b.v != null && b.v > 0 ? `<rect class="col${b.dim ? ' dim' : ''}" data-x="${cx.toFixed(1)}" x="${(cx - bw / 2).toFixed(1)}" y="${sy(b.v).toFixed(1)}" width="${bw.toFixed(1)}" height="${(sy(0) - sy(b.v)).toFixed(1)}" rx="3"/>` : '';
       const top = b.top != null && b.v != null ? `<text x="${cx.toFixed(1)}" y="${(sy(b.v) - 4).toFixed(1)}" text-anchor="middle">${esc(b.top)}</text>` : '';
       return `${bar}${top}<text x="${cx.toFixed(1)}" y="${H - 4}" text-anchor="middle">${esc(b.label)}</text>`;
     }).join('')}
@@ -96,7 +108,11 @@ export function barChart(bars, { height = 150, goal = null, fmt = (v) => num(v) 
   </svg>`;
 }
 
-export function lineChart(points, { height = 160, unit = '', points2 = null } = {}) {
+/**
+ * Liniendiagramm. points: [{ x, y, label, tip? }], optional zweite Linie points2 (gleiche x, z. B. rechte Seite).
+ * valFmt = Wert beim Antippen (Standard: 1 Nachkommastelle + unit).
+ */
+export function lineChart(points, { height = 160, unit = '', points2 = null, valFmt = null } = {}) {
   if (points.length < 2) return `<div class="empty">${esc(t('progress.needTwo'))}</div>`;
   const W = 340; const H = height; const pad = { l: 34, r: 8, t: 10, b: 20 };
   const xs = points.map((p) => p.x); const ys = [...points, ...(points2 || [])].map((p) => p.y);
@@ -113,7 +129,10 @@ export function lineChart(points, { height = 160, unit = '', points2 = null } = 
   const d = path(points);
   const ticks = [];
   for (let v = y0; v <= y1 + step / 1000; v += step) ticks.push(Math.round(v * 1000) / 1000);
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t('progress.chart'))}">
+  const vf = valFmt || ((v) => `${num(v, 1)}${unit}`);
+  const pts = points.map((p, i) => ({ x: sx(p.x), y: sy(p.y), t: p.tip || p.label, v: vf(p.y),
+    ...(points2?.[i] ? { y2: sy(points2[i].y), v2: vf(points2[i].y) } : {}) }));
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t('progress.chart'))}" data-pts="${ptsAttr(pts)}" data-top="${pad.t}" data-bottom="${H - pad.b}">
     ${ticks.map((v) => `<line class="grid" x1="${pad.l}" x2="${W - pad.r}" y1="${sy(v).toFixed(1)}" y2="${sy(v).toFixed(1)}"/><text x="2" y="${(sy(v) + 3).toFixed(1)}">${num(v, dec)}${unit}</text>`).join('')}
     <path class="line" d="${d}"/>
     ${points.map((p) => `<circle class="pt" cx="${sx(p.x).toFixed(1)}" cy="${sy(p.y).toFixed(1)}" r="3"/>`).join('')}

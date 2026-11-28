@@ -8,7 +8,7 @@ import { calcGoals, activityLevel, goalAmount, goals } from '../nutrition.js';
 import { plannedPerWeek } from '../plan.js';
 import { sheetHead } from '../ui.js';
 
-const SECTIONS = ['kcal', 'macros', 'activity', 'load', 'e1rm', 'volume', 'days', 'friends', 'health', 'food'];
+const SECTIONS = ['kcal', 'macros', 'activity', 'load', 'e1rm', 'volume', 'days', 'friends', 'sources', 'health', 'food'];
 
 const paras = (text) => String(text).split('\n').map((p) => `<p class="small" style="margin:0 0 8px">${esc(p)}</p>`).join('');
 

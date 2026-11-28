@@ -99,7 +99,7 @@ function historySheet(state) {
     .map((e, i, arr) => ({ x: daysBetween(arr[0].date, e.date), y: e[chartKey], label: shortDate(e.date) }));
   return `${sheetHead(t('measure.history'))}
     ${opts.length ? `<select class="input" data-in="m-chart">${opts.map((k) => `<option value="${esc(k)}" ${k === chartKey ? 'selected' : ''}>${esc(label(k))}</option>`).join('')}</select>
-      ${lineChart(pts, { unit: '' })}` : ''}
+      ${lineChart(pts, { unit: '', valFmt: (v) => (chartKey === 'bf' ? `${num(v, 1)} %` : `${num(v, 1)} cm`) })}` : ''}
     <div class="list">${[...list].reverse().map((e) => `<div class="item"><button class="item-btn grow" data-act="m-edit" data-date="${esc(e.date)}">
       <div style="font-weight:600">${esc(shortDate(e.date))}</div>
       <div class="meta">${esc([e.status, e.bf != null ? `${num(e.bf, 1)} %` : '', t('measure.count', { n: measureKeys(e).length })].filter(Boolean).join(' · '))}</div></button>${icon(I.chevron)}</div>`).join('')}</div>`;

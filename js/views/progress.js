@@ -73,7 +73,7 @@ function volumeCards(state) {
   if (!per.some((x) => x.n)) return '';
   const done4 = per.slice(-5, -1); // die letzten vier abgeschlossenen Wochen
   const avg = done4.reduce((a, x) => a + x.n, 0) / done4.length;
-  const chart = barChart(per.map((x) => ({ v: x.vol, label: dayMonth(x.ws), top: x.n ? String(x.n) : '', dim: x.ws === cur })), { fmt: kFmt });
+  const chart = barChart(per.map((x) => ({ v: x.vol, label: dayMonth(x.ws), top: x.n ? String(x.n) : '', dim: x.ws === cur, tip: t('progress.weekOf', { d: dayMonth(x.ws) }), sub: t('progress.nWorkouts', { n: x.n }) })), { fmt: kFmt, valFmt: (v) => `${num(Math.round(v))} kg` });
   return `<section class="card tight"><h3>${esc(t('progress.volumeWeek'))}</h3><div class="small muted">${esc(t('progress.perWeek', { n: num(avg, 1) }))}</div>
       ${chart}<div class="tiny muted">${esc(t('progress.volumeHint'))}</div></section>`;
 }
@@ -89,11 +89,11 @@ function bodyStats(state) {
   }).filter((x) => x.avg != null);
   let weight;
   if (wk.length >= 2) {
-    const pts = wk.map((x) => ({ x: daysBetween(wk[0].ws, x.ws), y: Math.round(x.avg * 10) / 10, label: dayMonth(x.ws) }));
+    const pts = wk.map((x) => ({ x: daysBetween(wk[0].ws, x.ws), y: Math.round(x.avg * 10) / 10, label: dayMonth(x.ws), tip: t('progress.weekOf', { d: dayMonth(x.ws) }) }));
     const last = wk[wk.length - 1]; const prev = wk[wk.length - 2];
     const sum = last.ws === weekStart(key)
       ? t('progress.weightDelta', { kg: num(last.avg, 1), d: signed(Math.round((last.avg - prev.avg) * 10) / 10, 1) }) : '';
-    weight = `${sum ? `<div class="small">${esc(sum)}</div>` : ''}${lineChart(pts)}<div class="tiny muted">${esc(t('progress.weightTrendHint'))}</div>`;
+    weight = `${sum ? `<div class="small">${esc(sum)}</div>` : ''}${lineChart(pts, { valFmt: (v) => `Ø ${num(v, 1)} kg` })}<div class="tiny muted">${esc(t('progress.weightTrendHint'))}</div>`;
   } else weight = `<div class="small muted">${esc(t('progress.needWeights'))}</div>`;
 
   // Kalorien: Ø pro Tag (nur Tage mit Einträgen), heute zählt nicht (der Tag läuft noch)
@@ -112,7 +112,7 @@ function bodyStats(state) {
     const avg = last28.length ? last28.reduce((a, b) => a + b, 0) / last28.length : null;
     const sum = avg != null ? t('progress.kcalAvg', { v: energy(state, Math.round(avg)), d: `${signed(unit(avg - g.kcal))} ${kj ? 'kJ' : 'kcal'}` }) : '';
     kcal = `${sum ? `<div class="small">${esc(sum)}</div>` : ''}
-      ${barChart(kw.map((x) => ({ v: x.avg != null ? unit(x.avg) : null, label: dayMonth(x.ws), dim: x.ws === weeks[weeks.length - 1] })), { goal: unit(g.kcal), fmt: kFmt })}
+      ${barChart(kw.map((x) => ({ v: x.avg != null ? unit(x.avg) : null, label: dayMonth(x.ws), dim: x.ws === weeks[weeks.length - 1], tip: t('progress.weekOf', { d: dayMonth(x.ws) }) })), { goal: unit(g.kcal), fmt: kFmt, valFmt: (v) => `Ø ${num(Math.round(v))} ${kj ? 'kJ' : 'kcal'}` })}
       <div class="tiny muted">${esc(t('progress.kcalHint', { goal: energy(state, g.kcal) }))}</div>`;
   } else kcal = `<div class="small muted">${esc(t('progress.needDiary'))}</div>`;
 
@@ -164,13 +164,14 @@ function activityCard(state) {
   const last7 = days.slice(endIdx - 7, endIdx); const prev7 = days.slice(endIdx - 14 < 0 ? 0 : endIdx - 14, endIdx - 7);
   const a = avgOf(last7); const b = avgOf(prev7);
   const sum = a != null ? `${t(actMetric === 'sleep' ? 'progress.actAvgSleep' : 'progress.actAvg', { v: fmtV(a) })}${b != null ? ` · ${t('progress.actPrev', { v: fmtV(b) })}` : ''}` : '';
-  const chart = barChart(days.map((d) => ({ v: val(d), label: String(parseKey(d).getDate()), dim: d === key && actMetric !== 'sleep' })),
-    { fmt: actMetric === 'sleep' ? (v) => `${num(v)}h` : kFmt });
+  const chart = barChart(days.map((d) => ({ v: val(d), label: String(parseKey(d).getDate()), dim: d === key && actMetric !== 'sleep', tip: shortDate(d) })),
+    { fmt: actMetric === 'sleep' ? (v) => `${num(v)}h` : kFmt, valFmt: fmtV });
   const tabs = seg('act-metric', [['steps', t('health.steps')], ['sleep', t('health.sleep')], ['exercise', t('health.exercise')], ['active', kj ? 'kJ' : 'kcal']], actMetric);
+  // Gleiche Höhe in allen vier Ansichten (Nutzer 28.11.): Platz für 2 Zeilen Schnitt, Diagramm immer gleich hoch, 2 Zeilen Hinweis
   return `<section class="card tight"><h3>${esc(t('health.title'))}</h3>${tabs}
-    ${sum ? `<div class="small">${esc(sum)}</div>` : ''}
-    ${chart || `<div class="small muted">${esc(t('progress.actNone'))}</div>`}
-    <div class="tiny muted">${esc(t(actMetric === 'sleep' ? 'progress.actHintSleep' : 'progress.actHint'))}</div></section>`;
+    <div class="small act-sum">${esc(sum)}</div>
+    <div class="act-chart">${chart || `<div class="small muted">${esc(t('progress.actNone'))}</div>`}</div>
+    <div class="tiny muted act-hint">${esc(t(actMetric === 'sleep' ? 'progress.actHintSleep' : 'progress.actHint'))}</div></section>`;
 }
 
 function strength(state) {
@@ -189,7 +190,7 @@ function strength(state) {
   const pts2 = uni ? hist.map((h) => pt(h, h.r)) : null;
   const chart = names.length
     ? `<select class="input" data-in="ex" aria-label="${esc(t('progress.exercise'))}">${exerciseOptions(state, names)}</select>
-       ${lineChart(pts, { unit: '', points2: pts2 })}
+       ${lineChart(pts, { unit: '', points2: pts2, valFmt: (v) => `${num(v, 1)} kg` })}
        ${uni && hist.length >= 2 ? `<div class="chart-legend tiny muted"><span><i class="lgline"></i>${esc(t('progress.left'))}</span><span><i class="lgline alt"></i>${esc(t('progress.right'))}</span></div>${sideHint(hist)}` : ''}
        <div class="tiny muted">${esc(t(uni ? 'progress.uniHint' : 'progress.e1rmHint'))}</div>`
     : `<div class="empty">${esc(t('progress.noData'))}</div>`;

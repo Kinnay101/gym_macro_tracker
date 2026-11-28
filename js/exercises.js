@@ -35,9 +35,23 @@ export function setLib(state, name, patch) {
   state.exLib ||= [];
   let e = libEntry(state, name);
   if (!e) { e = { id: 'x' + uid(), name: name.trim(), muscle: null, x2: false, base: null, uni: false }; state.exLib.push(e); }
+  // Wieder benutzt/bearbeitet → gelöschte Übung erscheint wieder
+  if (e.hidden && !('hidden' in patch)) delete e.hidden;
   Object.assign(e, patch);
   if (!(e.base > 0)) e.base = null;
   return e;
+}
+
+/**
+ * Übung löschen: aus allen aktuellen Trainings entfernen (als Variante: Variante weg) und in der Übungsliste
+ * ausblenden (`hidden`). Gespeicherte Trainings, Verlauf und Bestwerte bleiben – deshalb nur ausblenden statt löschen.
+ */
+export function deleteExercise(state, name) {
+  for (const p of livePlans(state)) {
+    p.ex = (p.ex || []).filter((e) => !same(e.name, name));
+    for (const e of p.ex) if (e.variant && same(e.variant.name, name)) e.variant = null;
+  }
+  setLib(state, name, { hidden: true });
 }
 
 /**
@@ -76,7 +90,8 @@ export function allExercises(state) {
     x.name = e.name.trim();
     if (e.muscle) x.muscle = e.muscle;
   }
-  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  // Gelöschte Übungen (nur noch im Verlauf) nicht mehr anzeigen – ausser sie steht wieder in einem Training
+  return [...map.values()].filter((x) => !x.lib?.hidden || x.plans.length).sort((a, b) => a.name.localeCompare(b.name, 'de'));
 }
 
 /** Alle schon benutzten Ziele (z. B. „obere Brust“) für die Auswahlliste – aus Trainings, Varianten und Übungsliste. */
